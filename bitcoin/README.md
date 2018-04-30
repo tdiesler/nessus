@@ -41,17 +41,25 @@ wget https://bitcoin.org/bin/bitcoin-core-$BTCVER/bitcoin-$BTCVER-x86_64-linux-g
 tar xzf bitcoin-$BTCVER-x86_64-linux-gnu.tar.gz 
 ```
 
-Install the contents of its bin subdirectory into the /usr/bin directory.
+Install some bitcoin binaries into the /usr/bin directory.
 
 ```
-sudo install -m 0755 -o root -g root -t /usr/bin bitcoin-$BTCVER/bin/*
+sudo install -m 0755 -o root -g root -t /usr/bin bitcoin-$BTCVER/bin/bitcoind
+sudo install -m 0755 -o root -g root -t /usr/bin bitcoin-$BTCVER/bin/bitcoin-cli
 ```
+
+Set some bintcoin deamon config option 
     
+```
+sudo mkdir -p /etc/bitcoin; sudo touch /etc/bitcoin/bitcoin.conf
+sudo sh -c 'echo "testnet=1" > /etc/bitcoin/bitcoin.conf'
+```
+
 Install the the bitcoin deamon as a service.
 
 ```
 wget https://raw.githubusercontent.com/bitcoin/bitcoin/v$BTCVER/contrib/init/bitcoind.service
-sed -i "s/bitcoind -daemon/bitcoind -regtest -daemon/" bitcoind.service 
+cat bitcoind.service
 
 sudo install -m 0644 -o root -g root -t /lib/systemd/system bitcoind.service
 
@@ -61,11 +69,148 @@ sudo systemctl enable bitcoind
 sudo systemctl start bitcoind
 ```
     
-## Mine a few coins
+## Get a few test coins
 
 ```
-bitcoin-cli -regtest generate 500
-bitcoin-cli -regtest getbalance
-```    
+bitcoin-cli -testnet getbalance
+0.00000000
+
+bitcoin-cli -testnet getaccountaddress ""
+2N89LPCNPNTDp9DQBkvgttDzW2HBaxvUHCC
+
+https://testnet.coinfaucet.eu/en
+https://testnet.blockexplorer.com/address/2N89LPCNPNTDp9DQBkvgttDzW2HBaxvUHCC
+```
+
+    
+## Bitcoin command line API
+
+```
+[bitcoin@btctn-01 ~]$ bitcoin-cli -testnet help
+== Blockchain ==
+getbestblockhash
+getblock "blockhash" ( verbosity ) 
+getblockchaininfo
+getblockcount
+getblockhash height
+getblockheader "hash" ( verbose )
+getchaintips
+getchaintxstats ( nblocks blockhash )
+getdifficulty
+getmempoolancestors txid (verbose)
+getmempooldescendants txid (verbose)
+getmempoolentry txid
+getmempoolinfo
+getrawmempool ( verbose )
+gettxout "txid" n ( include_mempool )
+gettxoutproof ["txid",...] ( blockhash )
+gettxoutsetinfo
+preciousblock "blockhash"
+pruneblockchain
+savemempool
+verifychain ( checklevel nblocks )
+verifytxoutproof "proof"
+
+== Control ==
+getmemoryinfo ("mode")
+help ( "command" )
+logging ( <include> <exclude> )
+stop
+uptime
+
+== Generating ==
+generate nblocks ( maxtries )
+generatetoaddress nblocks address (maxtries)
+
+== Mining ==
+getblocktemplate ( TemplateRequest )
+getmininginfo
+getnetworkhashps ( nblocks height )
+prioritisetransaction <txid> <dummy value> <fee delta>
+submitblock "hexdata"  ( "dummy" )
+
+== Network ==
+addnode "node" "add|remove|onetry"
+clearbanned
+disconnectnode "[address]" [nodeid]
+getaddednodeinfo ( "node" )
+getconnectioncount
+getnettotals
+getnetworkinfo
+getpeerinfo
+listbanned
+ping
+setban "subnet" "add|remove" (bantime) (absolute)
+setnetworkactive true|false
+
+== Rawtransactions ==
+combinerawtransaction ["hexstring",...]
+createrawtransaction [{"txid":"id","vout":n},...] {"address":amount,"data":"hex",...} ( locktime ) ( replaceable )
+decoderawtransaction "hexstring" ( iswitness )
+decodescript "hexstring"
+fundrawtransaction "hexstring" ( options iswitness )
+getrawtransaction "txid" ( verbose "blockhash" )
+sendrawtransaction "hexstring" ( allowhighfees )
+signrawtransaction "hexstring" ( [{"txid":"id","vout":n,"scriptPubKey":"hex","redeemScript":"hex"},...] ["privatekey1",...] sighashtype )
+
+== Util ==
+createmultisig nrequired ["key",...]
+estimatefee nblocks
+estimatesmartfee conf_target ("estimate_mode")
+signmessagewithprivkey "privkey" "message"
+validateaddress "address"
+verifymessage "address" "signature" "message"
+
+== Wallet ==
+abandontransaction "txid"
+abortrescan
+addmultisigaddress nrequired ["key",...] ( "account" "address_type" )
+backupwallet "destination"
+bumpfee "txid" ( options ) 
+dumpprivkey "address"
+dumpwallet "filename"
+encryptwallet "passphrase"
+getaccount "address"
+getaccountaddress "account"
+getaddressesbyaccount "account"
+getbalance ( "account" minconf include_watchonly )
+getnewaddress ( "account" "address_type" )
+getrawchangeaddress ( "address_type" )
+getreceivedbyaccount "account" ( minconf )
+getreceivedbyaddress "address" ( minconf )
+gettransaction "txid" ( include_watchonly )
+getunconfirmedbalance
+getwalletinfo
+importaddress "address" ( "label" rescan p2sh )
+importmulti "requests" ( "options" )
+importprivkey "privkey" ( "label" ) ( rescan )
+importprunedfunds
+importpubkey "pubkey" ( "label" rescan )
+importwallet "filename"
+keypoolrefill ( newsize )
+listaccounts ( minconf include_watchonly)
+listaddressgroupings
+listlockunspent
+listreceivedbyaccount ( minconf include_empty include_watchonly)
+listreceivedbyaddress ( minconf include_empty include_watchonly)
+listsinceblock ( "blockhash" target_confirmations include_watchonly include_removed )
+listtransactions ( "account" count skip include_watchonly)
+listunspent ( minconf maxconf  ["addresses",...] [include_unsafe] [query_options])
+listwallets
+lockunspent unlock ([{"txid":"txid","vout":n},...])
+move "fromaccount" "toaccount" amount ( minconf "comment" )
+removeprunedfunds "txid"
+rescanblockchain ("start_height") ("stop_height")
+sendfrom "fromaccount" "toaddress" amount ( minconf "comment" "comment_to" )
+sendmany "fromaccount" {"address":amount,...} ( minconf "comment" ["address",...] replaceable conf_target "estimate_mode")
+sendtoaddress "address" amount ( "comment" "comment_to" subtractfeefromamount replaceable conf_target "estimate_mode")
+setaccount "address" "account"
+settxfee amount
+signmessage "address" "message"
+walletlock
+walletpassphrase "passphrase" timeout
+walletpassphrasechange "oldpassphrase" "newpassphrase"
+```
+
     
     
