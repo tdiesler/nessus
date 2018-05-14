@@ -48,11 +48,20 @@ sudo install -m 0755 -o root -g root -t /usr/bin bitcoin-$BTCVER/bin/bitcoind
 sudo install -m 0755 -o root -g root -t /usr/bin bitcoin-$BTCVER/bin/bitcoin-cli
 ```
 
-Set some bintcoin deamon config option 
+Set some bitcoin deamon config option 
     
 ```
-sudo mkdir -p /etc/bitcoin; sudo touch /etc/bitcoin/bitcoin.conf
-sudo sh -c 'echo "testnet=1" > /etc/bitcoin/bitcoin.conf'
+sudo vi /etc/bitcoin/bitcoin.conf
+
+server=1
+regtest=1
+rpcuser=regusr
+rpcpassword=regpass
+rpcbind=127.0.0.1
+rpcallowip=127.0.0.1
+rpcbind=192.168.178.2
+rpcallowip=192.168.178.2/255.255.255.0
+#rpcport=18443
 ```
 
 Install the the bitcoin deamon as a service.
@@ -86,7 +95,7 @@ https://testnet.blockexplorer.com/address/2N89LPCNPNTDp9DQBkvgttDzW2HBaxvUHCC
 ## Bitcoin command line API
 
 ```
-[bitcoin@btctn-01 ~]$ bitcoin-cli -testnet help
+[bitcoin@btctn-01 ~]$ bitcoin-cli -regtest help
 == Blockchain ==
 getbestblockhash
 getblock "blockhash" ( verbosity ) 
