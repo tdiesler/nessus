@@ -1,43 +1,33 @@
 package io.nessus.test.bitcoin;
 
-import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
-
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
+public class WalletTest extends AbstractRegtestTest {
 
-public class WalletTest {
-
-    static final BitcoinJSONRPCClient client = new BitcoinJSONRPCClient(DEFAULT_JSONRPC_REGTEST_URL);
-    
     @Test
     public void testSimpleSpending () throws Exception {
 
-        BigDecimal balanceA = getBalance();
-        if (balanceA.doubleValue() == 0.0) {
-            
-            List<String> blocks = client.generate(101);
-            Assert.assertEquals(101, blocks.size());
-        }
+        BigDecimal btcMiner = getDefaultBalance();
+        Assert.assertTrue(new BigDecimal("50.0").compareTo(btcMiner) <= 0);
 
-        BigDecimal balanceB = getBalance();
-        Assert.assertTrue("Expected: " + balanceB + " <= 50.0", balanceB.compareTo(new BigDecimal("50.0")) <= 0);
+        String addrBob = getAddress(ACCOUNT_BOB, 0);
+        client.sendToAddress(addrBob, 10.0);
         
-        String newAddress = client.getNewAddress();
-        String txId = client.sendToAddress(newAddress, 10.0);
-        
-        List<String> blocks = client.generate(1);
+        List<String> blocks = generate(1);
         Assert.assertEquals(1, blocks.size());
         
-        BigDecimal balanceC = getBalance();
-        Assert.assertTrue("Expected: " + balanceC + " < " + balanceB, balanceC.compareTo(balanceB) < 0);
-    }
-
-    private BigDecimal getBalance() {
-        return new BigDecimal(String.format("%.8f", client.getBalance()));
+        Map<String, Number> accounts = client.listAccounts();
+        Assert.assertEquals(2, accounts.size());
+        
+        Double btcDefault = accounts.get(ACCOUNT_DEFAULT).doubleValue();
+        Assert.assertTrue(50.0 < btcDefault && btcDefault < 100.0);
+        
+        Double btcBob = accounts.get(ACCOUNT_BOB).doubleValue();
+        Assert.assertEquals(10.0, btcBob, 0);
     }
 }

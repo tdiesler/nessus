@@ -17,6 +17,7 @@
     
     <properties>
         <version.args4j>2.0.31</version.args4j>
+        <version.bitcoinj>0.14.7</version.bitcoinj>
         <version.junit>4.11</version.junit>
         <version.mockito>1.10.19</version.mockito>
         <version.slf4j>1.6.6</version.slf4j>
@@ -39,9 +40,9 @@
                 <version>${version.args4j}</version>
             </dependency>
             <dependency>
-                <groupId>wf.bitcoin</groupId>
-                <artifactId>JavaBitcoindRpcClient</artifactId>
-                <version>${version.wf.bitcoin}</version>
+                <groupId>org.bitcoinj</groupId>
+                <artifactId>bitcoinj-core</artifactId>
+                <version>${version.bitcoinj}</version>
             </dependency>
             <dependency>
                 <groupId>org.knowm.xchange</groupId>
@@ -62,6 +63,11 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j12</artifactId>
                 <version>${version.slf4j}</version>
+            </dependency>
+            <dependency>
+                <groupId>wf.bitcoin</groupId>
+                <artifactId>JavaBitcoindRpcClient</artifactId>
+                <version>${version.wf.bitcoin}</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>

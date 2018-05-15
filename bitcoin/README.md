@@ -58,9 +58,6 @@ regtest=1
 rpcuser=regusr
 rpcpassword=regpass
 rpcbind=127.0.0.1
-rpcallowip=127.0.0.1
-rpcbind=192.168.178.2
-rpcallowip=192.168.178.2/255.255.255.0
 #rpcport=18443
 ```
 

@@ -1,7 +1,7 @@
-Setup a Bitcoin Node
+Setup a Monero Node
 --------------------
 
-[Running A Full Node](https://bitcoin.org/en/full-node)
+[Running A Full Node](https://getmonero.org/resources/user-guides/vps_run_node.html)
 
 ## Minimum Requirements
 
@@ -19,15 +19,15 @@ Setup a Bitcoin Node
 ```
 ssh root@xmrmn
 
-export NUSER=xmrusr
-sudo useradd -G root $NUSER
+export NUSER=xmr
+useradd -G root $NUSER
 cp -r .ssh /home/$NUSER
 chown -R $NUSER.$NUSER /home/$NUSER/.ssh
 
-sudo yum update -y
-sudo yum install -y wget bzip2
+yum update -y
+yum install -y wget bzip2
 
-sudo timedatectl set-timezone Europe/Amsterdam
+timedatectl set-timezone Europe/Amsterdam
 timedatectl 
 ```
 
@@ -43,7 +43,7 @@ tar xf monero-linux-x64-$XMRVER.tar
 ln -s monero-$XMRVER monero
 ```
 
-Install some binaries into the /usr/bin directory.
+Install binaries into the /usr/bin directory.
 
 ```
 sudo install -m 0755 -o root -g root -t /usr/bin monero/monerod
