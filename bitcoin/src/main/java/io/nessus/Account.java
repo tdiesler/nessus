@@ -2,6 +2,7 @@ package io.nessus;
 
 import java.util.List;
 
+@Deprecated
 public interface Account {
 
     /**
@@ -10,17 +11,36 @@ public interface Account {
     String getName();
 
     /**
-     * Get the private key associated with this account
+     * Import a private key associated with this account.
+     * 
+     * The private key is passed on the underlying wallet implementation 
+     * and not stored otherwise.
+     * 
+     * @return The associated public key
      */
-    String getPrivKey();
-
+    String importPrivKey(String privKey);
+    
     /**
-     * Get the prmary address for this account
+     * Get the private key associated with the given address
+     * 
+     * The private key is obtained from the underlying wallet implementation 
+     * which must be able to maintain the pub/priv key association.
      */
-    String getPrimaryAddress();
+    String getPrivKey(String address);
+    
+    /**
+     * Get the default address for this account
+     */
+    String getDefaultAddress();
 
     /**
      * Get the list of known addresses for this account
      */
     List<String> getAddresses();
+
+    /**
+     * Get a new address for this account
+     */
+    String getNewAddress();
+
 }

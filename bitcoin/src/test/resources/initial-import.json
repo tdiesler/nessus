@@ -1,0 +1,24 @@
+{
+	"wallet": {
+		"addresses": [
+			{
+				"privKey": "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2",
+				"labels": [
+					"Bob"
+				]
+			},
+			{
+				"privKey": "cMcT5vjU5UiF2mh8WE6EsD3YdFEuFuUKm6rCcA8UuR9FUS6VLeRx",
+				"labels": [
+					"Marry"
+				]
+			},
+			{
+				"privKey": "cNZd4hGvunawzWt5EEXZC9WJv2ic7g4zgpH3j4sUXt3GZSnJSznM",
+				"labels": [
+					"Sink"
+				]
+			}
+		]
+	}
+}

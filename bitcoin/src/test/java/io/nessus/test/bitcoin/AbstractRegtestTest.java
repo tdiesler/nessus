@@ -2,10 +2,7 @@ package io.nessus.test.bitcoin;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.Properties;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -17,6 +14,7 @@ import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.bitcoin.BitcoinRegtestNetwork;
 import io.nessus.bitcoin.BitcoinWallet;
+import io.nessus.test.bitcoin.dto.Config;
 
 public abstract class AbstractRegtestTest {
 
@@ -24,10 +22,11 @@ public abstract class AbstractRegtestTest {
 
     static final BigDecimal NETWORK_FEE = new BigDecimal("0.001");
     
-    static final String ACCOUNT_BOB = "Bob";
-    static final String ACCOUNT_MARRY = "Marry";
-    static final String ACCOUNT_SINK = "Sink";
-    static final String ACCOUNT_DEFAULT = "";
+    static final String LABEL_BOB = "Bob";
+    static final String LABEL_MARRY = "Marry";
+    static final String LABEL_SINK = "Sink";
+    static final String LABEL_DEFAULT = "_default";
+    static final String LABEL_CHANGE = "_change";
     
     private static final Network network = new BitcoinRegtestNetwork();
     private static final Wallet wallet = new BitcoinWallet();
@@ -35,22 +34,23 @@ public abstract class AbstractRegtestTest {
     @BeforeClass
     public static void beforeClass() throws IOException {
 
-        // Import some private keys
-        Properties props = new Properties();
-        props.load(AbstractRegtestTest.class.getResourceAsStream("/initial-import.txt"));
-        for (Entry<Object, Object> entry : props.entrySet()) {
-            String key = (String) entry.getKey();
-            String privKey = (String) entry.getValue();
-            if (key.endsWith(".privKey")) {
-                String accName = key.substring(0, key.indexOf('.'));
-                if (!wallet.getAccountNames().contains(accName)) {
-                    wallet.createAccount(accName, privKey);
-                }
+        // Wallet already initialized
+        if (!wallet.getLabels().isEmpty()) return;
+        
+        Config config = Config.parseConfig("/initial-import.json");
+        for (Config.Address addr : config.getWallet().getAddresses()) {
+            String privKey = addr.getPrivKey();
+            String pubKey = addr.getPubKey();
+            List<String> labels = addr.getLabels();
+            if (privKey != null && pubKey == null) {
+                wallet.addPrivateKey(privKey, labels);
+            } else {
+                wallet.addAddress(pubKey, labels);
             }
         }
         
-        // Mine a few bitcoin
-        BigDecimal balanceA = wallet.getBalance(ACCOUNT_DEFAULT);
+        // Import the configured addresses and generate a few coins
+        BigDecimal balanceA = wallet.getBalance("");
         if (balanceA.doubleValue() == 0.0) {
 
             List<String> blocks = network.mineBlocks(101, null);
@@ -70,18 +70,24 @@ public abstract class AbstractRegtestTest {
         return wallet;
     }
 
-    public BigDecimal minusFee(BigDecimal amount) {
-        return amount.subtract(NETWORK_FEE);
+    public BigDecimal estimateFee() {
+        return NETWORK_FEE;
     }
     
-    int showAccountBalances() {
-        List<String> accounts = new ArrayList<>();
-        accounts.add("");
-        accounts.addAll(wallet.getAccountNames());
-        for (String acc : accounts) {
-            BigDecimal val = wallet.getBalance(acc);
-            LOG.info(String.format("%-5s: %13.8f", acc, val));
+    public BigDecimal addFee(BigDecimal amount) {
+        return amount.add(estimateFee());
+    }
+    
+    public BigDecimal subtractFee(BigDecimal amount) {
+        return amount.subtract(estimateFee());
+    }
+    
+    void showAccountBalances() {
+        for (String label : wallet.getLabels()) {
+            if (!label.startsWith("_")) {
+                BigDecimal val = wallet.getBalance(label);
+                LOG.info(String.format("%-5s: %13.8f", label, val));
+            }
         }
-        return accounts.size();
     }
 }

@@ -8,27 +8,35 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Unspent;
 public interface Wallet {
 
     /**
-     * Import a private key 
-     * @param privKey
-     * @param account
+     * Add a private key to this wallet
      */
-    void createAccount(String account, String privKey);
-
-    /**
-     * List available account names
-     */
-    List<String> getAccountNames();
-
-    /**
-     * Get the account for the given name
-     */
-    Account getAccount(String name);
-
-    /**
-     * Add an account with a given name and address
-     */
-    Account addAccount(String name, String address);
+    Address addPrivateKey(String privKey, List<String> labels);
     
+    /**
+     * Add a watch only address to this wallet
+     */
+    Address addAddress(String key, List<String> labels);
+    
+    /**
+     * List available label
+     */
+    List<String> getLabels();
+
+    /**
+     * Get the default address for a given label
+     */
+    Address getDefaultAddress(String label);
+
+    /**
+     * Get the address obj for address string
+     */
+    Address getAddress(String address);
+
+    /**
+     * Get the addresses for a given label
+     */
+    List<Address> getAddresses(String label);
+
     /**
      * List UTOXs associated with a list of addresses
      */
@@ -46,8 +54,23 @@ public interface Wallet {
     String sendToAddress(String toAddress, BigDecimal amount);
 
     /**
-     * Sends funds from a given account to an address
+     * Sends funds that are associated with a given label to an address
      * @return The tranaction id
      */
-    String sendFromAccount(String account, String toAddress, BigDecimal amount);
+    String sendFromLabel(String label, String toAddress, BigDecimal amount);
+
+    interface Address {
+        
+        String getPrivKey();
+        
+        String getAddress();
+        
+        boolean isWatchOnly();
+        
+        void addLabel(String label);
+
+        void removeLabel(String label);
+        
+        List<String> getLabels();
+    }
 }

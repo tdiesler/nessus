@@ -16,23 +16,24 @@ public class RawTxTest extends AbstractRegtestTest {
         Network network = getNetwork();
         Wallet wallet = getWallet();
         
-        String addrBob = wallet.getAccount(ACCOUNT_BOB).getPrimaryAddress();
-        String addrMarry = wallet.getAccount(ACCOUNT_MARRY).getPrimaryAddress();
-        String addrSink = wallet.getAccount(ACCOUNT_SINK).getPrimaryAddress();
+        String addrBob = wallet.getDefaultAddress(LABEL_BOB).getAddress();
+        String addrMarry = wallet.getDefaultAddress(LABEL_MARRY).getAddress();
+        String addrSink = wallet.getDefaultAddress(LABEL_SINK).getAddress();
         
         // Show account balances
         showAccountBalances();
         
         // Verify that Bob has no funds
-        BigDecimal btcBob = wallet.getBalance(ACCOUNT_BOB);
+        BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertEquals(BigDecimal.ZERO, btcBob);
         
         // Verify that Marry has no funds
-        BigDecimal btcMarry = wallet.getBalance(ACCOUNT_MARRY);
+        BigDecimal btcMarry = wallet.getBalance(LABEL_MARRY);
         Assert.assertEquals(BigDecimal.ZERO, btcMarry);
         
         // Send 10 BTC to Bob
-        wallet.sendToAddress(addrBob, new BigDecimal("10.0"));
+        BigDecimal tenBTC = new BigDecimal("10.0");
+        wallet.sendToAddress(addrBob, tenBTC);
         
         // Mine next block
         network.mineBlocks(1);
@@ -41,11 +42,12 @@ public class RawTxTest extends AbstractRegtestTest {
         showAccountBalances();
         
         // Verify that Bob has received 10 BTC
-        btcBob = wallet.getBalance(ACCOUNT_BOB);
-        Assert.assertEquals(10.0, btcBob.doubleValue(), 0);
+        btcBob = wallet.getBalance(LABEL_BOB);
+        Assert.assertEquals(tenBTC.doubleValue(), btcBob.doubleValue(), 0);
         
-        // Bob sends 10 BTC to Marry  
-        wallet.sendFromAccount(ACCOUNT_BOB, addrMarry, minusFee(btcBob));
+        // Bob sends 10-fees BTC to Marry  
+        BigDecimal btcSend = subtractFee(tenBTC);
+        wallet.sendFromLabel(LABEL_BOB, addrMarry, btcSend);
         
         // Mine next block
         network.mineBlocks(1);
@@ -54,15 +56,15 @@ public class RawTxTest extends AbstractRegtestTest {
         showAccountBalances();
         
         // Verify that Marry has received (almost) 10 BTC
-        btcMarry = wallet.getBalance(ACCOUNT_MARRY);
-        Assert.assertEquals(minusFee(btcBob), btcMarry);
+        btcMarry = wallet.getBalance(LABEL_MARRY);
+        Assert.assertEquals(btcSend.doubleValue(), btcMarry.doubleValue(), 0);
         
         // Verify that Bob has spent 10 BTC
-        btcBob = wallet.getBalance(ACCOUNT_BOB);
+        btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertEquals(BigDecimal.ZERO, btcBob);
         
         // Marry sends everything to the Sink  
-        wallet.sendFromAccount(ACCOUNT_MARRY, addrSink, minusFee(btcMarry));
+        wallet.sendFromLabel(LABEL_MARRY, addrSink, subtractFee(btcMarry));
         
         // Mine next block
         network.mineBlocks(1);
@@ -71,11 +73,11 @@ public class RawTxTest extends AbstractRegtestTest {
         showAccountBalances();
         
         // Verify that Bob has no funds
-        btcBob = wallet.getBalance(ACCOUNT_BOB);
+        btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertEquals(BigDecimal.ZERO, btcBob);
         
         // Verify that Marry has no funds
-        btcMarry = wallet.getBalance(ACCOUNT_MARRY);
+        btcMarry = wallet.getBalance(LABEL_MARRY);
         Assert.assertEquals(BigDecimal.ZERO, btcMarry);
     }        
 }

@@ -5,16 +5,17 @@ import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSON
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.nessus.Account;
 import io.nessus.Wallet;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
@@ -29,12 +30,62 @@ public class BitcoinWallet implements Wallet {
 
     static final BitcoinJSONRPCClient client = new BitcoinJSONRPCClient(DEFAULT_JSONRPC_REGTEST_URL);
     
-    private final Map<String, BitcoinAccount> accounts = new HashMap<>();
+    private final Set<Address> addressses = new LinkedHashSet<>();
 
-    @Override
-    public void createAccount(String account, String privKey) {
+    class BitcoinAddress implements Address {
+
+        private final String address;
+        private final boolean watchOnly;
+        private final List<String> labels = new ArrayList<>();
         
-        Assert.assertFalse("Duplicate account name", getAccountNames().contains(account));
+        public BitcoinAddress(String address, boolean watchOnly, List<String> labels) {
+            this.address = address;
+            this.watchOnly = watchOnly;
+            this.labels.addAll(labels);
+        }
+
+        @Override
+        public String getPrivKey() {
+            return client.dumpPrivKey(address);
+        }
+
+        @Override
+        public String getAddress() {
+            return address;
+        }
+
+        @Override
+        public boolean isWatchOnly() {
+            return watchOnly;
+        }
+
+        @Override
+        public void addLabel(String label) {
+            Assert.assertFalse("Duplicate label", labels.contains(label));
+            labels.add(label);
+        }
+
+        @Override
+        public void removeLabel(String label) {
+            labels.remove(label);
+        }
+
+        @Override
+        public List<String> getLabels() {
+            return Collections.unmodifiableList(labels);
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("addr=%s, ro=%b, labels=%s", address, watchOnly, labels);
+        }
+    }
+    
+    @Override
+    public Address addPrivateKey(String privKey, List<String> labels) {
+        
+        // Note, this does not use the bitcoin-core account system 
+        // as this will be removed in 0.18.0
         client.importPrivKey(privKey, "", true);
         
         // bitcoin-core -regtest v0.16.0 generates three public addresses for
@@ -42,33 +93,60 @@ public class BitcoinWallet implements Wallet {
         // #1 P2PKH  e.g. n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE
         // #2 P2SH   e.g. 2Mxztt6zTZ7KPHMdPt8iYtSLxQ9FHAPJMns
         // #3 Bech32 e.g. bcrt1q7d2dzgxmgu4kzpmvrlz306kcffw225ydq2jwm7
-        for (String addr : client.getAddressesByAccount("")) {
-            String auxKey = client.dumpPrivKey(addr);
-            LOG.debug("{} => {}", auxKey, addr);
+
+        String address = null;
+        for (String auxAddr : client.getAddressesByAccount("")) {
+            String auxKey = client.dumpPrivKey(auxAddr);
+            LOG.debug("{} => {}", auxKey, auxAddr);
             
-            // This associates the first address (only) with an account
+            // This associates the addresses that are initially derived
+            // from theis private key with the account
             if (privKey.equals(auxKey)) {
-                addAccount(account, addr);
+                address = auxAddr;
                 break;
             }
         }
+        
+        BitcoinAddress addr = new BitcoinAddress(address, false, labels);
+        addressses.add(addr);
+        
+        return addr;
     }
 
     @Override
-    public List<String> getAccountNames() {
-        return accounts.keySet().stream().sorted().collect(Collectors.toList());
+    public Address addAddress(String address, List<String> labels) {
+
+        // Note, this does not use the bitcoin-core account system 
+        // as this will be removed in 0.18.0
+        client.importAddress(address, "", true);
+        
+        BitcoinAddress addr = new BitcoinAddress(address, true, labels);
+        addressses.add(addr);
+        
+        return addr;
     }
 
     @Override
-    public Account getAccount(String name) {
-        return accounts.get(name);
+    public List<String> getLabels() {
+        Set<String> labels = new HashSet<>(); 
+        addressses.stream().forEach(a -> labels.addAll(a.getLabels()));
+        return labels.stream().sorted().collect(Collectors.toList());
     }
 
     @Override
-    public Account addAccount(String name, String address) {
-        BitcoinAccount acc = new BitcoinAccount(name, address);
-        accounts.put(acc.getName(), acc);
-        return acc;
+    public List<Address> getAddresses(String label) {
+        return addressses.stream().filter(a -> a.getLabels().contains(label)).collect(Collectors.toList());
+    }
+
+    @Override
+    public Address getDefaultAddress(String label) {
+        List<Address> addrs = getAddresses(label);
+        return addrs != null && addrs.size() > 0 ? addrs.iterator().next() : null;
+    }
+
+    @Override
+    public Address getAddress(String address) {
+        return addressses.stream().filter(a -> a.getAddress().equals(address)).findFirst().orElse(null);
     }
 
     @Override
@@ -77,22 +155,11 @@ public class BitcoinWallet implements Wallet {
     }
 
     @Override
-    public BigDecimal getBalance(String account) {
+    public BigDecimal getBalance(String label) {
         Double amount = 0.0;
-        if ("".equals(account)) {
-            List<String> accAddrs = new ArrayList<>();
-            accounts.values().stream().forEach(acc -> accAddrs.addAll(acc.getAddresses()));
-            for (Unspent utox : client.listUnspent(1)) {
-                if (!accAddrs.contains(utox.address())) {
-                    amount += utox.amount();
-                }
-            }
-        } else {
-            Account acc = assertKnownAccount(account);
-            List<String> addrs = acc.getAddresses();
-            for (Unspent utox : listUnspent(addrs)) {
-                amount += utox.amount();
-            }
+        List<String> addrs = getPublicAddresses(label);
+        for (Unspent utox : listUnspent(addrs)) {
+            amount += utox.amount();
         }
         return amount == 0.0 ? BigDecimal.ZERO : new BigDecimal(String.format("%.8f", amount));
     }
@@ -103,30 +170,31 @@ public class BitcoinWallet implements Wallet {
     }
 
     @Override
-    public String sendFromAccount(String account, String toAddress, BigDecimal amount) {
+    public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
         
-        Account acc = assertKnownAccount(account);
-        BigDecimal balance = getBalance(account);
+        BigDecimal balance = getBalance(label);
         Assert.assertTrue("Insufficient funds: " + balance, amount.compareTo(balance) <= 0);
 
         // Find the best UTOX to satisfy the amount  
         
         Unspent utox = null;
         Double utoxAmount = null;
-        for (Unspent auxUtox : listUnspent(Arrays.asList(acc.getPrimaryAddress()))) {
+        List<String> addrs = getPublicAddresses(label);
+        for (Unspent auxUtox : listUnspent(addrs)) {
             if (amount.doubleValue() <= auxUtox.amount()) {
                 if (utoxAmount == null || auxUtox.amount() < utoxAmount) {
                     utoxAmount = auxUtox.amount();
                     utox = auxUtox;
+                    break;
                 }
             }
         }
-        Assert.assertNotNull("Cannot find single UTOX with sufficient funds", utox);
+        Assert.assertNotNull("Cannot find UTOX with sufficient funds", utox);
         
         String txid = utox.txid();
         int vout = utox.vout();
         String scriptPubKey = utox.scriptPubKey();
-        LOG.debug(String.format("%-5s: tx=%s vout=%d amt=%.8f", account, txid, vout, amount.doubleValue()));
+        LOG.debug(String.format("%-5s: tx=%s vout=%d amt=%.8f", label, txid, vout, amount.doubleValue()));
         
         TxInput txIn = new BasicTxInput(txid, vout, scriptPubKey);
         List<TxInput> inputs = Arrays.asList(txIn);
@@ -134,8 +202,9 @@ public class BitcoinWallet implements Wallet {
         List<TxOutput> outputs = Arrays.asList(txOut);
         String rawtx = client.createRawTransaction(inputs, outputs);
         LOG.debug("rawTx: {}", rawtx);
-        
-        String sigTx = client.signRawTransaction(rawtx, inputs, Arrays.asList(acc.getPrivKey()));
+
+        String privKey = getAddress(utox.address()).getPrivKey();
+        String sigTx = client.signRawTransaction(rawtx, inputs, Arrays.asList(privKey));
         LOG.debug("sigTx: {}", sigTx);
         
         txid = client.sendRawTransaction(sigTx);
@@ -144,9 +213,7 @@ public class BitcoinWallet implements Wallet {
         return txid;
     }
 
-    private Account assertKnownAccount(String account) {
-        Account acc = getAccount(account);
-        Assert.assertNotNull("Unknown account: " + account, acc);
-        return acc;
+    private List<String> getPublicAddresses(String label) {
+        return getAddresses(label).stream().map(a -> a.getAddress()).collect(Collectors.toList());
     }
 }

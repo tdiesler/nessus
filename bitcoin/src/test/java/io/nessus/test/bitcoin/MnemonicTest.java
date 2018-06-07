@@ -24,7 +24,7 @@ public class MnemonicTest extends AbstractRegtestTest {
         MnemonicCode mnemonic = new MnemonicCode();
         byte[] seed = secureRandom.generateSeed(16);
         List<String> words = mnemonic.toMnemonic(seed);
-        LOG.info("Words: {}", words);
+        LOG.info("Words: {}", words.toString().replace(", ", " "));
         Assert.assertEquals(words.toString(), 12, words.size());
 
         DeterministicSeed dets = new DeterministicSeed(seed, words, System.currentTimeMillis());
