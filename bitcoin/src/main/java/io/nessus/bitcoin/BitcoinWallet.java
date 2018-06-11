@@ -4,7 +4,6 @@ import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSON
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -16,12 +15,17 @@ import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.Blockchain;
+import io.nessus.Tx;
+import io.nessus.Tx.TxBuilder;
+import io.nessus.TxInput;
+import io.nessus.TxOutput;
+import io.nessus.UTXO;
 import io.nessus.Wallet;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxOutput;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.TxInput;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.TxOutput;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Unspent;
 
 public class BitcoinWallet implements Wallet {
@@ -32,55 +36,12 @@ public class BitcoinWallet implements Wallet {
     
     private final Set<Address> addressses = new LinkedHashSet<>();
 
-    class BitcoinAddress implements Address {
-
-        private final String address;
-        private final boolean watchOnly;
-        private final List<String> labels = new ArrayList<>();
-        
-        public BitcoinAddress(String address, boolean watchOnly, List<String> labels) {
-            this.address = address;
-            this.watchOnly = watchOnly;
-            this.labels.addAll(labels);
-        }
-
-        @Override
-        public String getPrivKey() {
-            return client.dumpPrivKey(address);
-        }
-
-        @Override
-        public String getAddress() {
-            return address;
-        }
-
-        @Override
-        public boolean isWatchOnly() {
-            return watchOnly;
-        }
-
-        @Override
-        public void addLabel(String label) {
-            Assert.assertFalse("Duplicate label", labels.contains(label));
-            labels.add(label);
-        }
-
-        @Override
-        public void removeLabel(String label) {
-            labels.remove(label);
-        }
-
-        @Override
-        public List<String> getLabels() {
-            return Collections.unmodifiableList(labels);
-        }
-        
-        @Override
-        public String toString() {
-            return String.format("addr=%s, ro=%b, labels=%s", address, watchOnly, labels);
-        }
-    }
+    private final Blockchain blockchain;
     
+    BitcoinWallet(Blockchain blockchain) {
+        this.blockchain = blockchain;
+    }
+
     @Override
     public Address addPrivateKey(String privKey, List<String> labels) {
         
@@ -134,19 +95,42 @@ public class BitcoinWallet implements Wallet {
     }
 
     @Override
-    public List<Address> getAddresses(String label) {
-        return addressses.stream().filter(a -> a.getLabels().contains(label)).collect(Collectors.toList());
-    }
-
-    @Override
-    public Address getDefaultAddress(String label) {
+    public Address getAddress(String label) {
         List<Address> addrs = getAddresses(label);
         return addrs != null && addrs.size() > 0 ? addrs.iterator().next() : null;
     }
 
     @Override
-    public Address getAddress(String address) {
-        return addressses.stream().filter(a -> a.getAddress().equals(address)).findFirst().orElse(null);
+    public List<Address> getAddresses(String label) {
+        List<Address> filtered = addressses.stream()
+                .filter(a -> a.getLabels().contains(label))
+                .collect(Collectors.toList());
+        return filtered;
+    }
+
+    @Override
+    public List<String> getRawAddresses(String label) {
+        return getAddresses(label).stream().map(a -> a.getAddress()).collect(Collectors.toList());
+    }
+
+    @Override
+    public Address getChangeAddress(String label) {
+        List<Address> addrs = getChangeAddresses(label);
+        return addrs != null && addrs.size() > 0 ? addrs.iterator().next() : null;
+    }
+
+    @Override
+    public List<Address> getChangeAddresses(String label) {
+        List<Address> filtered = addressses.stream()
+                .filter(a -> a.getLabels().contains(label))
+                .filter(a -> a.getLabels().contains(LABEL_CHANGE))
+                .collect(Collectors.toList());
+        return filtered;
+    }
+
+    @Override
+    public List<String> getRawChangeAddresses(String label) {
+        return getChangeAddresses(label).stream().map(a -> a.getAddress()).collect(Collectors.toList());
     }
 
     @Override
@@ -157,7 +141,7 @@ public class BitcoinWallet implements Wallet {
     @Override
     public BigDecimal getBalance(String label) {
         Double amount = 0.0;
-        List<String> addrs = getPublicAddresses(label);
+        List<String> addrs = getRawAddresses(label);
         for (Unspent utox : listUnspent(addrs)) {
             amount += utox.amount();
         }
@@ -172,48 +156,151 @@ public class BitcoinWallet implements Wallet {
     @Override
     public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
         
-        BigDecimal balance = getBalance(label);
-        Assert.assertTrue("Insufficient funds: " + balance, amount.compareTo(balance) <= 0);
-
-        // Find the best UTOX to satisfy the amount  
+        BigDecimal estFee = blockchain.getNetwork().estimateFee();
+        BigDecimal amountPlusFee = amount.add(estFee);
         
-        Unspent utox = null;
-        Double utoxAmount = null;
-        List<String> addrs = getPublicAddresses(label);
-        for (Unspent auxUtox : listUnspent(addrs)) {
-            if (amount.doubleValue() <= auxUtox.amount()) {
-                if (utoxAmount == null || auxUtox.amount() < utoxAmount) {
-                    utoxAmount = auxUtox.amount();
-                    utox = auxUtox;
-                    break;
-                }
-            }
+        List<UTXO> utxos = selectUnspent(label, amountPlusFee);
+        Double utxosAmount = utxos.stream().mapToDouble(utxo -> utxo.getAmount().doubleValue()).sum();
+        Assert.assertTrue("Cannot find sufficient funds", amountPlusFee.doubleValue() <= utxosAmount);
+        
+        String changeAddr = getChangeAddress(label).getAddress();
+        BigDecimal changeAmount = new BigDecimal(utxosAmount - amountPlusFee.doubleValue());
+        
+        TxBuilder builder = new TxBuilder()
+                .unspentInputs(utxos)
+                .output(toAddress, amount);
+        
+        if (0 < changeAmount.doubleValue())
+            builder.output(changeAddr, changeAmount);
+        
+        Tx tx = builder.build();
+
+        String txId = sendTx(tx);
+        LOG.debug("txId: {}", txId);
+        
+        return txId;
+    }
+    
+    @Override
+    public String sendTx(Tx tx) {
+        String signedTx = signTx(tx);
+        return client.sendRawTransaction(signedTx);
+    }
+
+    @Override
+    public List<UTXO> listUnspent(String label) {
+        List<String> addrs = getRawAddresses(label);
+        List<UTXO> result = new ArrayList<>();
+        for (Unspent utxo : client.listUnspent(1, Integer.MAX_VALUE, addrs.toArray(new String[addrs.size()]))) {
+            String txId = utxo.txid();
+            int vout = utxo.vout();
+            String addr = utxo.address();
+            String scriptPubKey = utxo.scriptPubKey();
+            BigDecimal amount = new BigDecimal(utxo.amount());
+            result.add(new UTXO(txId, vout, scriptPubKey, addr, amount));
         }
-        Assert.assertNotNull("Cannot find UTOX with sufficient funds", utox);
+        return result;
+    }
+    
+    @Override
+    public List<UTXO> selectUnspent(String label, BigDecimal amount) {
         
-        String txid = utox.txid();
-        int vout = utox.vout();
-        String scriptPubKey = utox.scriptPubKey();
-        LOG.debug(String.format("%-5s: tx=%s vout=%d amt=%.8f", label, txid, vout, amount.doubleValue()));
+        BigDecimal total = BigDecimal.ZERO;
+        List<UTXO> result = new ArrayList<>();
         
-        TxInput txIn = new BasicTxInput(txid, vout, scriptPubKey);
-        List<TxInput> inputs = Arrays.asList(txIn);
-        TxOutput txOut = new BasicTxOutput(toAddress, amount.doubleValue());
-        List<TxOutput> outputs = Arrays.asList(txOut);
-        String rawtx = client.createRawTransaction(inputs, outputs);
-        LOG.debug("rawTx: {}", rawtx);
-
-        String privKey = getAddress(utox.address()).getPrivKey();
-        String sigTx = client.signRawTransaction(rawtx, inputs, Arrays.asList(privKey));
-        LOG.debug("sigTx: {}", sigTx);
+        // Naively use the utxo up th the requested amount
+        // in the order given by the underlying wallet
+        for (UTXO utxo : listUnspent(label)) {
+            result.add(utxo);
+            total = total.add(utxo.getAmount());
+            if (amount.compareTo(total) <= 0) break;
+        }
         
-        txid = client.sendRawTransaction(sigTx);
-        LOG.debug("txId: {}", txid);
-        
-        return txid;
+        return result;
+    }
+    
+    private String signTx(Tx tx) {
+        List<String> privKeys = new ArrayList<>();
+        for (TxInput txin : tx.getInputs()) {
+            UTXO utxo = (UTXO) txin;
+            String privKey = findAddress(utxo.getAddress()).getPrivKey();
+            privKeys.add(privKey);
+        }
+        String rawTx = createRawTx(tx);
+        return client.signRawTransaction(rawTx, adaptInputs(tx.getInputs()), privKeys);
+    }
+    
+    private String createRawTx(Tx tx) {
+        return client.createRawTransaction(adaptInputs(tx.getInputs()), adaptOutputs(tx.getOutputs()));
     }
 
-    private List<String> getPublicAddresses(String label) {
-        return getAddresses(label).stream().map(a -> a.getAddress()).collect(Collectors.toList());
+    private Address findAddress(String address) {
+        return addressses.stream().filter(a -> a.getAddress().equals(address)).findFirst().orElse(null);
     }
+
+    private List<BitcoindRpcClient.TxInput> adaptInputs(List<TxInput> inputs) {
+        List<BitcoindRpcClient.TxInput> result = new ArrayList<>();
+        for (TxInput aux : inputs) {
+            result.add(new BasicTxInput(aux.getTxId(), aux.getVout(), aux.getScriptPubKey()));
+        }
+        return result;
+    }
+
+    private List<BitcoindRpcClient.TxOutput> adaptOutputs(List<TxOutput> outputs) {
+        List<BitcoindRpcClient.TxOutput> result = new ArrayList<>();
+        for (TxOutput aux : outputs) {
+            result.add(new BasicTxOutput(aux.getAddress(), aux.getAmount().doubleValue()));
+        }
+        return result;
+    }
+
+    class BitcoinAddress implements Address {
+
+        private final String address;
+        private final boolean watchOnly;
+        private final List<String> labels = new ArrayList<>();
+        
+        public BitcoinAddress(String address, boolean watchOnly, List<String> labels) {
+            this.address = address;
+            this.watchOnly = watchOnly;
+            this.labels.addAll(labels);
+        }
+
+        @Override
+        public String getPrivKey() {
+            return client.dumpPrivKey(address);
+        }
+
+        @Override
+        public String getAddress() {
+            return address;
+        }
+
+        @Override
+        public boolean isWatchOnly() {
+            return watchOnly;
+        }
+
+        @Override
+        public void addLabel(String label) {
+            Assert.assertFalse("Duplicate label", labels.contains(label));
+            labels.add(label);
+        }
+
+        @Override
+        public void removeLabel(String label) {
+            labels.remove(label);
+        }
+
+        @Override
+        public List<String> getLabels() {
+            return Collections.unmodifiableList(labels);
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("addr=%s, ro=%b, labels=%s", address, watchOnly, labels);
+        }
+    }
+    
 }

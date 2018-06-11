@@ -17,6 +17,6 @@ public class ConfigParserTest {
         Config config = Config.parseConfig("/initial-import.json");
         LOG.info("{}", config);
         
-        Assert.assertEquals(3, config.getWallet().getAddresses().size());
+        Assert.assertEquals(5, config.getWallet().getAddresses().size());
     }
 }

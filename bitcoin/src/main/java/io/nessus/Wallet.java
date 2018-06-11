@@ -7,6 +7,9 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Unspent;
 
 public interface Wallet {
 
+    static final String LABEL_DEFAULT = "_default";
+    static final String LABEL_CHANGE = "_change";
+    
     /**
      * Add a private key to this wallet
      */
@@ -25,17 +28,32 @@ public interface Wallet {
     /**
      * Get the default address for a given label
      */
-    Address getDefaultAddress(String label);
+    Address getAddress(String label);
 
     /**
-     * Get the address obj for address string
-     */
-    Address getAddress(String address);
-
-    /**
-     * Get the addresses for a given label
+     * Get addresses for a given label
      */
     List<Address> getAddresses(String label);
+
+    /**
+     * Get addresses for a given label
+     */
+    List<String> getRawAddresses(String label);
+
+    /**
+     * Get the default change address for a given label
+     */
+    Address getChangeAddress(String label);
+
+    /**
+     * Get change addresses for a given label
+     */
+    List<Address> getChangeAddresses(String label);
+
+    /**
+     * Get change addresses for a given label
+     */
+    List<String> getRawChangeAddresses(String label);
 
     /**
      * List UTOXs associated with a list of addresses
@@ -49,16 +67,32 @@ public interface Wallet {
 
     /**
      * Sends funds from the default account to an address 
-     * @return The tranaction id
+     * @return The transaction id
      */
     String sendToAddress(String toAddress, BigDecimal amount);
 
     /**
      * Sends funds that are associated with a given label to an address
-     * @return The tranaction id
+     * @return The transaction id
      */
     String sendFromLabel(String label, String toAddress, BigDecimal amount);
 
+    /**
+     * Send a raw transaction to the network
+     * @return The transaction id
+     */
+    String sendTx(Tx tx);
+
+    /**
+     * Select a list of unspent transaction outputs that sattisfy the requested amount
+     */
+    List<UTXO> selectUnspent(String label, BigDecimal amount);
+
+    /**
+     * Get all unspent transaction outputs associated with the given label
+     */
+    List<UTXO> listUnspent(String label);
+    
     interface Address {
         
         String getPrivKey();

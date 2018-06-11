@@ -10,30 +10,26 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.Blockchain;
+import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Wallet;
-import io.nessus.bitcoin.BitcoinRegtestNetwork;
-import io.nessus.bitcoin.BitcoinWallet;
 import io.nessus.test.bitcoin.dto.Config;
 
 public abstract class AbstractRegtestTest {
 
     final Logger LOG = LoggerFactory.getLogger(getClass());
 
-    static final BigDecimal NETWORK_FEE = new BigDecimal("0.001");
-    
     static final String LABEL_BOB = "Bob";
     static final String LABEL_MARRY = "Marry";
     static final String LABEL_SINK = "Sink";
-    static final String LABEL_DEFAULT = "_default";
-    static final String LABEL_CHANGE = "_change";
     
-    private static final Network network = new BitcoinRegtestNetwork();
-    private static final Wallet wallet = new BitcoinWallet();
-
     @BeforeClass
     public static void beforeClass() throws IOException {
 
+        Blockchain blockchain = BlockchainFactory.getBlockchain();
+        Wallet wallet = blockchain.getWallet();
+        
         // Wallet already initialized
         if (!wallet.getLabels().isEmpty()) return;
         
@@ -53,6 +49,7 @@ public abstract class AbstractRegtestTest {
         BigDecimal balanceA = wallet.getBalance("");
         if (balanceA.doubleValue() == 0.0) {
 
+            Network network = blockchain.getNetwork();
             List<String> blocks = network.mineBlocks(101, null);
             Assert.assertEquals(101, blocks.size());
         }
@@ -62,27 +59,22 @@ public abstract class AbstractRegtestTest {
     public void before() {
     }
 
-    public Network getNetwork() {
-        return network;
-    }
-
-    public Wallet getWallet() {
-        return wallet;
-    }
-
-    public BigDecimal estimateFee() {
-        return NETWORK_FEE;
+    BigDecimal estimateFee() {
+        Blockchain blockchain = BlockchainFactory.getBlockchain();
+        return blockchain.getNetwork().estimateFee();
     }
     
-    public BigDecimal addFee(BigDecimal amount) {
+    BigDecimal addFee(BigDecimal amount) {
         return amount.add(estimateFee());
     }
     
-    public BigDecimal subtractFee(BigDecimal amount) {
+    BigDecimal subtractFee(BigDecimal amount) {
         return amount.subtract(estimateFee());
     }
     
     void showAccountBalances() {
+        Blockchain blockchain = BlockchainFactory.getBlockchain();
+        Wallet wallet = blockchain.getWallet();
         for (String label : wallet.getLabels()) {
             if (!label.startsWith("_")) {
                 BigDecimal val = wallet.getBalance(label);

@@ -1,23 +1,25 @@
 {
 	"wallet": {
 		"addresses": [
+            {
+                "privKey": "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2",
+                "labels": [ "Bob" ]
+            },
+            {
+                "privKey": "cNcxxJvKRf2ToUrQnXVDQ2Vbbn3TyZoPZpfwjBt2wKDNoK5aCNYa",
+                "labels": [ "Bob", "_change" ]
+            },
+            {
+                "privKey": "cMcT5vjU5UiF2mh8WE6EsD3YdFEuFuUKm6rCcA8UuR9FUS6VLeRx",
+                "labels": [ "Marry" ]
+            },
+            {
+                "privKey": "cTT6AV1D1yU5C9gpjmWuPHhvvHAd8UJvz9QDL7yYAdE68WtBZKmQ",
+                "labels": [ "Marry", "_change" ]
+            },
 			{
-				"privKey": "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2",
-				"labels": [
-					"Bob"
-				]
-			},
-			{
-				"privKey": "cMcT5vjU5UiF2mh8WE6EsD3YdFEuFuUKm6rCcA8UuR9FUS6VLeRx",
-				"labels": [
-					"Marry"
-				]
-			},
-			{
-				"privKey": "cNZd4hGvunawzWt5EEXZC9WJv2ic7g4zgpH3j4sUXt3GZSnJSznM",
-				"labels": [
-					"Sink"
-				]
+				"pubKey": "2MwgFAFb8m7W7Dko1mM8vFQtNMngHWW5Mui",
+				"labels": [ "Sink" ]
 			}
 		]
 	}

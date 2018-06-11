@@ -1,10 +1,14 @@
 package io.nessus.test.bitcoin;
 
+import static io.nessus.Wallet.LABEL_DEFAULT;
+
 import java.math.BigDecimal;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import io.nessus.Blockchain;
+import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Wallet;
 
@@ -16,11 +20,12 @@ public class WalletTest extends AbstractRegtestTest {
     @Test
     public void testSimpleSpending () throws Exception {
 
-        Network network = getNetwork();
-        Wallet wallet = getWallet();
+        Blockchain blockchain = BlockchainFactory.getBlockchain();
+        Network network = blockchain.getNetwork();
+        Wallet wallet = blockchain.getWallet();
         
-        String addrBob = wallet.getDefaultAddress(LABEL_BOB).getAddress();
-        String addrSink = wallet.getDefaultAddress(LABEL_SINK).getAddress();
+        String addrBob = wallet.getAddress(LABEL_BOB).getAddress();
+        String addrSink = wallet.getAddress(LABEL_SINK).getAddress();
         
         // Show account balances
         showAccountBalances();
