@@ -1,7 +1,5 @@
 package io.nessus.bitcoin;
 
-import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,7 +20,6 @@ import io.nessus.TxInput;
 import io.nessus.TxOutput;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxOutput;
@@ -32,23 +29,32 @@ public class BitcoinWallet implements Wallet {
 
     static final Logger LOG = LoggerFactory.getLogger(BitcoinWallet.class);
 
-    static final BitcoinJSONRPCClient client = new BitcoinJSONRPCClient(DEFAULT_JSONRPC_REGTEST_URL);
-    
     private final Set<Address> addressses = new LinkedHashSet<>();
 
     private final Blockchain blockchain;
-    
-    BitcoinWallet(Blockchain blockchain) {
+    private final BitcoindRpcClient client;
+
+    BitcoinWallet(Blockchain blockchain, BitcoindRpcClient client) {
         this.blockchain = blockchain;
+        this.client = client;
+
+        for (String addr : client.getAddressesByAccount("")) {
+            String privKey = client.dumpPrivKey(addr);
+            if (addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n")) {
+                DefaultAddress aux = new DefaultAddress(addr, privKey != null, Collections.emptyList());
+                LOG.info(String.format("%s", aux));
+                addressses.add(aux);
+            }
+        }
     }
 
     @Override
     public Address addPrivateKey(String privKey, List<String> labels) {
-        
+
         // Note, this does not use the bitcoin-core account system 
         // as this will be removed in 0.18.0
         client.importPrivKey(privKey, "", true);
-        
+
         // bitcoin-core -regtest v0.16.0 generates three public addresses for
         // every private key that gets imported. These are
         // #1 P2PKH  e.g. n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE
@@ -59,7 +65,7 @@ public class BitcoinWallet implements Wallet {
         for (String auxAddr : client.getAddressesByAccount("")) {
             String auxKey = client.dumpPrivKey(auxAddr);
             LOG.debug("{} => {}", auxKey, auxAddr);
-            
+
             // This associates the addresses that are initially derived
             // from theis private key with the account
             if (privKey.equals(auxKey)) {
@@ -67,10 +73,10 @@ public class BitcoinWallet implements Wallet {
                 break;
             }
         }
-        
-        BitcoinAddress addr = new BitcoinAddress(address, false, labels);
+
+        DefaultAddress addr = new DefaultAddress(address, false, labels);
         addressses.add(addr);
-        
+
         return addr;
     }
 
@@ -80,16 +86,16 @@ public class BitcoinWallet implements Wallet {
         // Note, this does not use the bitcoin-core account system 
         // as this will be removed in 0.18.0
         client.importAddress(address, "", true);
-        
-        BitcoinAddress addr = new BitcoinAddress(address, true, labels);
+
+        DefaultAddress addr = new DefaultAddress(address, true, labels);
         addressses.add(addr);
-        
+
         return addr;
     }
 
     @Override
     public List<String> getLabels() {
-        Set<String> labels = new HashSet<>(); 
+        Set<String> labels = new HashSet<>();
         addressses.stream().forEach(a -> labels.addAll(a.getLabels()));
         return labels.stream().sorted().collect(Collectors.toList());
     }
@@ -102,9 +108,7 @@ public class BitcoinWallet implements Wallet {
 
     @Override
     public List<Address> getAddresses(String label) {
-        List<Address> filtered = addressses.stream()
-                .filter(a -> a.getLabels().contains(label))
-                .collect(Collectors.toList());
+        List<Address> filtered = addressses.stream().filter(a -> label == null || a.getLabels().contains(label)).collect(Collectors.toList());
         return filtered;
     }
 
@@ -121,9 +125,7 @@ public class BitcoinWallet implements Wallet {
 
     @Override
     public List<Address> getChangeAddresses(String label) {
-        List<Address> filtered = addressses.stream()
-                .filter(a -> a.getLabels().contains(label))
-                .filter(a -> a.getLabels().contains(LABEL_CHANGE))
+        List<Address> filtered = addressses.stream().filter(a -> a.getLabels().contains(label)).filter(a -> a.getLabels().contains(LABEL_CHANGE))
                 .collect(Collectors.toList());
         return filtered;
     }
@@ -134,16 +136,11 @@ public class BitcoinWallet implements Wallet {
     }
 
     @Override
-    public List<Unspent> listUnspent(List<String> addrs) {
-        return client.listUnspent(1, Integer.MAX_VALUE, addrs.toArray(new String[addrs.size()]));
-    }
-
-    @Override
     public BigDecimal getBalance(String label) {
         Double amount = 0.0;
         List<String> addrs = getRawAddresses(label);
-        for (Unspent utox : listUnspent(addrs)) {
-            amount += utox.amount();
+        for (UTXO utox : listUnspent(addrs)) {
+            amount += utox.getAmount().doubleValue();
         }
         return amount == 0.0 ? BigDecimal.ZERO : new BigDecimal(String.format("%.8f", amount));
     }
@@ -155,32 +152,30 @@ public class BitcoinWallet implements Wallet {
 
     @Override
     public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
-        
+
         BigDecimal estFee = blockchain.getNetwork().estimateFee();
         BigDecimal amountPlusFee = amount.add(estFee);
-        
+
         List<UTXO> utxos = selectUnspent(label, amountPlusFee);
         Double utxosAmount = utxos.stream().mapToDouble(utxo -> utxo.getAmount().doubleValue()).sum();
         Assert.assertTrue("Cannot find sufficient funds", amountPlusFee.doubleValue() <= utxosAmount);
-        
+
         String changeAddr = getChangeAddress(label).getAddress();
         BigDecimal changeAmount = new BigDecimal(utxosAmount - amountPlusFee.doubleValue());
-        
-        TxBuilder builder = new TxBuilder()
-                .unspentInputs(utxos)
-                .output(toAddress, amount);
-        
+
+        TxBuilder builder = new TxBuilder().unspentInputs(utxos).output(toAddress, amount);
+
         if (0 < changeAmount.doubleValue())
             builder.output(changeAddr, changeAmount);
-        
+
         Tx tx = builder.build();
 
         String txId = sendTx(tx);
         LOG.debug("txId: {}", txId);
-        
+
         return txId;
     }
-    
+
     @Override
     public String sendTx(Tx tx) {
         String signedTx = signTx(tx);
@@ -190,35 +185,42 @@ public class BitcoinWallet implements Wallet {
     @Override
     public List<UTXO> listUnspent(String label) {
         List<String> addrs = getRawAddresses(label);
+        return listUnspent(addrs);
+    }
+
+    @Override
+    public List<UTXO> listUnspent(List<String> addrs) {
         List<UTXO> result = new ArrayList<>();
-        for (Unspent utxo : client.listUnspent(1, Integer.MAX_VALUE, addrs.toArray(new String[addrs.size()]))) {
-            String txId = utxo.txid();
-            int vout = utxo.vout();
-            String addr = utxo.address();
-            String scriptPubKey = utxo.scriptPubKey();
-            BigDecimal amount = new BigDecimal(utxo.amount());
+        for (Unspent unspnt : client.listUnspent(0, Integer.MAX_VALUE, addrs.toArray(new String[addrs.size()]))) {
+            String txId = unspnt.txid();
+            int vout = unspnt.vout();
+            String addr = unspnt.address();
+            String scriptPubKey = unspnt.scriptPubKey();
+            BigDecimal amount = new BigDecimal(unspnt.amount());
             result.add(new UTXO(txId, vout, scriptPubKey, addr, amount));
         }
         return result;
     }
+
     
     @Override
     public List<UTXO> selectUnspent(String label, BigDecimal amount) {
-        
+
         BigDecimal total = BigDecimal.ZERO;
         List<UTXO> result = new ArrayList<>();
-        
+
         // Naively use the utxo up th the requested amount
         // in the order given by the underlying wallet
         for (UTXO utxo : listUnspent(label)) {
             result.add(utxo);
             total = total.add(utxo.getAmount());
-            if (amount.compareTo(total) <= 0) break;
+            if (amount.compareTo(total) <= 0)
+                break;
         }
-        
+
         return result;
     }
-    
+
     private String signTx(Tx tx) {
         List<String> privKeys = new ArrayList<>();
         for (TxInput txin : tx.getInputs()) {
@@ -229,7 +231,7 @@ public class BitcoinWallet implements Wallet {
         String rawTx = createRawTx(tx);
         return client.signRawTransaction(rawTx, adaptInputs(tx.getInputs()), privKeys);
     }
-    
+
     private String createRawTx(Tx tx) {
         return client.createRawTransaction(adaptInputs(tx.getInputs()), adaptOutputs(tx.getOutputs()));
     }
@@ -254,13 +256,13 @@ public class BitcoinWallet implements Wallet {
         return result;
     }
 
-    class BitcoinAddress implements Address {
+    class DefaultAddress implements Address {
 
         private final String address;
         private final boolean watchOnly;
         private final List<String> labels = new ArrayList<>();
-        
-        public BitcoinAddress(String address, boolean watchOnly, List<String> labels) {
+
+        public DefaultAddress(String address, boolean watchOnly, List<String> labels) {
             this.address = address;
             this.watchOnly = watchOnly;
             this.labels.addAll(labels);
@@ -296,11 +298,11 @@ public class BitcoinWallet implements Wallet {
         public List<String> getLabels() {
             return Collections.unmodifiableList(labels);
         }
-        
+
         @Override
         public String toString() {
             return String.format("addr=%s, ro=%b, labels=%s", address, watchOnly, labels);
         }
     }
-    
+
 }

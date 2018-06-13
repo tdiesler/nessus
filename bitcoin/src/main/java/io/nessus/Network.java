@@ -13,10 +13,10 @@ public interface Network {
     /**
      * Generate the given number of blocks
      */
-    List<String> mineBlocks(int numBlocks);
+    List<String> generate(int numBlocks);
     
     /**
      * Generate the given number of blocks to the given address
      */
-    List<String> mineBlocks(int numBlocks, String address);
+    List<String> generate(int numBlocks, String address);
 }

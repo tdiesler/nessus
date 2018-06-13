@@ -1,5 +1,7 @@
 package io.nessus.test.bitcoin;
 
+import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,7 +29,7 @@ public abstract class AbstractRegtestTest {
     @BeforeClass
     public static void beforeClass() throws IOException {
 
-        Blockchain blockchain = BlockchainFactory.getBlockchain();
+        Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL);
         Wallet wallet = blockchain.getWallet();
         
         // Wallet already initialized
@@ -50,7 +52,7 @@ public abstract class AbstractRegtestTest {
         if (balanceA.doubleValue() == 0.0) {
 
             Network network = blockchain.getNetwork();
-            List<String> blocks = network.mineBlocks(101, null);
+            List<String> blocks = network.generate(101, null);
             Assert.assertEquals(101, blocks.size());
         }
     }

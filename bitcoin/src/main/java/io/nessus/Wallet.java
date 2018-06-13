@@ -3,8 +3,6 @@ package io.nessus;
 import java.math.BigDecimal;
 import java.util.List;
 
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Unspent;
-
 public interface Wallet {
 
     static final String LABEL_DEFAULT = "_default";
@@ -56,11 +54,6 @@ public interface Wallet {
     List<String> getRawChangeAddresses(String label);
 
     /**
-     * List UTOXs associated with a list of addresses
-     */
-    List<Unspent> listUnspent(List<String> addrs);
-    
-    /**
      * Get the balance for a given account
      */
     BigDecimal getBalance(String account);
@@ -92,6 +85,11 @@ public interface Wallet {
      * Get all unspent transaction outputs associated with the given label
      */
     List<UTXO> listUnspent(String label);
+    
+    /**
+     * List UTOXs associated with a list of addresses
+     */
+    List<UTXO> listUnspent(List<String> addrs);
     
     interface Address {
         

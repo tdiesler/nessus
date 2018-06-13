@@ -37,11 +37,6 @@ public class Tx {
             return this;
         }
         
-        public Tx.TxBuilder input(String txId, int vout, String scriptPubKey) {
-            this.inputs.add(new TxInput(txId, vout, scriptPubKey));
-            return this;
-        }
-        
         public Tx.TxBuilder input(TxInput in) {
             this.inputs.add(in);
             return this;

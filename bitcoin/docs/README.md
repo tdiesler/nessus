@@ -1,6 +1,0 @@
-Bitcoin Core
-------------
-
-## Wallets
-
-### Generate 

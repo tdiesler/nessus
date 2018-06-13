@@ -48,7 +48,7 @@ public class RawTxTest extends AbstractRegtestTest {
         wallet.sendToAddress(addrBob, new BigDecimal("10.0"));
         
         // Mine the next block
-        network.mineBlocks(1);
+        network.generate(1);
         
         // Show account balances
         showAccountBalances();
@@ -75,7 +75,7 @@ public class RawTxTest extends AbstractRegtestTest {
         wallet.sendTx(tx);
         
         // Mine the next block
-        network.mineBlocks(1);
+        network.generate(1);
         
         // Show account balances
         showAccountBalances();
@@ -95,7 +95,7 @@ public class RawTxTest extends AbstractRegtestTest {
         wallet.sendFromLabel(LABEL_MARRY, addrSink, subtractFee(btcMarry));
         
         // Mine next block
-        network.mineBlocks(1);
+        network.generate(1);
         
         // Show account balances
         showAccountBalances();
