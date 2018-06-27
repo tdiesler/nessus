@@ -33,7 +33,12 @@
         <version-maven-surefire-plugin>2.19.1</version-maven-surefire-plugin>
     </properties>
     
-    
+    <modules>
+        <module>api</module>
+        <module>bitcoin</module>
+        <module>demo</module>
+    </modules>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -129,9 +134,4 @@
         </pluginManagement>
     </build>    
     
-    <modules>
-        <module>bitcoin</module>
-        <module>demo</module>
-    </modules>
-
 </project>
