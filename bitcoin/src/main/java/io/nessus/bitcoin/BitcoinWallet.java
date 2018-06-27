@@ -9,10 +9,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.AssertArgument;
+import io.nessus.AssertState;
 import io.nessus.Blockchain;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
@@ -39,8 +40,8 @@ public class BitcoinWallet implements Wallet {
         this.client = client;
 
         for (String addr : client.getAddressesByAccount("")) {
-            String privKey = client.dumpPrivKey(addr);
-            if (addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n")) {
+            if (isP2PKH(addr)) {
+                String privKey = client.dumpPrivKey(addr);
                 DefaultAddress aux = new DefaultAddress(addr, privKey != null, Collections.emptyList());
                 LOG.info(String.format("%s", aux));
                 addressses.add(aux);
@@ -94,6 +95,14 @@ public class BitcoinWallet implements Wallet {
     }
 
     @Override
+    public Address getNewAddress(List<String> labels) {
+        String auxAddr = assertP2PKH(client.getNewAddress("", "legacy"));
+        DefaultAddress addr = new DefaultAddress(auxAddr, false, labels);
+        addressses.add(addr);
+        return addr;
+    }
+
+    @Override
     public List<String> getLabels() {
         Set<String> labels = new HashSet<>();
         addressses.stream().forEach(a -> labels.addAll(a.getLabels()));
@@ -137,12 +146,8 @@ public class BitcoinWallet implements Wallet {
 
     @Override
     public BigDecimal getBalance(String label) {
-        Double amount = 0.0;
         List<String> addrs = getRawAddresses(label);
-        for (UTXO utox : listUnspent(addrs)) {
-            amount += utox.getAmount().doubleValue();
-        }
-        return amount == 0.0 ? BigDecimal.ZERO : new BigDecimal(String.format("%.8f", amount));
+        return getSumUnspent(listUnspent(addrs));
     }
 
     @Override
@@ -154,21 +159,35 @@ public class BitcoinWallet implements Wallet {
     public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
 
         BigDecimal estFee = blockchain.getNetwork().estimateFee();
-        BigDecimal amountPlusFee = amount.add(estFee);
+        
+        Tx tx;
+        if (amount != ALL_FUNDS) {
+            
+            BigDecimal amountPlusFee = amount.add(estFee);
 
-        List<UTXO> utxos = selectUnspent(label, amountPlusFee);
-        Double utxosAmount = utxos.stream().mapToDouble(utxo -> utxo.getAmount().doubleValue()).sum();
-        Assert.assertTrue("Cannot find sufficient funds", amountPlusFee.doubleValue() <= utxosAmount);
+            List<UTXO> utxos = selectUnspent(label, amountPlusFee);
+            BigDecimal utxosAmount = getSumUnspent(utxos);
+            AssertState.assertTrue(amountPlusFee.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
 
-        String changeAddr = getChangeAddress(label).getAddress();
-        BigDecimal changeAmount = new BigDecimal(utxosAmount - amountPlusFee.doubleValue());
+            String changeAddr = getChangeAddress(label).getAddress();
+            BigDecimal changeAmount = utxosAmount.subtract(amountPlusFee);
 
-        TxBuilder builder = new TxBuilder().unspentInputs(utxos).output(toAddress, amount);
+            TxBuilder builder = new TxBuilder().unspentInputs(utxos).output(toAddress, amount);
 
-        if (0 < changeAmount.doubleValue())
-            builder.output(changeAddr, changeAmount);
+            if (0 < changeAmount.doubleValue())
+                builder.output(changeAddr, changeAmount);
 
-        Tx tx = builder.build();
+            tx = builder.build();
+            
+        } else {
+            
+            List<UTXO> utxos = listUnspent(label);
+            BigDecimal utxosAmount = getSumUnspent(utxos);
+            BigDecimal sendAmount = utxosAmount.subtract(estFee);
+            
+            TxBuilder builder = new TxBuilder().unspentInputs(utxos).output(toAddress, sendAmount);
+            tx = builder.build();
+        }
 
         String txId = sendTx(tx);
         LOG.debug("txId: {}", txId);
@@ -196,7 +215,7 @@ public class BitcoinWallet implements Wallet {
             int vout = unspnt.vout();
             String addr = unspnt.address();
             String scriptPubKey = unspnt.scriptPubKey();
-            BigDecimal amount = new BigDecimal(unspnt.amount());
+            BigDecimal amount = new BigDecimal(String.format("%.8f", unspnt.amount()));
             result.add(new UTXO(txId, vout, scriptPubKey, addr, amount));
         }
         return result;
@@ -214,13 +233,31 @@ public class BitcoinWallet implements Wallet {
         for (UTXO utxo : listUnspent(label)) {
             result.add(utxo);
             total = total.add(utxo.getAmount());
-            if (amount.compareTo(total) <= 0)
+            if (amount != ALL_FUNDS && amount.compareTo(total) <= 0)
                 break;
         }
 
         return result;
     }
 
+    private boolean isP2PKH(String addr) {
+        // https://en.bitcoin.it/wiki/List_of_address_prefixes
+        return addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n");
+    }
+
+    private String assertP2PKH(String addr) {
+        AssertState.assertTrue(isP2PKH(addr), "Not a P2PKH address: " + addr);
+        return addr;
+    }
+
+    private BigDecimal getSumUnspent(List<UTXO> utxos) {
+        BigDecimal result = BigDecimal.ZERO;
+        for (UTXO utxo : utxos) {
+            result = result.add(utxo.getAmount());
+        }
+        return result;
+    }
+    
     private String signTx(Tx tx) {
         List<String> privKeys = new ArrayList<>();
         for (TxInput txin : tx.getInputs()) {
@@ -284,8 +321,18 @@ public class BitcoinWallet implements Wallet {
         }
 
         @Override
+        public void addLabels(List<String> labels) {
+            for (String label : labels) {
+                AssertArgument.assertFalse(this.labels.contains(label), "Duplicate label");
+            }
+            for (String label : labels) {
+                this.labels.add(label);
+            }
+        }
+
+        @Override
         public void addLabel(String label) {
-            Assert.assertFalse("Duplicate label", labels.contains(label));
+            AssertArgument.assertFalse(labels.contains(label), "Duplicate label");
             labels.add(label);
         }
 

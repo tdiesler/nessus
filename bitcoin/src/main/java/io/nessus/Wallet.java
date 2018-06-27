@@ -7,6 +7,7 @@ public interface Wallet {
 
     static final String LABEL_DEFAULT = "_default";
     static final String LABEL_CHANGE = "_change";
+    static final BigDecimal ALL_FUNDS = new BigDecimal("-111111.11");
     
     /**
      * Add a private key to this wallet
@@ -17,6 +18,11 @@ public interface Wallet {
      * Add a watch only address to this wallet
      */
     Address addAddress(String key, List<String> labels);
+    
+    /**
+     * Generate new address for this wallet
+     */
+    Address getNewAddress(List<String> labels);
     
     /**
      * List available label
@@ -100,6 +106,8 @@ public interface Wallet {
         boolean isWatchOnly();
         
         void addLabel(String label);
+
+        void addLabels(List<String> labels);
 
         void removeLabel(String label);
         

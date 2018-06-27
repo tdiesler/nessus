@@ -1,5 +1,6 @@
 package io.nessus.test.bitcoin;
 
+import static io.nessus.Wallet.ALL_FUNDS;
 import static io.nessus.Wallet.LABEL_DEFAULT;
 
 import java.math.BigDecimal;
@@ -89,10 +90,10 @@ public class RawTxTest extends AbstractRegtestTest {
         Assert.assertTrue(btcBob.compareTo(new BigDecimal("6.0")) <= 0);
         
         // Bob sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink, subtractFee(btcBob));
+        wallet.sendFromLabel(LABEL_BOB, addrSink, ALL_FUNDS);
         
         // Marry sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_MARRY, addrSink, subtractFee(btcMarry));
+        wallet.sendFromLabel(LABEL_MARRY, addrSink, ALL_FUNDS);
         
         // Mine next block
         network.generate(1);
