@@ -24,7 +24,13 @@ import io.nessus.Wallet;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxOutput;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.RawTransaction;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.RawTransaction.In;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.RawTransaction.Out;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.RawTransaction.Out.ScriptPubKey;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Transaction;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Unspent;
+import wf.bitcoin.krotjson.HexCoder;
 
 public class BitcoinWallet implements Wallet {
 
@@ -240,6 +246,42 @@ public class BitcoinWallet implements Wallet {
         return result;
     }
 
+    @Override
+    public Tx getTransaction(String txId) {
+        Transaction tx = client.getTransaction(txId);
+        RawTransaction rawTx = tx.raw();
+        TxBuilder builder = new TxBuilder();
+        for (In in : rawTx.vIn()) {
+            TxInput txIn = new TxInput(in.txid(), in.vout(), in.scriptPubKey());
+            builder.input(txIn);
+        }
+        for (Out out : rawTx.vOut()) {
+            ScriptPubKey spk = out.scriptPubKey();
+            List<String> addrs = spk.addresses();
+            String addr = null;
+            if (addrs != null && addrs.size() > 0) {
+                if (addrs.size() > 1) LOG.warn("Multiple addresses not supported");
+                addr = addrs.get(0);
+            }
+            
+            byte[] data = null;
+            String hex = spk.hex();
+            String type = spk.type();
+            
+            // OP_RETURN
+            byte op = HexCoder.decode(hex.substring(0, 2))[0];
+            if (op == 0x6A) {
+                data = HexCoder.decode(hex.substring(4));
+            }
+            
+            TxOutput txOut = new TxOutput(addr, out.value(), data);
+            txOut.setType(type);
+            
+            builder.output(txOut);
+        }
+        return builder.build();
+    }
+
     private boolean isP2PKH(String addr) {
         // https://en.bitcoin.it/wiki/List_of_address_prefixes
         return addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n");
@@ -288,7 +330,7 @@ public class BitcoinWallet implements Wallet {
     private List<BitcoindRpcClient.TxOutput> adaptOutputs(List<TxOutput> outputs) {
         List<BitcoindRpcClient.TxOutput> result = new ArrayList<>();
         for (TxOutput aux : outputs) {
-            result.add(new BasicTxOutput(aux.getAddress(), aux.getAmount()));
+            result.add(new BasicTxOutput(aux.getAddress(), aux.getAmount(), aux.getData()));
         }
         return result;
     }

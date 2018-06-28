@@ -97,6 +97,11 @@ public interface Wallet {
      */
     List<UTXO> listUnspent(List<String> addrs);
     
+    /**
+     * Get the transaction for the given Id
+     */
+    Tx getTransaction(String txId);
+    
     interface Address {
         
         String getPrivKey();
