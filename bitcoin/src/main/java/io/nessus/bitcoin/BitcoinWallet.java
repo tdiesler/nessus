@@ -147,12 +147,12 @@ public class BitcoinWallet implements Wallet {
     @Override
     public BigDecimal getBalance(String label) {
         List<String> addrs = getRawAddresses(label);
-        return getSumUnspent(listUnspent(addrs));
+        return getUTXOAmount(listUnspent(addrs));
     }
 
     @Override
     public String sendToAddress(String toAddress, BigDecimal amount) {
-        return client.sendToAddress(toAddress, amount.doubleValue());
+        return client.sendToAddress(toAddress, amount);
     }
 
     @Override
@@ -166,7 +166,7 @@ public class BitcoinWallet implements Wallet {
             BigDecimal amountPlusFee = amount.add(estFee);
 
             List<UTXO> utxos = selectUnspent(label, amountPlusFee);
-            BigDecimal utxosAmount = getSumUnspent(utxos);
+            BigDecimal utxosAmount = getUTXOAmount(utxos);
             AssertState.assertTrue(amountPlusFee.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
 
             String changeAddr = getChangeAddress(label).getAddress();
@@ -182,7 +182,7 @@ public class BitcoinWallet implements Wallet {
         } else {
             
             List<UTXO> utxos = listUnspent(label);
-            BigDecimal utxosAmount = getSumUnspent(utxos);
+            BigDecimal utxosAmount = getUTXOAmount(utxos);
             BigDecimal sendAmount = utxosAmount.subtract(estFee);
             
             TxBuilder builder = new TxBuilder().unspentInputs(utxos).output(toAddress, sendAmount);
@@ -215,7 +215,7 @@ public class BitcoinWallet implements Wallet {
             int vout = unspnt.vout();
             String addr = unspnt.address();
             String scriptPubKey = unspnt.scriptPubKey();
-            BigDecimal amount = new BigDecimal(String.format("%.8f", unspnt.amount()));
+            BigDecimal amount = unspnt.amount();
             result.add(new UTXO(txId, vout, scriptPubKey, addr, amount));
         }
         return result;
@@ -250,7 +250,7 @@ public class BitcoinWallet implements Wallet {
         return addr;
     }
 
-    private BigDecimal getSumUnspent(List<UTXO> utxos) {
+    private BigDecimal getUTXOAmount(List<UTXO> utxos) {
         BigDecimal result = BigDecimal.ZERO;
         for (UTXO utxo : utxos) {
             result = result.add(utxo.getAmount());
@@ -288,7 +288,7 @@ public class BitcoinWallet implements Wallet {
     private List<BitcoindRpcClient.TxOutput> adaptOutputs(List<TxOutput> outputs) {
         List<BitcoindRpcClient.TxOutput> result = new ArrayList<>();
         for (TxOutput aux : outputs) {
-            result.add(new BasicTxOutput(aux.getAddress(), aux.getAmount().doubleValue()));
+            result.add(new BasicTxOutput(aux.getAddress(), aux.getAmount()));
         }
         return result;
     }

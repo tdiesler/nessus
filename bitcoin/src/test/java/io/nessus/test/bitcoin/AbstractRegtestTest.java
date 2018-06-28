@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Network;
+import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.test.bitcoin.dto.Config;
 
@@ -72,6 +73,14 @@ public abstract class AbstractRegtestTest {
     
     BigDecimal subtractFee(BigDecimal amount) {
         return amount.subtract(estimateFee());
+    }
+    
+    BigDecimal getUTXOAmount(List<UTXO> utxos) {
+        BigDecimal result = BigDecimal.ZERO;
+        for (UTXO utxo : utxos) {
+            result = result.add(utxo.getAmount());
+        }
+        return result;
     }
     
     void showAccountBalances() {
