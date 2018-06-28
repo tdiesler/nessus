@@ -7,23 +7,32 @@
         <version> 1.0.0.Alpha1-SNAPSHOT</version>
     </parent>
     
-    <artifactId>nessus-demo</artifactId>
+    <artifactId>nessus-cipher</artifactId>
 
-    <name>Nessus :: Demo</name>
+    <name>Nessus :: Cipher</name>
 
     <dependencies>
         <dependency>
             <groupId>io.nessus</groupId>
-            <artifactId>nessus-bitcoin</artifactId>
+            <artifactId>nessus-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.undertow</groupId>
-            <artifactId>undertow-core</artifactId>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+        </dependency>
+        
+        <!-- Test -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
+    
 </project>

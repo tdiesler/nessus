@@ -18,6 +18,7 @@
     <properties>
         <version.args4j>2.0.31</version.args4j>
         <version.bitcoinj>0.14.7</version.bitcoinj>
+        <version.bouncycastle>1.59</version.bouncycastle>
         <version.fasterxml.jackson>2.9.5</version.fasterxml.jackson>
         <version.junit>4.11</version.junit>
         <version.mockito>1.10.19</version.mockito>
@@ -36,6 +37,7 @@
     <modules>
         <module>api</module>
         <module>bitcoin</module>
+        <module>cipher</module>
         <module>demo</module>
     </modules>
 
@@ -60,6 +62,11 @@
                 <groupId>org.bitcoinj</groupId>
                 <artifactId>bitcoinj-core</artifactId>
                 <version>${version.bitcoinj}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk15on</artifactId>
+                <version>${version.bouncycastle}</version>
             </dependency>
             <dependency>
                 <groupId>org.knowm.xchange</groupId>
