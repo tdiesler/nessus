@@ -5,7 +5,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.nessus.test.bitcoin.dto.Config;
+import io.nessus.Config;
 
 public class ConfigParserTest {
 

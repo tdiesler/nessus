@@ -1,9 +1,11 @@
-package io.nessus.cypher;
+package io.nessus.cipher;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
 
@@ -14,7 +16,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import io.nessus.AssertArgument;
-import io.nessus.cypher.utils.StreamUtils;
+import io.nessus.cipher.utils.StreamUtils;
 
 /**
  * Symmetric Encryption with AES in Java
@@ -55,7 +57,11 @@ public class AESCipher {
         return new SecretKeySpec(raw, "AES");
     }
 
-    public InputStream encrypt(SecretKey secKey, byte[] addData, InputStream ins) throws Exception {
+    public InputStream encrypt(SecretKey secKey, InputStream ins) throws IOException, GeneralSecurityException {
+        return encrypt(secKey, null, ins);
+    }
+    
+    public InputStream encrypt(SecretKey secKey, byte[] addData, InputStream ins) throws IOException, GeneralSecurityException {
 
         // Then we have to create our initialization vector (IV). 
         // For GCM a 12 byte random byte-array is recommend by NIST because it’s faster and more secure. 
@@ -86,12 +92,16 @@ public class AESCipher {
         byteBuffer.putInt(iv.length);
         byteBuffer.put(iv);
         byteBuffer.put(cipherText);
-        byte[] secretMessage = byteBuffer.array();
+        byte[] result = byteBuffer.array();
 
-        return new ByteArrayInputStream(secretMessage);
+        return new ByteArrayInputStream(result);
     }
 
-    public InputStream decrypt(SecretKey secKey, byte[] addData, InputStream secretStream) throws Exception {
+    public InputStream decrypt(SecretKey secKey, InputStream secretStream) throws IOException, GeneralSecurityException {
+        return decrypt(secKey, null, secretStream);
+    }
+    
+    public InputStream decrypt(SecretKey secKey, byte[] addData, InputStream secretStream) throws IOException, GeneralSecurityException {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         StreamUtils.copyStream(secretStream, baos);
@@ -120,9 +130,9 @@ public class AESCipher {
         InputStream cis = new CipherInputStream(ins, cipher);
         baos = new ByteArrayOutputStream();
         StreamUtils.copyStream(cis, baos);
-        byte[] plainMessage = baos.toByteArray();
+        byte[] result = baos.toByteArray();
 
-        return new ByteArrayInputStream(plainMessage);
+        return new ByteArrayInputStream(result);
     }
 
 }

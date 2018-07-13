@@ -12,8 +12,9 @@ import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
+import io.nessus.bitcoin.AbstractBitcoinTest;
 
-public class InitialImportTest extends AbstractRegtestTest {
+public class InitialImportTest extends AbstractBitcoinTest {
 
     @Test
     public void testInitialImport () throws Exception {

@@ -2,6 +2,7 @@ package io.nessus.bitcoin;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -32,24 +33,22 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Transaction;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Unspent;
 import wf.bitcoin.krotjson.HexCoder;
 
-public class BitcoinWallet implements Wallet {
+public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
 
     static final Logger LOG = LoggerFactory.getLogger(BitcoinWallet.class);
 
     private final Set<Address> addressses = new LinkedHashSet<>();
 
     private final Blockchain blockchain;
-    private final BitcoindRpcClient client;
 
-    BitcoinWallet(Blockchain blockchain, BitcoindRpcClient client) {
+    protected BitcoinWallet(BitcoinBlockchain blockchain, BitcoindRpcClient client) {
+        super(client);
+        
         this.blockchain = blockchain;
-        this.client = client;
 
         for (String addr : client.getAddressesByAccount("")) {
             if (isP2PKH(addr)) {
-                String privKey = client.dumpPrivKey(addr);
-                DefaultAddress aux = new DefaultAddress(addr, privKey != null, Collections.emptyList());
-                LOG.info(String.format("%s", aux));
+                BitcoinAddress aux = new BitcoinAddress(this, addr, Collections.emptyList());
                 addressses.add(aux);
             }
         }
@@ -58,6 +57,14 @@ public class BitcoinWallet implements Wallet {
     @Override
     public Address addPrivateKey(String privKey, List<String> labels) {
 
+        // Check if we already have this privKey
+        for (Address addr : addressses) {
+            if (privKey.equals(addr.getPrivKey())) {
+                addr.addLabels(labels);
+                return addr;
+            }
+        }
+        
         // Note, this does not use the bitcoin-core account system 
         // as this will be removed in 0.18.0
         client.importPrivKey(privKey, "", true);
@@ -71,7 +78,6 @@ public class BitcoinWallet implements Wallet {
         String address = null;
         for (String auxAddr : client.getAddressesByAccount("")) {
             String auxKey = client.dumpPrivKey(auxAddr);
-            LOG.debug("{} => {}", auxKey, auxAddr);
 
             // This associates the addresses that are initially derived
             // from theis private key with the account
@@ -81,7 +87,7 @@ public class BitcoinWallet implements Wallet {
             }
         }
 
-        DefaultAddress addr = new DefaultAddress(address, false, labels);
+        BitcoinAddress addr = new BitcoinAddress(this, address, labels);
         addressses.add(addr);
 
         return addr;
@@ -94,18 +100,22 @@ public class BitcoinWallet implements Wallet {
         // as this will be removed in 0.18.0
         client.importAddress(address, "", true);
 
-        DefaultAddress addr = new DefaultAddress(address, true, labels);
+        BitcoinAddress addr = new BitcoinAddress(this, address, labels);
         addressses.add(addr);
 
         return addr;
     }
 
     @Override
-    public Address getNewAddress(List<String> labels) {
-        String auxAddr = assertP2PKH(client.getNewAddress("", "legacy"));
-        DefaultAddress addr = new DefaultAddress(auxAddr, false, labels);
+    public final Address newAddress(List<String> labels) {
+        BitcoinAddress addr = createNewAddress(labels);
         addressses.add(addr);
         return addr;
+    }
+
+    protected BitcoinAddress createNewAddress(List<String> labels) {
+        String auxAddr = assertP2PKH(client.getNewAddress("", "legacy"));
+        return new BitcoinAddress(this, auxAddr, labels);
     }
 
     @Override
@@ -122,14 +132,22 @@ public class BitcoinWallet implements Wallet {
     }
 
     @Override
-    public List<Address> getAddresses(String label) {
-        List<Address> filtered = addressses.stream().filter(a -> label == null || a.getLabels().contains(label)).collect(Collectors.toList());
-        return filtered;
+    public Address findAddress(String rawAddr) {
+        return addressses.stream().filter(a -> a.getAddress().equals(rawAddr)).findFirst().orElse(null);
     }
 
     @Override
-    public List<String> getRawAddresses(String label) {
-        return getAddresses(label).stream().map(a -> a.getAddress()).collect(Collectors.toList());
+    public List<Address> getAddresses() {
+        return addressses.stream().collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Address> getAddresses(String label) {
+        AssertArgument.assertNotNull(label, "label");
+        List<Address> filtered = addressses.stream()
+                .filter(a -> a.getLabels().contains(label))
+                .collect(Collectors.toList());
+        return filtered;
     }
 
     @Override
@@ -140,20 +158,21 @@ public class BitcoinWallet implements Wallet {
 
     @Override
     public List<Address> getChangeAddresses(String label) {
-        List<Address> filtered = addressses.stream().filter(a -> a.getLabels().contains(label)).filter(a -> a.getLabels().contains(LABEL_CHANGE))
+        List<Address> filtered = addressses.stream()
+                .filter(a -> a.getLabels().contains(label))
+                .filter(a -> a.getLabels().contains(LABEL_CHANGE))
                 .collect(Collectors.toList());
         return filtered;
     }
 
     @Override
-    public List<String> getRawChangeAddresses(String label) {
-        return getChangeAddresses(label).stream().map(a -> a.getAddress()).collect(Collectors.toList());
+    public BigDecimal getBalance(String label) {
+        return getUTXOAmount(listUnspent(getAddresses(label)));
     }
 
     @Override
-    public BigDecimal getBalance(String label) {
-        List<String> addrs = getRawAddresses(label);
-        return getUTXOAmount(listUnspent(addrs));
+    public BigDecimal getBalance(Address addr) {
+        return getUTXOAmount(listUnspent(Arrays.asList(addr)));
     }
 
     @Override
@@ -203,22 +222,42 @@ public class BitcoinWallet implements Wallet {
 
     @Override
     public String sendTx(Tx tx) {
-        String signedTx = signTx(tx);
+        String rawTx = createRawTx(tx);
+        String signedTx = signRawTx(rawTx, tx.inputs());
+        return sendRawTransaction(signedTx);
+    }
+
+    public String createRawTx(Tx tx) {
+        return client.createRawTransaction(adaptInputs(tx.inputs()), adaptOutputs(tx.outputs()));
+    }
+
+    public String signRawTx(String rawTx, List<TxInput> inputs) {
+        List<String> privKeys = new ArrayList<>();
+        for (TxInput txin : inputs) {
+            UTXO utxo = (UTXO) txin;
+            Address addr = findAddress(utxo.getAddress());
+            String privKey = addr.getPrivKey();
+            privKeys.add(privKey);
+        }
+        return client.signRawTransaction(rawTx, adaptInputs(inputs), privKeys);
+    }
+
+    public String sendRawTransaction(String signedTx) {
         return client.sendRawTransaction(signedTx);
     }
 
     @Override
     public List<UTXO> listUnspent(String label) {
-        List<String> addrs = getRawAddresses(label);
-        return listUnspent(addrs);
+        return listUnspent(getAddresses(label));
     }
 
     @Override
-    public List<UTXO> listUnspent(List<String> addrs) {
+    public List<UTXO> listUnspent(List<Address> addrs) {
         List<UTXO> result = new ArrayList<>();
-        for (Unspent unspnt : client.listUnspent(0, Integer.MAX_VALUE, addrs.toArray(new String[addrs.size()]))) {
+        List<String> rawAddrs = getRawAddresses(addrs);
+        for (Unspent unspnt : client.listUnspent(0, Integer.MAX_VALUE, rawAddrs.toArray(new String[addrs.size()]))) {
             String txId = unspnt.txid();
-            int vout = unspnt.vout();
+            Integer vout = unspnt.vout();
             String addr = unspnt.address();
             String scriptPubKey = unspnt.scriptPubKey();
             BigDecimal amount = unspnt.amount();
@@ -227,69 +266,90 @@ public class BitcoinWallet implements Wallet {
         return result;
     }
 
-    
     @Override
     public List<UTXO> selectUnspent(String label, BigDecimal amount) {
+
+        List<Address> addrs = getAddresses(label);
+        return selectUnspent(addrs, amount);
+    }
+
+    @Override
+    public List<UTXO> selectUnspent(List<Address> addrs, BigDecimal amount) {
 
         BigDecimal total = BigDecimal.ZERO;
         List<UTXO> result = new ArrayList<>();
 
         // Naively use the utxo up th the requested amount
         // in the order given by the underlying wallet
-        for (UTXO utxo : listUnspent(label)) {
+        for (UTXO utxo : listUnspent(addrs)) {
             result.add(utxo);
             total = total.add(utxo.getAmount());
             if (amount != ALL_FUNDS && amount.compareTo(total) <= 0)
                 break;
         }
 
+        AssertState.assertTrue(amount.compareTo(total) <= 0, "Insufficient funds: " + total);
+        
         return result;
     }
 
     @Override
     public Tx getTransaction(String txId) {
+        
         Transaction tx = client.getTransaction(txId);
-        RawTransaction rawTx = tx.raw();
+        
         TxBuilder builder = new TxBuilder();
-        for (In in : rawTx.vIn()) {
-            TxInput txIn = new TxInput(in.txid(), in.vout(), in.scriptPubKey());
-            builder.input(txIn);
-        }
-        for (Out out : rawTx.vOut()) {
-            ScriptPubKey spk = out.scriptPubKey();
-            List<String> addrs = spk.addresses();
-            String addr = null;
-            if (addrs != null && addrs.size() > 0) {
-                if (addrs.size() > 1) LOG.warn("Multiple addresses not supported");
-                addr = addrs.get(0);
+        builder.txId(tx.txId());
+        builder.blockHash(tx.blockHash());
+        builder.blockTime(tx.blockTime());
+
+        RawTransaction rawTx = tx.raw();
+        if (rawTx != null) {
+            for (In in : rawTx.vIn()) {
+                TxInput txIn = new TxInput(in.txid(), in.vout(), in.scriptPubKey());
+                builder.input(txIn);
             }
-            
-            byte[] data = null;
-            String hex = spk.hex();
-            String type = spk.type();
-            
-            // OP_RETURN
-            byte op = HexCoder.decode(hex.substring(0, 2))[0];
-            if (op == 0x6A) {
-                data = HexCoder.decode(hex.substring(4));
+            for (Out out : rawTx.vOut()) {
+                ScriptPubKey spk = out.scriptPubKey();
+                List<String> addrs = spk.addresses();
+                String addr = null;
+                if (addrs != null && addrs.size() > 0) {
+                    if (addrs.size() > 1) LOG.warn("Multiple addresses not supported");
+                    addr = addrs.get(0);
+                }
+                
+                byte[] data = null;
+                String hex = spk.hex();
+                String type = spk.type();
+                
+                // OP_RETURN
+                byte op = HexCoder.decode(hex.substring(0, 2))[0];
+                if (op == 0x6A) {
+                    data = HexCoder.decode(hex);
+                }
+                
+                TxOutput txOut = new TxOutput(addr, out.value(), data);
+                txOut.setType(type);
+                
+                builder.output(txOut);
             }
-            
-            TxOutput txOut = new TxOutput(addr, out.value(), data);
-            txOut.setType(type);
-            
-            builder.output(txOut);
         }
+
         return builder.build();
     }
 
-    private boolean isP2PKH(String addr) {
+    protected boolean isP2PKH(String addr) {
         // https://en.bitcoin.it/wiki/List_of_address_prefixes
         return addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n");
     }
 
-    private String assertP2PKH(String addr) {
+    protected String assertP2PKH(String addr) {
         AssertState.assertTrue(isP2PKH(addr), "Not a P2PKH address: " + addr);
         return addr;
+    }
+
+    private List<String> getRawAddresses(List<Address> addrs) {
+        return addrs.stream().map(a -> a.getAddress()).collect(Collectors.toList());
     }
 
     private BigDecimal getUTXOAmount(List<UTXO> utxos) {
@@ -300,25 +360,6 @@ public class BitcoinWallet implements Wallet {
         return result;
     }
     
-    private String signTx(Tx tx) {
-        List<String> privKeys = new ArrayList<>();
-        for (TxInput txin : tx.getInputs()) {
-            UTXO utxo = (UTXO) txin;
-            String privKey = findAddress(utxo.getAddress()).getPrivKey();
-            privKeys.add(privKey);
-        }
-        String rawTx = createRawTx(tx);
-        return client.signRawTransaction(rawTx, adaptInputs(tx.getInputs()), privKeys);
-    }
-
-    private String createRawTx(Tx tx) {
-        return client.createRawTransaction(adaptInputs(tx.getInputs()), adaptOutputs(tx.getOutputs()));
-    }
-
-    private Address findAddress(String address) {
-        return addressses.stream().filter(a -> a.getAddress().equals(address)).findFirst().orElse(null);
-    }
-
     private List<BitcoindRpcClient.TxInput> adaptInputs(List<TxInput> inputs) {
         List<BitcoindRpcClient.TxInput> result = new ArrayList<>();
         for (TxInput aux : inputs) {
@@ -334,64 +375,4 @@ public class BitcoinWallet implements Wallet {
         }
         return result;
     }
-
-    class DefaultAddress implements Address {
-
-        private final String address;
-        private final boolean watchOnly;
-        private final List<String> labels = new ArrayList<>();
-
-        public DefaultAddress(String address, boolean watchOnly, List<String> labels) {
-            this.address = address;
-            this.watchOnly = watchOnly;
-            this.labels.addAll(labels);
-        }
-
-        @Override
-        public String getPrivKey() {
-            return client.dumpPrivKey(address);
-        }
-
-        @Override
-        public String getAddress() {
-            return address;
-        }
-
-        @Override
-        public boolean isWatchOnly() {
-            return watchOnly;
-        }
-
-        @Override
-        public void addLabels(List<String> labels) {
-            for (String label : labels) {
-                AssertArgument.assertFalse(this.labels.contains(label), "Duplicate label");
-            }
-            for (String label : labels) {
-                this.labels.add(label);
-            }
-        }
-
-        @Override
-        public void addLabel(String label) {
-            AssertArgument.assertFalse(labels.contains(label), "Duplicate label");
-            labels.add(label);
-        }
-
-        @Override
-        public void removeLabel(String label) {
-            labels.remove(label);
-        }
-
-        @Override
-        public List<String> getLabels() {
-            return Collections.unmodifiableList(labels);
-        }
-
-        @Override
-        public String toString() {
-            return String.format("addr=%s, ro=%b, labels=%s", address, watchOnly, labels);
-        }
-    }
-
 }

@@ -22,7 +22,7 @@ public interface Wallet {
     /**
      * Generate new address for this wallet
      */
-    Address getNewAddress(List<String> labels);
+    Address newAddress(List<String> labels);
     
     /**
      * List available label
@@ -30,19 +30,24 @@ public interface Wallet {
     List<String> getLabels();
 
     /**
+     * Get all addresses.
+     */
+    List<Address> getAddresses();
+
+    /**
      * Get the default address for a given label
      */
     Address getAddress(String label);
 
     /**
-     * Get addresses for a given label
+     * Find the address for a given raw address
      */
-    List<Address> getAddresses(String label);
+    Address findAddress(String rawAddr);
 
     /**
-     * Get addresses for a given label
+     * Get addresses for a given label.
      */
-    List<String> getRawAddresses(String label);
+    List<Address> getAddresses(String label);
 
     /**
      * Get the default change address for a given label
@@ -55,14 +60,14 @@ public interface Wallet {
     List<Address> getChangeAddresses(String label);
 
     /**
-     * Get change addresses for a given label
+     * Get the balance for a given label
      */
-    List<String> getRawChangeAddresses(String label);
+    BigDecimal getBalance(String label);
 
     /**
-     * Get the balance for a given account
+     * Get the balance for a given address
      */
-    BigDecimal getBalance(String account);
+    BigDecimal getBalance(Address addr);
 
     /**
      * Sends funds from the default account to an address 
@@ -83,9 +88,14 @@ public interface Wallet {
     String sendTx(Tx tx);
 
     /**
-     * Select a list of unspent transaction outputs that sattisfy the requested amount
+     * Select a list of unspent transaction outputs that satisfy the requested amount
      */
     List<UTXO> selectUnspent(String label, BigDecimal amount);
+
+    /**
+     * Select a list of unspent transaction outputs that satisfy the requested amount
+     */
+    List<UTXO> selectUnspent(List<Address> addrs, BigDecimal amount);
 
     /**
      * Get all unspent transaction outputs associated with the given label
@@ -95,7 +105,7 @@ public interface Wallet {
     /**
      * List UTOXs associated with a list of addresses
      */
-    List<UTXO> listUnspent(List<String> addrs);
+    List<UTXO> listUnspent(List<Address> addrs);
     
     /**
      * Get the transaction for the given Id

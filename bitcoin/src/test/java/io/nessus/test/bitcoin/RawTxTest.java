@@ -14,10 +14,12 @@ import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
+import io.nessus.Wallet.Address;
+import io.nessus.bitcoin.AbstractBitcoinTest;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
 
-public class RawTxTest extends AbstractRegtestTest {
+public class RawTxTest extends AbstractBitcoinTest {
 
     /**
      * Send 10 BTC to Bob from the default account. 
@@ -30,9 +32,9 @@ public class RawTxTest extends AbstractRegtestTest {
         Network network = blockchain.getNetwork();
         Wallet wallet = blockchain.getWallet();
         
-        String addrBob = wallet.getAddress(LABEL_BOB).getAddress();
-        String addrMarry = wallet.getAddress(LABEL_MARRY).getAddress();
-        String addrSink = wallet.getAddress(LABEL_SINK).getAddress();
+        Address addrBob = wallet.getAddress(LABEL_BOB);
+        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+        Address addrSink = wallet.getAddress(LABEL_SINK);
         
         // Show account balances
         showAccountBalances();
@@ -46,7 +48,7 @@ public class RawTxTest extends AbstractRegtestTest {
         Assert.assertEquals(BigDecimal.ZERO, btcBob);
         
         // Send 10 BTC to Bob
-        wallet.sendToAddress(addrBob, new BigDecimal("10.0"));
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("10.0"));
         
         // Mine the next block
         network.generate(1);
@@ -69,7 +71,7 @@ public class RawTxTest extends AbstractRegtestTest {
         
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
-                .output(addrMarry, btcSend)
+                .output(addrMarry.getAddress(), btcSend)
                 .output(changeAddr, changeAmount)
                 .build();
 
@@ -90,10 +92,10 @@ public class RawTxTest extends AbstractRegtestTest {
         Assert.assertTrue(btcBob.compareTo(new BigDecimal("6.0")) <= 0);
         
         // Bob sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink, ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
         
         // Marry sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_MARRY, addrSink, ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
         
         // Mine next block
         network.generate(1);

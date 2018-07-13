@@ -9,8 +9,10 @@ import org.bitcoinj.wallet.DeterministicSeed;
 import org.junit.Assert;
 import org.junit.Test;
 
+import io.nessus.bitcoin.AbstractBitcoinTest;
 
-public class MnemonicTest extends AbstractRegtestTest {
+
+public class MnemonicTest extends AbstractBitcoinTest {
     
     static final SecureRandom secureRandom = new SecureRandom();
 

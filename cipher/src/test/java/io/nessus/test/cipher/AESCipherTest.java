@@ -1,4 +1,4 @@
-package io.nessus.test.cypher;
+package io.nessus.test.cipher;
 
 import java.io.InputStream;
 
@@ -7,8 +7,8 @@ import javax.crypto.SecretKey;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.nessus.cypher.AESCipher;
-import io.nessus.cypher.utils.StreamUtils;
+import io.nessus.cipher.AESCipher;
+import io.nessus.cipher.utils.StreamUtils;
 
 public class AESCipherTest {
 

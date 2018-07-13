@@ -28,6 +28,7 @@
         <version.xchange>4.3.5</version.xchange>
                 
         <!-- Plugin versions -->
+        <version-maven-assembly-plugin>3.1.0</version-maven-assembly-plugin>
         <version-maven-compiler-plugin>3.1</version-maven-compiler-plugin>
         <version-maven-jar-plugin>2.6</version-maven-jar-plugin>
         <version-maven-release-plugin>2.5</version-maven-release-plugin>
@@ -105,6 +106,11 @@
         <!-- Plugin Management -->
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>${version-maven-assembly-plugin}</version>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>

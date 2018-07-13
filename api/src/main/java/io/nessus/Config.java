@@ -1,4 +1,4 @@
-package io.nessus.test.bitcoin.dto;
+package io.nessus;
 
 import java.io.IOException;
 import java.io.InputStream;

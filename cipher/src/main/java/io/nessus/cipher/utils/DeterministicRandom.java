@@ -1,4 +1,4 @@
-package io.nessus.cypher.utils;
+package io.nessus.cipher.utils;
 
 import java.security.SecureRandom;
 import java.util.concurrent.atomic.AtomicBoolean;

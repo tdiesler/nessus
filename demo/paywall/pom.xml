@@ -3,38 +3,27 @@
 
     <parent>
         <groupId>io.nessus</groupId>
-        <artifactId>nessus</artifactId>
+        <artifactId>nessus-demo</artifactId>
         <version> 1.0.0.Alpha1-SNAPSHOT</version>
     </parent>
     
-    <artifactId>nessus-bitcoin</artifactId>
+    <artifactId>nessus-demo-paywall</artifactId>
 
-    <name>Nessus :: Bitcoin</name>
+    <name>Nessus :: Demo :: Paywall</name>
 
     <dependencies>
         <dependency>
             <groupId>io.nessus</groupId>
-            <artifactId>nessus-api</artifactId>
+            <artifactId>nessus-bitcoin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.bitcoinj</groupId>
-            <artifactId>bitcoinj-core</artifactId>
+            <groupId>io.undertow</groupId>
+            <artifactId>undertow-core</artifactId>
         </dependency>
-        
-        <!-- Provided -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        
-        <!-- Test -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
-    
 </project>

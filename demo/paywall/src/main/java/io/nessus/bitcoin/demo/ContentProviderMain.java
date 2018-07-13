@@ -1,5 +1,7 @@
 package io.nessus.bitcoin.demo;
 
+import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_TESTNET_URL;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import io.nessus.BlockchainFactory;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
+import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.undertow.Undertow;
 import io.undertow.server.HttpHandler;
@@ -41,11 +44,11 @@ public class ContentProviderMain {
     static class ContentHandler implements HttpHandler {
 
         private final BitcoinBlockchain blockchain;
-        private final String address;
+        private final Address address;
         
         ContentHandler() {
-            blockchain = (BitcoinBlockchain) BlockchainFactory.getBlockchain(true);
-            address = blockchain.getWallet().getRawAddresses(null).get(0);
+            blockchain = (BitcoinBlockchain) BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_TESTNET_URL);
+            address = blockchain.getWallet().getAddresses().get(0);
         }
         
         @Override
@@ -80,7 +83,7 @@ public class ContentProviderMain {
                 if (utxos.size() > 0) {
                     for (UTXO utxo : utxos) {
                         String txId = utxo.getTxId();
-                        Transaction tx = blockchain.getClient().getTransaction(txId);
+                        Transaction tx = blockchain.getRpcClient().getTransaction(txId);
                         long received = tx.timeReceived().getTime();
                         long now = System.currentTimeMillis();
                         long secs = (now - received) / 1000;

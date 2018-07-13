@@ -2,26 +2,28 @@ package io.nessus;
 
 import java.math.BigDecimal;
 
+import wf.bitcoin.krotjson.HexCoder;
+
 public class TxOutput {
     
-    private final String address;
+    private final String addr;
     private final BigDecimal amount;
     private final byte[] data;
     
     private String type;
     
-    public TxOutput(String address, BigDecimal amount) {
-        this(address, amount, null);
+    public TxOutput(String addr, BigDecimal amount) {
+        this(addr, amount, null);
     }
 
-    public TxOutput(String address, BigDecimal amount, byte[] data) {
-        this.address = address;
+    public TxOutput(String addr, BigDecimal amount, byte[] data) {
+        this.addr = addr;
         this.amount = amount;
         this.data = data;
     }
 
     public String getAddress() {
-        return address;
+        return addr;
     }
 
     public BigDecimal getAmount() {
@@ -38,5 +40,10 @@ public class TxOutput {
 
     public void setType(String type) {
         this.type = type;
+    }
+    
+    public String toString() {
+        String hex = data != null ? HexCoder.encode(data) : null;
+        return String.format("[addr=%s, amnt=%f], data=%s]", addr, amount, hex);
     }
 }

@@ -1,4 +1,4 @@
-package io.nessus.cypher;
+package io.nessus.cipher;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -6,11 +6,14 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.spec.ECGenParameterSpec;
 
 import javax.crypto.Cipher;
 
-import io.nessus.cypher.utils.DeterministicRandom;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import io.nessus.cipher.utils.DeterministicRandom;
 
 /*
  * InvalidKeyException: Illegal key size
@@ -25,15 +28,21 @@ import io.nessus.cypher.utils.DeterministicRandom;
  */
 public class ECIESCipher {
 
+    static {
+        if (Security.getProvider("BC") == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+    }
+    
     public KeyPair generateKeyPair() throws GeneralSecurityException {
         
         SecureRandom prng = new SecureRandom();
         return generateKeyPairInternal(prng);
     }
     
-    public KeyPair generateKeyPair(byte[] key) throws GeneralSecurityException {
+    public KeyPair generateKeyPair(byte[] seedBytes) throws GeneralSecurityException {
         
-        SecureRandom prng = new DeterministicRandom(key);
+        SecureRandom prng = new DeterministicRandom(seedBytes);
         return generateKeyPairInternal(prng);
     }
 
@@ -44,10 +53,10 @@ public class ECIESCipher {
         return cipher.doFinal(message);
     }
     
-    public byte[] decrypt(PrivateKey pivKey, byte[] ciphertext) throws GeneralSecurityException {
+    public byte[] decrypt(PrivateKey privKey, byte[] ciphertext) throws GeneralSecurityException {
         
         Cipher cipher = Cipher.getInstance("ECIES", "BC");
-        cipher.init(Cipher.DECRYPT_MODE, pivKey);
+        cipher.init(Cipher.DECRYPT_MODE, privKey);
         return cipher.doFinal(ciphertext);
     }
     

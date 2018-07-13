@@ -14,8 +14,9 @@ import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
+import io.nessus.bitcoin.AbstractBitcoinTest;
 
-public class WalletTest extends AbstractRegtestTest {
+public class WalletTest extends AbstractBitcoinTest {
 
     /**
      * Send 10 BTC to Bob from the default account 
@@ -27,8 +28,8 @@ public class WalletTest extends AbstractRegtestTest {
         Network network = blockchain.getNetwork();
         Wallet wallet = blockchain.getWallet();
         
-        String addrBob = wallet.getAddress(LABEL_BOB).getAddress();
-        String addrSink = wallet.getAddress(LABEL_SINK).getAddress();
+        Address addrBob = wallet.getAddress(LABEL_BOB);
+        Address addrSink = wallet.getAddress(LABEL_SINK);
         
         // Show account balances
         showAccountBalances();
@@ -42,7 +43,7 @@ public class WalletTest extends AbstractRegtestTest {
         Assert.assertEquals(BigDecimal.ZERO, btcBob);
         
         // Send 10 BTC to Bob
-        wallet.sendToAddress(addrBob, new BigDecimal("10.0"));
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("10.0"));
         
         // Mine the next block
         network.generate(1);
@@ -55,7 +56,7 @@ public class WalletTest extends AbstractRegtestTest {
         Assert.assertEquals(10.0, btcBob.doubleValue(), 0);
         
         // Bob sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink, ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
         
         // Mine next block
         network.generate(1);
@@ -75,11 +76,11 @@ public class WalletTest extends AbstractRegtestTest {
         Network network = blockchain.getNetwork();
         Wallet wallet = blockchain.getWallet();
         
-        String addrBob = wallet.getAddress(LABEL_BOB).getAddress();
-        String addrSink = wallet.getAddress(LABEL_SINK).getAddress();
+        Address addrBob = wallet.getAddress(LABEL_BOB);
+        Address addrSink = wallet.getAddress(LABEL_SINK);
         
         // Send 10 BTC to Bob
-        wallet.sendToAddress(addrBob, new BigDecimal("10.0"));
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("10.0"));
         
         // Mine the next block
         network.generate(1);
@@ -92,8 +93,8 @@ public class WalletTest extends AbstractRegtestTest {
         Assert.assertEquals(10.0, btcBob.doubleValue(), 0);
         
         // Get a new address for Bob
-        Address addrOther = wallet.getNewAddress(Arrays.asList(LABEL_BOB));
-        Assert.assertFalse(addrBob.equals(addrOther.getAddress()));
+        Address addrOther = wallet.newAddress(Arrays.asList(LABEL_BOB));
+        Assert.assertFalse(addrBob.equals(addrOther));
         Assert.assertNotNull(addrOther.getPrivKey());
         
         // Send 4 BTC to the new address 
@@ -108,10 +109,10 @@ public class WalletTest extends AbstractRegtestTest {
         
         // Verify that Bob has received 10 BTC
         btcBob = wallet.getBalance(LABEL_BOB);
-        Assert.assertEquals(10.0 - estimateFee().doubleValue(), btcBob.doubleValue(), 0);
+        Assert.assertEquals(subtractFee(new BigDecimal("10.0")).doubleValue(), btcBob.doubleValue(), 0);
         
         // Bob sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink, ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
         
         // Mine next block
         network.generate(1);

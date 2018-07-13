@@ -1,4 +1,4 @@
-package io.nessus.cypher;
+package io.nessus.cipher;
 
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
@@ -8,6 +8,7 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.spec.ECGenParameterSpec;
 
 import javax.crypto.KeyAgreement;
@@ -15,6 +16,7 @@ import javax.crypto.KeyAgreement;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.interfaces.ECPrivateKey;
 import org.bouncycastle.jce.interfaces.ECPublicKey;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.jce.spec.ECPrivateKeySpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
@@ -23,8 +25,14 @@ public class ECDH {
 
     private final KeyPairGenerator kpgen;
     
+    static {
+        if (Security.getProvider("BC") == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+    }
+    
     public ECDH() throws GeneralSecurityException {
-
+        
         kpgen = KeyPairGenerator.getInstance("EC", "BC");
         kpgen.initialize(new ECGenParameterSpec("prime192v1"), new SecureRandom());
     }
