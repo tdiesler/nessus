@@ -39,6 +39,7 @@
         <module>api</module>
         <module>bitcoin</module>
         <module>cipher</module>
+        <module>ipfs</module>
         <module>demo</module>
     </modules>
 
