@@ -56,8 +56,8 @@ import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.impl.CmdLineIPFSClient;
 import io.nessus.ipfs.impl.DefaultContentManager;
+import io.nessus.ipfs.impl.IPFSClientImpl;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public class BasicWorkflowTest extends AbstractBlockchainTest {
@@ -74,7 +74,7 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
     public static void beforeClass() throws IOException {
         
         blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
-        IPFSClient ipfs = new CmdLineIPFSClient();
+        IPFSClient ipfs = new IPFSClientImpl();
 
         cntmgr = new DefaultContentManager(ipfs, blockchain);
         network = blockchain.getNetwork();
@@ -139,7 +139,7 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         // Add content to IPFS
         
         Path relPath = Paths.get("bob/userfile.txt");
-        InputStream input = getClass().getResourceAsStream("/userfile.txt");
+        InputStream input = getClass().getResourceAsStream("/markdown/etc/userfile.txt");
         FHandle fhandle = cntmgr.add(addrBob, input, relPath);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());

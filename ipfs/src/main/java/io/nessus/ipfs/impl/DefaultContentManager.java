@@ -52,10 +52,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -262,7 +265,7 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("IPFS add: {}", fhandle);
         
         Path auxPath = Paths.get(fhandle.getURL().getPath());
-        String cid = ipfs.add(auxPath, true);
+        String cid = ipfs.add(auxPath);
         
         // Move the temp file to its crypt path
         
@@ -346,7 +349,7 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("IPFS add: {}", fhandle);
         
         Path tmpPath = Paths.get(fhandle.getURL().getPath());
-        cid = ipfs.add(tmpPath, true);
+        cid = ipfs.add(tmpPath);
         
         Path cryptPath = getCryptPath(target).resolve(cid);
         Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
@@ -571,13 +574,22 @@ public class DefaultContentManager implements ContentManager {
             }
 
             long before = System.currentTimeMillis();
-            Path tmpPath = getTempPath().resolve(cid);
             
+            Path tmpPath;
             try {
-                
-                timeout = timeout != null ? timeout : IPFS_DEFAULT_TIMEOUT;
-                ipfs.get(cid, tmpPath.getParent(), timeout, unit);
-                
+                try {
+                    
+                    timeout = timeout != null ? timeout : IPFS_DEFAULT_TIMEOUT;
+                    Future<Path> future = ipfs.get(cid, getTempPath());
+                    tmpPath = future.get(timeout, unit);
+                    
+                } catch (InterruptedException | ExecutionException ex) {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof IPFSException) throw (IPFSException)cause;
+                    else throw new IPFSException(ex);
+                } catch (TimeoutException ex) {
+                    throw new IPFSTimeoutException(ex);
+                }
             } catch (IPFSException ex) {
                 
                 long elapsed = System.currentTimeMillis() - before;
@@ -589,7 +601,7 @@ public class DefaultContentManager implements ContentManager {
                 filecache.put(fhandle);
                 throw ex;
             }
-            
+                
             AssertState.assertTrue(tmpPath.toFile().exists(), "Cannot obtain file from: " + tmpPath);
 
             long elapsed = System.currentTimeMillis() - before;

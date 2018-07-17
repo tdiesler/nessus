@@ -1,5 +1,8 @@
 package io.nessus.test.ipfs;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
 /*-
  * #%L
  * Nessus :: IPFS
@@ -21,84 +24,128 @@ package io.nessus.test.ipfs;
  */
 
 import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.junit.Assert;
-import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.impl.CmdLineIPFSClient;
+import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.impl.IPFSClientImpl;
+import io.nessus.utils.StreamUtils;
 
+/**
+ * Connect to some other IPFS server
+ * 
+ * ipfs swarm connect /ip4/95.179.155.125/tcp/4001/ipfs/QmdGP46wxmV5eRSzKNQpd88yW7rEWnZNC4Ba5cMGRtHfid
+ */
 public class IPFSClientTest {
 
-    private static final String TEST_HASH = "QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6";
+    static IPFSClient client;
     
-    IPFSClient client = new CmdLineIPFSClient();
+    @BeforeClass
+    public static void beforeClass() throws IOException {
+        client = new IPFSClientImpl();
+        
+        Path path = Paths.get("src/test/resources/html");
+        String resHash = client.add(path);
+        Assert.assertEquals("QmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33tcJn43gB5UU", resHash);
+    }
     
     @Test
     public void version() throws Exception {
-        IPFSClient client = new CmdLineIPFSClient();
-        String[] version = split(client.version());
-        Assert.assertEquals("0.4.16", version[2]);
+        IPFSClientImpl client = new IPFSClientImpl();
+        Assert.assertEquals("0.4.17", client.version());
     }
 
     @Test
-    public void testBasicOps() throws Exception {
+    public void basicOps() throws Exception {
+        
+        String TEST_HASH = "QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6";
         
         // add
         
-        URL furl = getClass().getResource("/userfile.txt");
+        URL furl = getClass().getResource("/html/etc/userfile.txt");
         Path path = Paths.get(furl.getPath());
-        String res = client.add(path, true);
-        Assert.assertEquals(TEST_HASH, res);
+        String resHash = client.add(path);
+        Assert.assertEquals(TEST_HASH, resHash);
 
         // cat 
         
-        res = client.cat(TEST_HASH);
-        Assert.assertEquals("The quick brown fox jumps over the lazy dog.", res);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        StreamUtils.copyStream(client.cat(TEST_HASH), baos);
+        Assert.assertEquals("The quick brown fox jumps over the lazy dog.", new String (baos.toByteArray()));
 
         // get 
-        
-        Path tmpDir = Files.createTempDirectory(".aeg");
-        String[] toks = split(client.get(TEST_HASH, tmpDir));
-        path = Paths.get(toks[3], TEST_HASH);
+        path = client.get(TEST_HASH, Paths.get("target/ipfs")).get();
         Assert.assertTrue("Is file: " + path, path.toFile().isFile());
     }
 
     @Test
-    public void getAsync() throws Exception {
+    public void binaryAddGet() throws Exception {
+        
+        String TEST_HASH = "QmaMgvGJjZU511pzH1fSwh9RRnKckyujoRxVeDSEaEGM5N";
+        
+        // add
+        
+        Path path = Paths.get("src/test/resources/html/img/logo.png");
+        String resHash = client.add(path);
+        Assert.assertEquals(TEST_HASH, resHash);
 
-        String apiHost = System.getenv(IPFSClient.ENV_IPFS_API_HOST);
-        Assume.assumeNotNull(apiHost);
-        
-        ExecutorService service = Executors.newSingleThreadExecutor();
-        Future<String> future = service.submit(new Callable<String>() {
-            public String call() throws Exception {
-                client.get("QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpxxxx", null, 3L, TimeUnit.SECONDS);
-                return "invalid";
-            }
-        });
-        
-        try {
-            future.get();
-            Assert.fail("TimeoutException expected");
-        } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof TimeoutException);
-        }
+        // get 
+        path = client.get(TEST_HASH, Paths.get("target/ipfs")).get();
+        Assert.assertTrue("Is file: " + path, path.toFile().isFile());
     }
 
-    private String[] split(String result) {
-        return result.split(" ");
+    @Test
+    public void binaryAddGetInSubDir() throws Exception {
+        
+        String TEST_HASH = "QmYhaNnLGtFDEc559T9bVkqYqaXLGojMWDzVqjFZgrmnCi";
+        
+        // add
+        
+        Path path = Paths.get("src/test/resources/html/img");
+        String resHash = client.add(path);
+        Assert.assertEquals(TEST_HASH, resHash);
+
+        // get 
+        path = client.get(TEST_HASH, Paths.get("target/ipfs")).get();
+        Assert.assertTrue("Is dir: " + path, path.toFile().isDirectory());
+        Assert.assertTrue(path.resolve("logo.png").toFile().isFile());
+    }
+
+    @Test
+    public void getWithTimeout() throws Exception {
+        
+        String TEST_HASH = "QmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33tcJn43gB5UU";
+        
+        // get 
+        Path outPath = Paths.get("target/ipfs");
+        Path path = client.get(TEST_HASH, outPath).get();
+        Assert.assertEquals(outPath.resolve(TEST_HASH), path);
+        Assert.assertTrue("Is dir: " + path, path.toFile().isDirectory());
+        Assert.assertTrue(path.resolve("index.html").toFile().isFile());
+    }
+
+
+    @Test
+    public void getInvalidIPFSPath() throws Exception {
+        
+        String TEST_HASH = "XInvalidHashmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33";
+        
+        // get 
+        Path outPath = Paths.get("target/ipfs");
+        Future<Path> future = client.get(TEST_HASH, outPath);
+        try {
+            future.get();
+            Assert.fail("ExecutionException expected");
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause();
+            Assert.assertTrue(cause instanceof IPFSException);
+        }
     }
 }

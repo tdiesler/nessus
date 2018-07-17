@@ -27,6 +27,10 @@ public class IPFSTimeoutException extends IPFSException {
         super(message);
     }
     
+    public IPFSTimeoutException(Throwable cause) {
+        super(cause);
+    }
+    
     public IPFSTimeoutException(String message, Throwable cause) {
         super(message, cause);
     }

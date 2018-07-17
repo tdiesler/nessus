@@ -1,5 +1,8 @@
 package io.nessus.ipfs;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 /*-
  * #%L
  * Nessus :: IPFS
@@ -21,7 +24,7 @@ package io.nessus.ipfs;
  */
 
 import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
 
 public interface IPFSClient {
 
@@ -31,14 +34,12 @@ public interface IPFSClient {
     String ENV_IPFS_GATEWAY_HOST = "IPFS_GATEWAY_HOST";
     String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
 
-    String add(Path path, boolean recursive);
+    String add(Path path) throws IOException;
 
-    String cat(String cid);
+    InputStream cat(String cid) throws IOException;
 
-    String get(String cid, Path outdir);
+    Future<Path> get(String cid, Path outdir);
 
-    String get(String cid, Path outdir, Long timeout, TimeUnit unit);
-
-    String version();
+    String version() throws IOException;
 
 }

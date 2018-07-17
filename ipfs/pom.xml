@@ -23,6 +23,10 @@
             <artifactId>nessus-cipher</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.ipfs</groupId>
+            <artifactId>java-ipfs-api</artifactId>
+        </dependency>
         
         <!-- Test -->
         <dependency>
@@ -61,11 +65,18 @@
                     <outputDirectory>${basedir}/src/test/resources/html</outputDirectory>
                     <headerHtmlFile>${basedir}/src/test/resources/markdown/html/header.html</headerHtmlFile>
                     <footerHtmlFile>${basedir}/src/test/resources/markdown/html/footer.html</footerHtmlFile>
-                    <copyDirectories>css,img</copyDirectories>
+                    <copyDirectories>css,etc,img</copyDirectories>
                     <recursiveInput>true</recursiveInput>
                     <transformRelativeMarkdownLinks>true</transformRelativeMarkdownLinks>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 </project>

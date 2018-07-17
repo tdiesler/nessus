@@ -27,6 +27,10 @@ public class IPFSException extends RuntimeException {
         super(message);
     }
     
+    public IPFSException(Throwable cause) {
+        super(cause);
+    }
+    
     public IPFSException(String message, Throwable cause) {
         super(message, cause);
     }
