@@ -33,11 +33,11 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.nessus.AssertArgument;
-import io.nessus.AssertState;
 import io.nessus.Blockchain;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
+import io.nessus.utils.AssertArgument;
+import io.nessus.utils.AssertState;
 import io.nessus.TxInput;
 import io.nessus.TxOutput;
 import io.nessus.UTXO;

@@ -35,8 +35,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import io.nessus.AssertArgument;
-import io.nessus.cipher.utils.StreamUtils;
+import io.nessus.utils.AssertArgument;
+import io.nessus.utils.StreamUtils;
 
 public class AESCipher {
 

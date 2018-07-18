@@ -1,4 +1,4 @@
-package io.nessus;
+package io.nessus.utils;
 
 /*-
  * #%L

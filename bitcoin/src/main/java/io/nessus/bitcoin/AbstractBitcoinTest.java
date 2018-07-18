@@ -29,11 +29,11 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 
-import io.nessus.AbstractBlockchainTest;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Wallet;
+import io.nessus.testing.AbstractBlockchainTest;
 
 public abstract class AbstractBitcoinTest extends AbstractBlockchainTest {
 

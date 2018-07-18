@@ -1,4 +1,4 @@
-package io.nessus.ipfs;
+package io.nessus.cmd;
 
 /*-
  * #%L
@@ -32,48 +32,38 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.nessus.ipfs.TimeoutException;
-
-class AbstractClient {
+public class CmdLineClient {
 
     final Logger LOG = LoggerFactory.getLogger(getClass());
 
     static final String[] PATHS = new String[] { "/usr/bin/", "/usr/local/bin/" };
     
-    private final Long timeout;
-    private final TimeUnit unit;
-
-    protected AbstractClient(Long timeout, TimeUnit unit) {
-        this.timeout = timeout;
-        this.unit = unit;
+    public String exec(String cmdLine) {
+        return exec(cmdLine, null, null);
     }
-
-    public String exec(String cmd, String[] args) throws TimeoutException {
+    
+    public String exec(String cmdLine, Long timeout, TimeUnit unit) throws TimeoutException {
 
         String result = null;
 
         try {
 
-            StringBuffer cmdLine = new StringBuffer(cmd);
-            if (args != null) {
-                for (String arg : args) {
-                    cmdLine.append(" " + arg);
-                }
-            }
-
+            String cmd = cmdLine.split(" ")[0];
+            
             // Find the full path to the executable 
-            String path = null;
-            for (String aux : PATHS) {
-                if (Paths.get(aux, cmd).toFile().exists()) {
-                    path = aux;
-                    break;
+            if (cmd.startsWith("/")) {
+                for (String aux : PATHS) {
+                    if (Paths.get(aux, cmd).toFile().exists()) {
+                        cmdLine = aux + cmdLine;
+                        break;
+                    }
                 }
             }
 
             LOG.info("> {}", cmdLine);
 
             Runtime runtime = Runtime.getRuntime();
-            Process proc = runtime.exec(path + cmdLine);
+            Process proc = runtime.exec(cmdLine);
 
             StreamGobbler stderr = new StreamGobbler(proc.getErrorStream());
             StreamGobbler stdout = new StreamGobbler(proc.getInputStream());
@@ -105,20 +95,6 @@ class AbstractClient {
         }
 
         return result;
-    }
-
-    protected String[] concat(String cmd, String[] opts, String... args) {
-        opts = opts != null ? opts : new String[0];
-        args = args != null ? args : new String[0];
-        String[] toks = new String[1 + opts.length + args.length];
-        System.arraycopy(opts, 0, toks, 0, opts.length);
-        toks[opts.length] = cmd;
-        System.arraycopy(args, 0, toks, opts.length + 1, args.length);
-        return toks;
-    }
-
-    protected String[] split(String result) {
-        return result.split(" ");
     }
 
     static class StreamGobbler extends Thread {

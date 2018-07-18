@@ -35,18 +35,21 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
+import io.nessus.cmd.TimeoutException;
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.TimeoutException;
+import io.nessus.ipfs.SimpleIPFSClient;
 
 public class IPFSClientTest {
 
     private static final String TEST_HASH = "QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6";
     
+    IPFSClient client = new SimpleIPFSClient();
+    
     @Test
     public void version() throws Exception {
-        IPFSClient client = new IPFSClient();
+        IPFSClient client = new SimpleIPFSClient();
         String[] version = split(client.version());
-        Assert.assertEquals("0.4.15", version[2]);
+        Assert.assertEquals("0.4.16", version[2]);
     }
 
     @Test
@@ -54,10 +57,9 @@ public class IPFSClientTest {
         
         // add
         
-        IPFSClient client = new IPFSClient();
         URL furl = getClass().getResource("/userfile.txt");
         Path path = Paths.get(furl.getPath());
-        String res = client.add(path.toString());
+        String res = client.add(path);
         Assert.assertEquals(TEST_HASH, res);
 
         // cat 
@@ -68,7 +70,7 @@ public class IPFSClientTest {
         // get 
         
         Path tmpDir = Files.createTempDirectory(".aeg");
-        String[] toks = split(client.get("-o " + tmpDir, TEST_HASH));
+        String[] toks = split(client.get(TEST_HASH, tmpDir));
         path = Paths.get(toks[3], TEST_HASH);
         Assert.assertTrue("Is file: " + path, path.toFile().isFile());
     }
@@ -79,12 +81,10 @@ public class IPFSClientTest {
         String apiHost = System.getenv(IPFSClient.ENV_IPFS_API_HOST);
         Assume.assumeNotNull(apiHost);
         
-        IPFSClient client = new IPFSClient(3L, TimeUnit.SECONDS);
-        
         ExecutorService service = Executors.newSingleThreadExecutor();
         Future<String> future = service.submit(new Callable<String>() {
             public String call() throws Exception {
-                client.get("QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpxxxx");
+                client.get("QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpxxxx", null, 3L, TimeUnit.SECONDS);
                 return "invalid";
             }
         });

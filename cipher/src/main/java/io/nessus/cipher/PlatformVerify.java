@@ -29,7 +29,7 @@ import java.util.Base64;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.Arrays;
 
-import io.nessus.AssertState;
+import io.nessus.utils.AssertState;
 
 public class PlatformVerify {
 

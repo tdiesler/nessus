@@ -28,7 +28,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.nessus.cipher.AESCipher;
-import io.nessus.cipher.utils.StreamUtils;
+import io.nessus.utils.StreamUtils;
 
 public class AESCipherTest {
 

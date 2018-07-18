@@ -31,8 +31,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.nessus.AssertArgument;
-import io.nessus.AssertState;
 import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Tx;
@@ -45,6 +43,8 @@ import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.AbstractBitcoinTest;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.bitcoin.BitcoinWallet;
+import io.nessus.utils.AssertArgument;
+import io.nessus.utils.AssertState;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.krotjson.HexCoder;
 

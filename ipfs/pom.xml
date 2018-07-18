@@ -36,7 +36,6 @@
             <plugin>
                 <groupId>com.ruleoftech</groupId>
                 <artifactId>markdown-page-generator-plugin</artifactId>
-                <version>2.1.0</version>
                 <executions>
                     <execution>
                         <phase>process-resources</phase>
@@ -46,9 +45,10 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <inputDirectory>${basedir}/docs</inputDirectory>
-                    <headerHtmlFile>${basedir}/docs/html/header.html</headerHtmlFile>
-                    <footerHtmlFile>${basedir}/docs/html/footer.html</footerHtmlFile>
+                    <inputDirectory>${basedir}/src/test/resources/markdown</inputDirectory>
+                    <outputDirectory>${basedir}/src/test/resources/html</outputDirectory>
+                    <headerHtmlFile>${basedir}/src/test/resources/markdown/html/header.html</headerHtmlFile>
+                    <footerHtmlFile>${basedir}/src/test/resources/markdown/html/footer.html</footerHtmlFile>
                     <copyDirectories>css,img</copyDirectories>
                     <recursiveInput>true</recursiveInput>
                     <transformRelativeMarkdownLinks>true</transformRelativeMarkdownLinks>

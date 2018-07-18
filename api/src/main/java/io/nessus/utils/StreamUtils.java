@@ -1,4 +1,4 @@
-package io.nessus.cipher.utils;
+package io.nessus.utils;
 
 /*-
  * #%L

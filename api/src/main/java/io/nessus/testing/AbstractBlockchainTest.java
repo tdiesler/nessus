@@ -1,4 +1,4 @@
-package io.nessus;
+package io.nessus.testing;
 
 /*-
  * #%L
@@ -27,6 +27,11 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.Blockchain;
+import io.nessus.BlockchainFactory;
+import io.nessus.Config;
+import io.nessus.UTXO;
+import io.nessus.Wallet;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 public abstract class AbstractBlockchainTest {

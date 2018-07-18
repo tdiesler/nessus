@@ -26,6 +26,7 @@ import java.net.URL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.utils.AssertState;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class BlockchainFactory {

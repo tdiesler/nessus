@@ -34,6 +34,7 @@
         <version-maven-jar-plugin>2.6</version-maven-jar-plugin>
         <version-maven-release-plugin>2.5</version-maven-release-plugin>
         <version-maven-surefire-plugin>2.19.1</version-maven-surefire-plugin>
+        <version-ruleoftech-markdown-plugin>2.1.0</version-ruleoftech-markdown-plugin>
     </properties>
     
     <modules>
@@ -108,6 +109,11 @@
         <!-- Plugin Management -->
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>com.ruleoftech</groupId>
+                    <artifactId>markdown-page-generator-plugin</artifactId>
+                    <version>${version-ruleoftech-markdown-plugin}</version>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>

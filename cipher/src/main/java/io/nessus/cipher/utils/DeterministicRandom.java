@@ -23,7 +23,7 @@ package io.nessus.cipher.utils;
 import java.security.SecureRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.nessus.AssertState;
+import io.nessus.utils.AssertState;
 
 @SuppressWarnings("serial") 
 public class DeterministicRandom extends SecureRandom {
