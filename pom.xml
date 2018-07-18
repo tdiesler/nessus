@@ -1,5 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.nessus</groupId>
     <artifactId>nessus</artifactId>
@@ -24,7 +25,7 @@
         <version.mockito>1.10.19</version.mockito>
         <version.slf4j>1.6.6</version.slf4j>
         <version.undertow>2.0.9.Final</version.undertow>
-        <version.wf.bitcoin>0.17.0-SNAPSHOT</version.wf.bitcoin>
+        <version.wf.bitcoin>0.17.0.Alpha1</version.wf.bitcoin>
         <version.xchange>4.3.5</version.xchange>
                 
         <!-- Plugin versions -->
@@ -138,7 +139,6 @@
                     <artifactId>maven-release-plugin</artifactId>
                     <version>${version-maven-release-plugin}</version>
                     <configuration>
-                        <goals>install</goals>
                         <autoVersionSubmodules>true</autoVersionSubmodules>
                         <tagNameFormat>@{project.version}</tagNameFormat>
                     </configuration>
@@ -163,6 +163,34 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-    </build>    
+    </build>
+
+    <distributionManagement>
+        <repository>
+            <id>jboss-releases-repository</id>
+            <name>JBoss Releases Repository</name>
+            <url>https://repository.jboss.org/nexus/service/local/staging/deploy/maven2</url>
+        </repository>
+    </distributionManagement>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>http://repo.maven.apache.org/maven2</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>jboss-thirdparty-repository</id>
+            <name>JBoss Thirdparty Releases</name>
+            <!-- url>https://repository.jboss.org/nexus/content/repositories/thirdparty-releases/</url -->
+            <url>https://repository.jboss.org/nexus/service/local/repositories/thirdparty-releases/content/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     
 </project>
