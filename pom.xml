@@ -2,12 +2,15 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <name>Nessus</name>
+
     <groupId>io.nessus</groupId>
     <artifactId>nessus</artifactId>
     <version> 1.0.0.Alpha1-SNAPSHOT</version>
     <packaging>pom</packaging>
-
-    <name>Nessus</name>
+    
+    <description>Blockchain and IPFS integration for Fuse</description>
+    <url>https://github.com/tdiesler/nessus</url>
 
     <scm>
         <connection>scm:git:https://github.com/tdiesler/nessus</connection>
@@ -165,6 +168,19 @@
         </pluginManagement>
     </build>
 
+    <licenses>
+        <license>
+            <name>apache_v2</name>
+            <url>http://repository.jboss.org/licenses/apache-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Nessus Committers</name>
+        </developer>
+    </developers>
+    
     <distributionManagement>
         <repository>
             <id>jboss-releases-repository</id>
