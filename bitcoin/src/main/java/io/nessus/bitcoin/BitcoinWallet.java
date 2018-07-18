@@ -66,10 +66,13 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
         
         this.blockchain = blockchain;
 
-        for (String addr : client.getAddressesByAccount("")) {
-            if (isP2PKH(addr)) {
-                BitcoinAddress aux = new BitcoinAddress(this, addr, Collections.emptyList());
-                addressses.add(aux);
+        for (String acc : client.listAccounts().keySet()) {
+            for (String addr : client.getAddressesByAccount(acc)) {
+                if (isP2PKH(addr)) {
+                    List<String> labels = acc.length() > 0 ? Arrays.asList(acc) : Collections.emptyList();
+                    BitcoinAddress aux = new BitcoinAddress(this, addr, labels);
+                    addressses.add(aux);
+                }
             }
         }
     }
@@ -187,7 +190,8 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
 
     @Override
     public BigDecimal getBalance(String label) {
-        return getUTXOAmount(listUnspent(getAddresses(label)));
+        List<Address> addrs = label != null ? getAddresses(label) : getAddresses();
+        return getUTXOAmount(listUnspent(addrs));
     }
 
     @Override
