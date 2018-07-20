@@ -34,14 +34,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
+import io.nessus.Config;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
-import io.nessus.utils.AssertArgument;
-import io.nessus.utils.AssertState;
 import io.nessus.TxInput;
 import io.nessus.TxOutput;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
+import io.nessus.utils.AssertArgument;
+import io.nessus.utils.AssertState;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxOutput;
@@ -73,6 +75,28 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
                     BitcoinAddress aux = new BitcoinAddress(this, addr, labels);
                     addressses.add(aux);
                 }
+            }
+        }
+    }
+
+    @Override
+    public void importAddresses(Config config) {
+        
+        // Wallet already initialized
+        if (!getLabels().isEmpty()) return;
+        
+        for (Config.Address addr : config.getWallet().getAddresses()) {
+            String privKey = addr.getPrivKey();
+            String pubKey = addr.getPubKey();
+            try {
+                if (privKey != null && pubKey == null) {
+                    addPrivateKey(privKey, addr.getLabels());
+                } else {
+                    addAddress(pubKey, addr.getLabels());
+                }
+            } catch (BitcoinRPCException ex) {
+                String message = ex.getMessage();
+                if (!message.contains("walletpassphrase")) throw ex;
             }
         }
     }

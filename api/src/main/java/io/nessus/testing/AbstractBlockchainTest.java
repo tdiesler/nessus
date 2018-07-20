@@ -24,15 +24,16 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Config;
+import io.nessus.Network;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 public abstract class AbstractBlockchainTest {
 
@@ -44,24 +45,17 @@ public abstract class AbstractBlockchainTest {
     
     protected static void importAddresses(Wallet wallet) throws IOException {
         
-        // Wallet already initialized
-        List<String> labels = wallet.getLabels();
-        if (!labels.isEmpty()) return;
-        
         Config config = Config.parseConfig("/initial-import.json");
-        for (Config.Address addr : config.getWallet().getAddresses()) {
-            String privKey = addr.getPrivKey();
-            String pubKey = addr.getPubKey();
-            try {
-                if (privKey != null && pubKey == null) {
-                    wallet.addPrivateKey(privKey, addr.getLabels());
-                } else {
-                    wallet.addAddress(pubKey, addr.getLabels());
-                }
-            } catch (BitcoinRPCException ex) {
-                String message = ex.getMessage();
-                if (!message.contains("walletpassphrase")) throw ex;
-            }
+        if (config != null) wallet.importAddresses(config);
+    }
+    
+    protected static void generate(Blockchain blockchain) {
+        Wallet wallet = blockchain.getWallet();
+        BigDecimal balance = wallet.getBalance("");
+        if (balance.doubleValue() == 0.0) {
+            Network network = blockchain.getNetwork();
+            List<String> blocks = network.generate(101, null);
+            Assert.assertEquals(101, blocks.size());
         }
     }
     

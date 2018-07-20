@@ -37,17 +37,17 @@ import org.junit.Test;
 
 import io.nessus.cmd.TimeoutException;
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.SimpleIPFSClient;
+import io.nessus.ipfs.impl.CmdLineIPFSClient;
 
 public class IPFSClientTest {
 
     private static final String TEST_HASH = "QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6";
     
-    IPFSClient client = new SimpleIPFSClient();
+    IPFSClient client = new CmdLineIPFSClient();
     
     @Test
     public void version() throws Exception {
-        IPFSClient client = new SimpleIPFSClient();
+        IPFSClient client = new CmdLineIPFSClient();
         String[] version = split(client.version());
         Assert.assertEquals("0.4.16", version[2]);
     }
@@ -59,7 +59,7 @@ public class IPFSClientTest {
         
         URL furl = getClass().getResource("/userfile.txt");
         Path path = Paths.get(furl.getPath());
-        String res = client.add(path);
+        String res = client.add(path, true);
         Assert.assertEquals(TEST_HASH, res);
 
         // cat 

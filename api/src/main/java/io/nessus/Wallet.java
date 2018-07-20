@@ -27,8 +27,16 @@ public interface Wallet {
 
     static final String LABEL_DEFAULT = "_default";
     static final String LABEL_CHANGE = "_change";
-    static final BigDecimal ALL_FUNDS = new BigDecimal("-111111.11");
+    static final BigDecimal ALL_FUNDS = new BigDecimal(Integer.MIN_VALUE);
     
+    /**
+     * Import addressses from configuration.
+     */
+    void importAddresses(Config config);
+    
+    /**
+     * Add an address deriven from a private key to this wallet
+     */
     Address addPrivateKey(String privKey, List<String> labels);
     
     /**

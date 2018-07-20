@@ -31,7 +31,7 @@ public interface IPFSClient {
     String ENV_IPFS_GATEWAY_HOST = "IPFS_GATEWAY_HOST";
     String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
 
-    String add(Path path);
+    String add(Path path, boolean recursive);
 
     String cat(String cid);
 

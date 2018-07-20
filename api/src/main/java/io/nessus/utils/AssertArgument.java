@@ -44,13 +44,4 @@ public final class AssertArgument {
             throw new IllegalArgumentException(message);
         return value;
     }
-
-    /**
-     * Throws an IllegalArgumentException when the given value is not false.
-     */
-    public static Boolean assertFalse(Boolean value, String message) {
-        if (Boolean.valueOf(value))
-            throw new IllegalArgumentException(message);
-        return value;
-    }
 }

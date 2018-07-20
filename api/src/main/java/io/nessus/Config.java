@@ -33,11 +33,15 @@ public class Config {
 
     public static Config parseConfig(String json) throws IOException {
         
+        Config config = null;
+        
         InputStream jsonData = Config.class.getResourceAsStream(json);
+        if (jsonData != null) {
+            
+            ObjectMapper objectMapper = new ObjectMapper();
+            config = objectMapper.readValue(jsonData, Config.class);
+        } 
         
-        ObjectMapper objectMapper = new ObjectMapper();
-        
-        Config config = objectMapper.readValue(jsonData, Config.class);
         return config;
     }
     

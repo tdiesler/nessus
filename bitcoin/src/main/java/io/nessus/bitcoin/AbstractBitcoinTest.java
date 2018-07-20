@@ -23,15 +23,11 @@ package io.nessus.bitcoin;
 import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.List;
 
-import org.junit.Assert;
 import org.junit.BeforeClass;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
-import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.testing.AbstractBlockchainTest;
 
@@ -43,15 +39,10 @@ public abstract class AbstractBitcoinTest extends AbstractBlockchainTest {
         Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL);
         Wallet wallet = blockchain.getWallet();
         
+        // Import the configured addresses and generate a few coins
+        
         importAddresses(wallet);
         
-        // Import the configured addresses and generate a few coins
-        BigDecimal balanceA = wallet.getBalance("");
-        if (balanceA.doubleValue() == 0.0) {
-
-            Network network = blockchain.getNetwork();
-            List<String> blocks = network.generate(101, null);
-            Assert.assertEquals(101, blocks.size());
-        }
+        generate(blockchain);
     }
 }

@@ -51,7 +51,7 @@ public class CmdLineClient {
             String cmd = cmdLine.split(" ")[0];
             
             // Find the full path to the executable 
-            if (cmd.startsWith("/")) {
+            if (!cmd.startsWith("/")) {
                 for (String aux : PATHS) {
                     if (Paths.get(aux, cmd).toFile().exists()) {
                         cmdLine = aux + cmdLine;

@@ -1,4 +1,4 @@
-package io.nessus.ipfs;
+package io.nessus.ipfs.impl;
 
 /*-
  * #%L
@@ -27,15 +27,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.cmd.CmdLineClient;
+import io.nessus.ipfs.IPFSClient;
 import io.nessus.utils.AssertState;
 
-public class SimpleIPFSClient extends CmdLineClient implements IPFSClient {
+public class CmdLineIPFSClient extends CmdLineClient implements IPFSClient {
 
-    static final Logger LOG = LoggerFactory.getLogger(SimpleIPFSClient.class);
+    static final Logger LOG = LoggerFactory.getLogger(CmdLineIPFSClient.class);
     
     final String[] opts;
     
-    public SimpleIPFSClient() {
+    public CmdLineIPFSClient() {
         
         String host = System.getenv(ENV_IPFS_API_HOST);
         if (host != null) {
@@ -48,8 +49,9 @@ public class SimpleIPFSClient extends CmdLineClient implements IPFSClient {
     }
 
     @Override
-    public String add(Path path) {
-        String res = exec(concat("add", new Object[] { path }));
+    public String add(Path path, boolean recursive) {
+        String cmd = recursive ? "add -r" : "add";
+        String res = exec(concat(cmd, new Object[] { path }));
         String[] toks = split(res);
         AssertState.assertEquals("added", toks[0]);
         return toks[1];
