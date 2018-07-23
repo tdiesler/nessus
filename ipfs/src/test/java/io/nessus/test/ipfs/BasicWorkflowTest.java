@@ -1,5 +1,7 @@
 package io.nessus.test.ipfs;
 
+import java.io.BufferedReader;
+
 /*-
  * #%L
  * Nessus :: IPFS
@@ -23,6 +25,7 @@ package io.nessus.test.ipfs;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -106,6 +109,19 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         Assert.assertNotNull(fhandle.getCid());
         Assert.assertNotNull(fhandle.getTx());
         
+        // Verify local file content
+        
+        List<FHandle> fhandles = cntmgr.findLocalContent(addrBob);
+        Assert.assertEquals(relPath, fhandles.get(0).getPath());
+        Assert.assertEquals(1, fhandles.size());
+        
+        InputStream reader = cntmgr.getLocalContent(addrBob, relPath);
+        BufferedReader br = new BufferedReader(new InputStreamReader(reader));
+        Assert.assertEquals("The quick brown fox jumps over the lazy dog.", br.readLine());
+        
+        Assert.assertTrue(cntmgr.deleteLocalContent(addrBob, relPath));
+        Assert.assertTrue(cntmgr.findLocalContent(addrBob).isEmpty());
+        
         // Get content from IPFS
         
         String cid = fhandle.getCid();
@@ -127,7 +143,7 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         
         // Find IPFS content on blockchain
         
-        List<FHandle> fhandles = cntmgr.findContent(addrMarry, timeout);
+        fhandles = cntmgr.findIPFSContent(addrMarry, timeout);
         List<String> cids = fhandles.stream().map(fh -> fh.getCid()).collect(Collectors.toList());
         Assert.assertTrue(cids.contains(fhandle.getCid()));
         

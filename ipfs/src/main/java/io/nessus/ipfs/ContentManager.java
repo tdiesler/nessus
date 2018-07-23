@@ -50,6 +50,13 @@ public interface ContentManager {
     PublicKey register(Address addr) throws GeneralSecurityException;
     
     /**
+     * Find the registered public key for a given address.
+     * 
+     * @return An Eliptic Curve public key
+     */
+    PublicKey findRegistation(Address addr);
+    
+    /**
      * Add content to IPFS.
      */
     FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException;
@@ -65,14 +72,22 @@ public interface ContentManager {
     FHandle send(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException;
 
     /**
-     * Find a register associated with an address.
-     * 
-     * @return An Eliptic Curve public key
+     * Find registered IPFS content for a given address.
      */
-    PublicKey findRegistation(Address addr);
+    List<FHandle> findIPFSContent(Address owner, Long timeout) throws IOException;
     
     /**
-     * Find registered content for a given address.
+     * Find local content for a given address.
      */
-    List<FHandle> findContent(Address addr, Long timeout) throws IOException;
+    List<FHandle> findLocalContent(Address owner) throws IOException;
+    
+    /**
+     * Show content of a plain file from local storage.  
+     */
+    InputStream getLocalContent(Address owner, Path path) throws IOException;
+    
+    /**
+     * Delete a plain file from local storage.  
+     */
+    boolean deleteLocalContent(Address owner, Path path) throws IOException;
 }

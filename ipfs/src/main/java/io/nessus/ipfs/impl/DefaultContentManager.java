@@ -26,6 +26,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -180,17 +181,16 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException {
-        AssertArgument.assertTrue(!path.isAbsolute(), "Not a relative path: " + path);
         AssertArgument.assertNotNull(input, "input");
         
         PublicKey pubKey = findRegistation(owner);
         AssertArgument.assertNotNull(pubKey, "Cannot obtain encryption key for: " + owner);
         
+        Path plainPath = assertPlainPath(owner, path);
+        
         LOG.info("Adding: {} {}", owner, path);
         
-        Path plainPath = getPlainPath(owner).resolve(path);
         plainPath.getParent().toFile().mkdirs();
-        
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
         
         URL furl = plainPath.toFile().toURI().toURL();
@@ -228,7 +228,8 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public FHandle get(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
-        AssertArgument.assertTrue(!path.isAbsolute(), "Not a relative path: " + path);
+
+        Path plainPath = assertPlainPath(owner, path);
         
         LOG.info("Getting: {} {}", owner, path);
         
@@ -238,7 +239,6 @@ public class DefaultContentManager implements ContentManager {
         
         fhandle = decrypt(fhandle, owner, path);
         
-        Path plainPath = getPlainPath(owner).resolve(path);
         plainPath.getParent().toFile().mkdirs();
         
         Path tmpPath = Paths.get(fhandle.getURL().getPath());
@@ -326,7 +326,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public List<FHandle> findContent(Address addr, Long timeout) throws IOException {
+    public List<FHandle> findIPFSContent(Address addr, Long timeout) throws IOException {
 
         Map<String, FHandle> result = new LinkedHashMap<>();
         
@@ -359,6 +359,61 @@ public class DefaultContentManager implements ContentManager {
         }
         
         return new ArrayList<>(result.values());
+    }
+
+    @Override
+    public List<FHandle> findLocalContent(Address owner) throws IOException {
+        
+        return findLocalContent(owner, getPlainPath(owner), new ArrayList<>());
+    }
+
+    private List<FHandle> findLocalContent(Address owner, Path fullPath, List<FHandle> fhandles) throws IOException {
+        
+        if (fullPath.toFile().isDirectory()) {
+            for (String child : fullPath.toFile().list()) {
+                findLocalContent(owner, fullPath.resolve(child), fhandles);
+            }
+        }
+        
+        if (fullPath.toFile().isFile()) {
+            Path relPath = getPlainPath(owner).relativize(fullPath);
+            URL furl = fullPath.toUri().toURL();
+            
+            FHandle fhandle = new FHBuilder(furl)
+                    .path(relPath)
+                    .owner(owner)
+                    .build();
+            
+            fhandles.add(fhandle);
+        }
+        
+        return fhandles;
+    }
+    
+    @Override
+    public InputStream getLocalContent(Address owner, Path path) throws IOException {
+        
+        Path plainPath = assertPlainPath(owner, path);
+        if (!plainPath.toFile().isFile()) return null;
+        
+        return new FileInputStream(plainPath.toFile());
+    }
+
+    @Override
+    public boolean deleteLocalContent(Address owner, Path path) throws IOException {
+        
+        Path plainPath = assertPlainPath(owner, path);
+        if (plainPath.toFile().isDirectory()) {
+            for (String child : plainPath.toFile().list()) {
+                deleteLocalContent(owner, path.resolve(child));
+            }
+        }
+        
+        if (plainPath.toFile().isFile()) {
+            return plainPath.toFile().delete();
+        }
+        
+        return false;
     }
 
     protected BigDecimal getMinimumDataFee() {
@@ -725,6 +780,11 @@ public class DefaultContentManager implements ContentManager {
         return header;
     }
     
+    private Path assertPlainPath(Address owner, Path path) {
+        AssertArgument.assertTrue(path != null && !path.isAbsolute(), "Not a relative path: " + path);
+        return getPlainPath(owner).resolve(path);
+    }
+
     static class FHeader {
         
         final String version;
