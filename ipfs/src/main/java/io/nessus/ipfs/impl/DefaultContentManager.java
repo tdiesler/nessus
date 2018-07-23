@@ -20,8 +20,6 @@ package io.nessus.ipfs.impl;
  * #L%
  */
 
-import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -59,8 +57,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
-import io.nessus.BlockchainFactory;
-import io.nessus.Config;
 import io.nessus.Network;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
@@ -87,9 +83,9 @@ public class DefaultContentManager implements ContentManager {
     
     static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
 
-    final Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL);
-    final Network network = blockchain.getNetwork();
-    final Wallet wallet = blockchain.getWallet();
+    final Blockchain blockchain;
+    final Network network;
+    final Wallet wallet;
     
     final IPFSClient ipfs;
     final BCData bcdata;
@@ -110,23 +106,17 @@ public class DefaultContentManager implements ContentManager {
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
     final Map<String, FHandle> filecache = new LinkedHashMap<>();
     
-    public DefaultContentManager() throws IOException {
+    public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain) throws IOException {
+        this.blockchain = blockchain;
+        this.ipfs = ipfs;
+        
+        network = blockchain.getNetwork();
+        wallet = blockchain.getWallet();
         
         rootPath = Paths.get(System.getProperty("user.home"), ".fman");
         rootPath.toFile().mkdirs();
         
         bcdata = new BCData(getDataPrefix());
-        ipfs = new CmdLineIPFSClient();
-        
-        Config config = Config.parseConfig("/initial-import.json");
-        if (config != null) wallet.importAddresses(config);
-
-        BigDecimal balance = wallet.getBalance("");
-        if (balance.doubleValue() == 0.0) {
-            Network network = blockchain.getNetwork();
-            List<String> blocks = network.generate(101, null);
-            AssertState.assertEquals(101, blocks.size());
-        }
     }
 
     public Path getRootPath() {
@@ -145,7 +135,7 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public PublicKey register(Address addr) throws GeneralSecurityException {
-        AssertState.assertNotNull(addr.getPrivKey(), "Wallet does not controll private key for: " + addr);
+        AssertArgument.assertTrue(addr.getPrivKey() != null, "Wallet does not controll private key for: " + addr);
 
         // Do nothing if already registered
         PublicKey pubKey = findRegistation(addr);
@@ -181,10 +171,11 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException {
+        AssertArgument.assertTrue(owner.getPrivKey() != null, "Wallet does not controll private key for: " + owner);
         AssertArgument.assertNotNull(input, "input");
         
         PublicKey pubKey = findRegistation(owner);
-        AssertArgument.assertNotNull(pubKey, "Cannot obtain encryption key for: " + owner);
+        AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
         Path plainPath = assertPlainPath(owner, path);
         
@@ -228,6 +219,7 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public FHandle get(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
+        AssertArgument.assertTrue(owner.getPrivKey() != null, "Wallet does not controll private key for: " + owner);
 
         Path plainPath = assertPlainPath(owner, path);
         
@@ -257,9 +249,10 @@ public class DefaultContentManager implements ContentManager {
     
     @Override
     public FHandle send(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
+        AssertArgument.assertTrue(owner.getPrivKey() != null, "Wallet does not controll private key for: " + owner);
         
         PublicKey pubKey = findRegistation(target);
-        AssertArgument.assertNotNull(pubKey, "Cannot obtain encryption key for: " + target);
+        AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + target);
         
         LOG.info("Sending: {} {}", owner, cid);
         
@@ -617,7 +610,7 @@ public class DefaultContentManager implements ContentManager {
     
     private FHandle decrypt(FHandle fhandle, Address owner, Path destPath) throws IOException, GeneralSecurityException {
 
-        Path cryptPath = getCryptPath(owner).resolve(fhandle.getCid());
+        Path cryptPath = getCryptPath(fhandle.getOwner()).resolve(fhandle.getCid());
         AssertState.assertTrue(cryptPath.toFile().exists(), "Cannot obtain file: " + cryptPath);
 
         destPath = destPath != null ? destPath : fhandle.getPath();

@@ -1,5 +1,7 @@
 package io.nessus.test.ipfs;
 
+import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
+
 import java.io.BufferedReader;
 
 /*-
@@ -43,10 +45,13 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.nessus.Blockchain;
+import io.nessus.BlockchainFactory;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
+import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.impl.CmdLineIPFSClient;
 import io.nessus.ipfs.impl.DefaultContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 
@@ -61,10 +66,13 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
     @BeforeClass
     public static void beforeClass() throws IOException {
         
-        cntmgr = new DefaultContentManager();
-        
-        Blockchain blockchain = cntmgr.getBlockchain();
+        Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL);
+        IPFSClient ipfs = new CmdLineIPFSClient();
+
+        cntmgr = new DefaultContentManager(ipfs, blockchain);
         wallet = blockchain.getWallet();
+        
+        importAddresses(wallet);
         
         generate(blockchain);
         

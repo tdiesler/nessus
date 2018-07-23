@@ -60,7 +60,7 @@ public class CmdLineClient {
                 }
             }
 
-            LOG.info("> {}", cmdLine);
+            LOG.debug("> {}", cmdLine);
 
             Runtime runtime = Runtime.getRuntime();
             Process proc = runtime.exec(cmdLine);
@@ -81,7 +81,7 @@ public class CmdLineClient {
             
             if (proc.exitValue() == 0) {
                 result = stdout.result();
-                LOG.info(result);
+                LOG.debug(result);
             } else {
                 if (stderr.length() > 0) {
                     LOG.error(stderr.result());
