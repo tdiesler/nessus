@@ -25,8 +25,7 @@ import java.util.List;
 
 public interface Wallet {
 
-    static final String LABEL_DEFAULT = "_default";
-    static final String LABEL_CHANGE = "_change";
+    static final String LABEL_CHANGE = "(change)";
     static final BigDecimal ALL_FUNDS = new BigDecimal(Integer.MIN_VALUE);
     
     /**
@@ -98,13 +97,13 @@ public interface Wallet {
      * Sends funds from the default account to an address 
      * @return The transaction id
      */
-    String sendToAddress(String toAddress, BigDecimal amount);
+    String sendToAddress(String toAddr, BigDecimal amount);
 
     /**
      * Sends funds that are associated with a given label to an address
      * @return The transaction id
      */
-    String sendFromLabel(String label, String toAddress, BigDecimal amount);
+    String sendFromLabel(String label, String toAddr, BigDecimal amount);
 
     /**
      * Send a raw transaction to the network
@@ -145,12 +144,8 @@ public interface Wallet {
         
         boolean isWatchOnly();
         
-        void addLabel(String label);
-
-        void addLabels(List<String> labels);
-
-        void removeLabel(String label);
-        
         List<String> getLabels();
+        
+        Address setLabels(List<String> labels);
     }
 }

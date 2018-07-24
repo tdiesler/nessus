@@ -23,10 +23,10 @@ package io.nessus.bitcoin;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -43,6 +43,7 @@ import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
@@ -59,31 +60,15 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
 
     static final Logger LOG = LoggerFactory.getLogger(BitcoinWallet.class);
 
-    private final Set<Address> addressses = new LinkedHashSet<>();
-
     private final Blockchain blockchain;
 
     protected BitcoinWallet(BitcoinBlockchain blockchain, BitcoindRpcClient client) {
         super(client);
-        
         this.blockchain = blockchain;
-
-        for (String acc : client.listAccounts().keySet()) {
-            for (String addr : client.getAddressesByAccount(acc)) {
-                if (isP2PKH(addr)) {
-                    List<String> labels = acc.length() > 0 ? Arrays.asList(acc) : Collections.emptyList();
-                    BitcoinAddress aux = new BitcoinAddress(this, addr, labels);
-                    addressses.add(aux);
-                }
-            }
-        }
     }
 
     @Override
     public void importAddresses(Config config) {
-        
-        // Wallet already initialized
-        if (!getLabels().isEmpty()) return;
         
         for (Config.Address addr : config.getWallet().getAddresses()) {
             String privKey = addr.getPrivKey();
@@ -103,18 +88,17 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
 
     @Override
     public Address addPrivateKey(String privKey, List<String> labels) {
+        AssertArgument.assertNotNull(privKey, "Null privKey");
 
         // Check if we already have this privKey
-        for (Address addr : addressses) {
+        for (Address addr : getAddressMapping().values()) {
             if (privKey.equals(addr.getPrivKey())) {
-                addr.addLabels(labels);
                 return addr;
             }
         }
-        
-        // Note, this does not use the bitcoin-core account system 
-        // as this will be removed in 0.18.0
-        client.importPrivKey(privKey, "", true);
+
+        // Note, the bitcoin-core account system will be removed in 0.18.0
+        client.importPrivKey(privKey, concatLabels(labels), true);
 
         // bitcoin-core -regtest v0.16.0 generates three public addresses for
         // every private key that gets imported. These are
@@ -122,76 +106,73 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
         // #2 P2SH   e.g. 2Mxztt6zTZ7KPHMdPt8iYtSLxQ9FHAPJMns
         // #3 Bech32 e.g. bcrt1q7d2dzgxmgu4kzpmvrlz306kcffw225ydq2jwm7
 
-        String address = null;
-        for (String auxAddr : client.getAddressesByAccount("")) {
-            String auxKey = client.dumpPrivKey(auxAddr);
-
-            // This associates the addresses that are initially derived
-            // from theis private key with the account
-            if (privKey.equals(auxKey)) {
-                address = auxAddr;
+        Address addr = null;
+        for (Address auxaddr : getAddressMapping().values()) {
+            if (privKey.equals(auxaddr.getPrivKey())) {
+                addr = auxaddr;
                 break;
             }
         }
 
-        BitcoinAddress addr = new BitcoinAddress(this, address, labels);
-        addressses.add(addr);
-
+        AssertState.assertNotNull(addr, "Cannot get imported address from wallet");
         return addr;
     }
 
     @Override
-    public Address addAddress(String address, List<String> labels) {
+    public Address addAddress(String rawAddr, List<String> labels) {
+        AssertArgument.assertNotNull(rawAddr, "Null privKey");
 
-        // Note, this does not use the bitcoin-core account system 
-        // as this will be removed in 0.18.0
-        client.importAddress(address, "", true);
+        // Check if we already have this privKey
+        for (Address addr : getAddressMapping().values()) {
+            if (rawAddr.equals(addr.getAddress())) {
+                return addr;
+            }
+        }
 
-        BitcoinAddress addr = new BitcoinAddress(this, address, labels);
-        addressses.add(addr);
+        // Note, the bitcoin-core account system will be removed in 0.18.0
+        client.importAddress(rawAddr, concatLabels(labels), true);
 
-        return addr;
+        return new BitcoinAddress(this, rawAddr, labels);
     }
 
     @Override
     public final Address newAddress(List<String> labels) {
-        BitcoinAddress addr = createNewAddress(labels);
-        addressses.add(addr);
-        return addr;
+        return createNewAddress(labels);
     }
 
     protected BitcoinAddress createNewAddress(List<String> labels) {
-        String auxAddr = assertP2PKH(client.getNewAddress("", "legacy"));
+        String auxAddr = assertP2PKH(client.getNewAddress(concatLabels(labels), "legacy"));
         return new BitcoinAddress(this, auxAddr, labels);
     }
 
     @Override
     public List<String> getLabels() {
         Set<String> labels = new HashSet<>();
-        addressses.stream().forEach(a -> labels.addAll(a.getLabels()));
+        getAddressMapping().values().stream().forEach(a -> labels.addAll(a.getLabels()));
         return labels.stream().sorted().collect(Collectors.toList());
     }
 
     @Override
     public Address getAddress(String label) {
         List<Address> addrs = getAddresses(label);
+        addrs = addrs.stream().filter(a -> !a.getLabels().contains(LABEL_CHANGE)).collect(Collectors.toList());
         return addrs != null && addrs.size() > 0 ? addrs.iterator().next() : null;
     }
 
     @Override
     public Address findAddress(String rawAddr) {
-        return addressses.stream().filter(a -> a.getAddress().equals(rawAddr)).findFirst().orElse(null);
+        return getAddressMapping().values().stream().filter(a -> a.getAddress().equals(rawAddr)).findFirst().orElse(null);
     }
 
     @Override
     public List<Address> getAddresses() {
-        return addressses.stream().collect(Collectors.toList());
+        return getAddressMapping().values().stream().collect(Collectors.toList());
     }
 
     @Override
     public List<Address> getAddresses(String label) {
-        AssertArgument.assertNotNull(label, "label");
-        List<Address> filtered = addressses.stream()
+        AssertArgument.assertNotNull(label, "Null label");
+        List<Address> filtered = getAddressMapping().values().stream()
                 .filter(a -> a.getLabels().contains(label))
                 .collect(Collectors.toList());
         return filtered;
@@ -205,7 +186,7 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
 
     @Override
     public List<Address> getChangeAddresses(String label) {
-        List<Address> filtered = addressses.stream()
+        List<Address> filtered = getAddressMapping().values().stream()
                 .filter(a -> a.getLabels().contains(label))
                 .filter(a -> a.getLabels().contains(LABEL_CHANGE))
                 .collect(Collectors.toList());
@@ -396,6 +377,37 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
         return addr;
     }
 
+    protected String concatLabels(List<String> labels) {
+        String result = labels.toString();
+        return result.substring(1, result.length() - 1);
+    }
+    
+    protected List<String> splitLabels(String labels) {
+        return Arrays.asList(labels.split(",")).stream().map(t -> t.trim()).collect(Collectors.toList());
+    }
+    
+    Address updateAddress(Address addr, List<String> labels) {
+        String rawAddr = addr.getAddress();
+        String combined = concatLabels(labels);
+        ((BitcoinJSONRPCClient) client).query("setaccount", rawAddr, combined);
+        return findAddress(rawAddr);
+    }
+    
+    private Map<String, Address> getAddressMapping() {
+        
+        Map<String, Address> result = new LinkedHashMap<>();
+        
+        for (String acc : client.listAccounts(0, true).keySet()) {
+            for (String rawAddr : client.getAddressesByAccount(acc)) {
+                if (isP2PKH(rawAddr)) {
+                    result.put(rawAddr, new BitcoinAddress(this, rawAddr, splitLabels(acc)));
+                }
+            }
+        }
+        
+        return result;
+    }
+    
     private List<String> getRawAddresses(List<Address> addrs) {
         return addrs.stream().map(a -> a.getAddress()).collect(Collectors.toList());
     }

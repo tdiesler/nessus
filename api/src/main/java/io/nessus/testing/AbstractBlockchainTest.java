@@ -84,7 +84,7 @@ public abstract class AbstractBlockchainTest {
         Blockchain blockchain = BlockchainFactory.getBlockchain();
         Wallet wallet = blockchain.getWallet();
         for (String label : wallet.getLabels()) {
-            if (!label.startsWith("_")) {
+            if (!label.equals(Wallet.LABEL_CHANGE)) {
                 BigDecimal val = wallet.getBalance(label);
                 LOG.info(String.format("%-5s: %13.8f", label, val));
             }

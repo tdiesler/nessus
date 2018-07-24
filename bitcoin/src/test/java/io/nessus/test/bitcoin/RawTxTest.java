@@ -21,7 +21,6 @@ package io.nessus.test.bitcoin;
  */
 
 import static io.nessus.Wallet.ALL_FUNDS;
-import static io.nessus.Wallet.LABEL_DEFAULT;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,10 +33,10 @@ import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
-import io.nessus.Wallet.Address;
-import io.nessus.bitcoin.AbstractBitcoinTest;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
+import io.nessus.Wallet.Address;
+import io.nessus.bitcoin.AbstractBitcoinTest;
 
 public class RawTxTest extends AbstractBitcoinTest {
 
@@ -54,10 +53,6 @@ public class RawTxTest extends AbstractBitcoinTest {
         
         // Show account balances
         showAccountBalances();
-        
-        // Verify that the default account has some bitcoin
-        BigDecimal btcMiner = wallet.getBalance(LABEL_DEFAULT);
-        Assert.assertTrue(new BigDecimal("50.0").compareTo(btcMiner) <= 0);
         
         // Verify that Bob has no funds
         BigDecimal btcBob = wallet.getBalance(LABEL_BOB);

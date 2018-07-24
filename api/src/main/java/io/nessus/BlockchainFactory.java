@@ -22,6 +22,7 @@ package io.nessus;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,16 @@ public class BlockchainFactory {
     static final Logger LOG = LoggerFactory.getLogger(BlockchainFactory.class);
     
     private static Blockchain INSTANCE;
+    
+    public static Blockchain getBlockchain(Properties props) throws Exception {
+        String rpcuser = props.getProperty("rpcuser");
+        String rpcpass = props.getProperty("rpcpassword");
+        String rpchost = props.getProperty("rpcconnect");
+        String rpcport = props.getProperty("rpcport");
+        String className = props.getProperty(Blockchain.class.getName());
+        Class<? extends Blockchain> clazz = loadBlockchainClass(className);
+        return getBlockchain(new URL(String.format("http://%s:%s@%s:%s", rpcuser, rpcpass, rpchost, rpcport)), clazz);
+    }
     
     public static Blockchain getBlockchain(URL rpcUrl) {
         if (INSTANCE == null) {
@@ -73,11 +84,16 @@ public class BlockchainFactory {
         return loader.loadClass(className != null ? className : "wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient");
     }
     
-    @SuppressWarnings("unchecked")
     private static Class<? extends Blockchain> loadBlockchainClass() throws ClassNotFoundException {
         String className = System.getenv(BLOCKCHAIN_CLASS_NAME);
+        return loadBlockchainClass(className);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Class<? extends Blockchain> loadBlockchainClass(String className) throws ClassNotFoundException {
+        if (className == null) className = "io.nessus.bitcoin.BitcoinBlockchain";
         ClassLoader loader = BlockchainFactory.class.getClassLoader();
-        return (Class<? extends Blockchain>) loader.loadClass(className != null ? className : "io.nessus.bitcoin.BitcoinBlockchain");
+        return (Class<? extends Blockchain>) loader.loadClass(className);
     }
 
     private static URL getLogURL(URL rpcUrl) throws MalformedURLException {

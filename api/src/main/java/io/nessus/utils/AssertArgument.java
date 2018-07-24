@@ -29,9 +29,9 @@ public final class AssertArgument {
     /**
      * Throws an IllegalArgumentException when the given value is null.
      */
-    public static <T> T assertNotNull(T value, String name) {
+    public static <T> T assertNotNull(T value, String message) {
         if (value == null)
-            throw new IllegalArgumentException("Null " + name);
+            throw new IllegalArgumentException(message);
 
         return value;
     }

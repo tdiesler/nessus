@@ -29,15 +29,17 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 public class BitcoinAddress extends BitcoinClientSupport implements Address {
 
+    private final BitcoinWallet wallet;
     private final String address;
     private final boolean watchOnly;
-    private final List<String> addrLabels = new ArrayList<>();
+    private final List<String> addrLabels;
 
     public BitcoinAddress(BitcoinWallet wallet, String address, List<String> labels) {
         super(wallet.client);
+        this.wallet = wallet;
         this.address = address;
         this.watchOnly = getPrivKey() == null;
-        this.addrLabels.addAll(labels);
+        this.addrLabels = Collections.unmodifiableList(new ArrayList<String>(labels));
     }
 
     @Override
@@ -62,27 +64,13 @@ public class BitcoinAddress extends BitcoinClientSupport implements Address {
     }
 
     @Override
-    public void addLabels(List<String> labels) {
-        for (String label : labels) {
-            addLabel(label);
-        }
-    }
-
-    @Override
-    public void addLabel(String label) {
-        if (!addrLabels.contains(label)) {
-            addrLabels.add(label);
-        }
-    }
-
-    @Override
-    public void removeLabel(String label) {
-        addrLabels.remove(label);
-    }
-
-    @Override
     public List<String> getLabels() {
         return Collections.unmodifiableList(addrLabels);
+    }
+
+    @Override
+    public Address setLabels(List<String> labels) {
+        return wallet.updateAddress(this, labels);
     }
 
     @Override

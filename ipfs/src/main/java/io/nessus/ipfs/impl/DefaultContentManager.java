@@ -76,10 +76,20 @@ import io.nessus.utils.StreamUtils;
 
 public class DefaultContentManager implements ContentManager {
 
-    public static final String PREFIX = "DAT";
-    public static final String VERSION = "1.0";
-    public static final String VERSION_STRING = PREFIX + "-Version: " + VERSION;
-    public static final String FILE_HEADER_END = PREFIX + "_HEADER_END";
+    public static class HValues {
+        
+        public final String PREFIX;
+        public final String VERSION;
+        public final String VERSION_STRING;
+        public final String FILE_HEADER_END;
+        
+        public HValues(String prefix, String version) {
+            this.PREFIX = prefix;
+            this.VERSION = version;
+            this.VERSION_STRING = PREFIX + "-Version: " + VERSION;
+            this.FILE_HEADER_END = PREFIX + "_HEADER_END";
+        }
+    }
     
     static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
 
@@ -87,6 +97,7 @@ public class DefaultContentManager implements ContentManager {
     final Network network;
     final Wallet wallet;
     
+    final HValues hvals;
     final IPFSClient ipfs;
     final BCData bcdata;
     final Path rootPath;
@@ -106,7 +117,7 @@ public class DefaultContentManager implements ContentManager {
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
     final Map<String, FHandle> filecache = new LinkedHashMap<>();
     
-    public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain) throws IOException {
+    public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain) {
         this.blockchain = blockchain;
         this.ipfs = ipfs;
         
@@ -116,7 +127,8 @@ public class DefaultContentManager implements ContentManager {
         rootPath = Paths.get(System.getProperty("user.home"), ".fman");
         rootPath.toFile().mkdirs();
         
-        bcdata = new BCData(getDataPrefix());
+        hvals = getHeaderValues();
+        bcdata = new BCData(hvals);
     }
 
     public Path getRootPath() {
@@ -135,7 +147,8 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public PublicKey register(Address addr) throws GeneralSecurityException {
-        AssertArgument.assertTrue(addr.getPrivKey() != null, "Wallet does not controll private key for: " + addr);
+        
+        assertArgumentHasPrivateKey(addr);
 
         // Do nothing if already registered
         PublicKey pubKey = findRegistation(addr);
@@ -171,8 +184,9 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException {
-        AssertArgument.assertTrue(owner.getPrivKey() != null, "Wallet does not controll private key for: " + owner);
-        AssertArgument.assertNotNull(input, "input");
+        AssertArgument.assertNotNull(input, "Null input");
+        
+        assertArgumentHasPrivateKey(owner);
         
         PublicKey pubKey = findRegistation(owner);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
@@ -219,7 +233,8 @@ public class DefaultContentManager implements ContentManager {
 
     @Override
     public FHandle get(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
-        AssertArgument.assertTrue(owner.getPrivKey() != null, "Wallet does not controll private key for: " + owner);
+
+        assertArgumentHasPrivateKey(owner);
 
         Path plainPath = assertPlainPath(owner, path);
         
@@ -249,7 +264,8 @@ public class DefaultContentManager implements ContentManager {
     
     @Override
     public FHandle send(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
-        AssertArgument.assertTrue(owner.getPrivKey() != null, "Wallet does not controll private key for: " + owner);
+        
+        assertArgumentHasPrivateKey(owner);
         
         PublicKey pubKey = findRegistation(target);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + target);
@@ -413,8 +429,8 @@ public class DefaultContentManager implements ContentManager {
         return BigDecimal.ZERO;
     }
 
-    protected String getDataPrefix() {
-        return PREFIX;
+    protected HValues getHeaderValues() {
+        return new HValues("DAT", "1.0");
     }
 
     Path getPlainPath(Address owner) {
@@ -459,7 +475,7 @@ public class DefaultContentManager implements ContentManager {
                 try (FileReader fr = new FileReader(tmpPath.toFile())) {
                     BufferedReader br = new BufferedReader(fr);
 
-                    FHeader header = FHeader.read(br);
+                    FHeader header = FHeader.read(hvals, br);
                     Address addr = getAddress(header.owner);
                     AssertState.assertNotNull(addr, "Address unknown to this wallet: " + header.owner);
 
@@ -537,7 +553,8 @@ public class DefaultContentManager implements ContentManager {
     }
 
     private KeyPair getECKeyPair(Address addr) throws GeneralSecurityException {
-        AssertState.assertNotNull(addr.getPrivKey(), "Wallet does not controll private key for: " + addr);
+        
+        assertArgumentHasPrivateKey(addr);
 
         // Decode the priv key as base64 (even though it might be WIF encoded)
         byte[] rawKey = Base64.getDecoder().decode(addr.getPrivKey());
@@ -620,8 +637,8 @@ public class DefaultContentManager implements ContentManager {
         
         FHeader header;
         try (FileReader fr = new FileReader(cryptPath.toFile())) {
-            header = FHeader.read(fr);
-            AssertState.assertEquals(VERSION_STRING, header.version);
+            header = FHeader.read(hvals, fr);
+            AssertState.assertEquals(hvals.VERSION_STRING, header.version);
         }
         
         // Read the content
@@ -675,7 +692,6 @@ public class DefaultContentManager implements ContentManager {
         Address outAddr = wallet.findAddress(out0.getAddress());
         if (keyBytes != null && outAddr.equals(addr)) {
 
-            
             String encKey = Base64.getEncoder().encodeToString(keyBytes);
             
             LOG.info("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), outAddr, encKey });
@@ -767,12 +783,16 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("Token: {}", base64Token);
         
-        FHeader header = new FHeader(VERSION_STRING, fhandle.getPath(), owner, base64Token, -1);
-        header.write(pw);
+        FHeader header = new FHeader(hvals.VERSION_STRING, fhandle.getPath(), owner, base64Token, -1);
+        header.write(hvals, pw);
         
         return header;
     }
     
+    private void assertArgumentHasPrivateKey(Address addr) {
+        AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
+    }
+
     private Path assertPlainPath(Address owner, Path path) {
         AssertArgument.assertTrue(path != null && !path.isAbsolute(), "Not a relative path: " + path);
         return getPlainPath(owner).resolve(path);
@@ -794,12 +814,12 @@ public class DefaultContentManager implements ContentManager {
             this.length = length;
         }
 
-        static FHeader read(Reader rd) throws IOException {
+        static FHeader read(HValues hvals, Reader rd) throws IOException {
             BufferedReader br = new BufferedReader(rd);
             
             // First line is the version
             String line = br.readLine();
-            AssertState.assertTrue(line.startsWith(VERSION_STRING), "Invalid version: " + line);
+            AssertState.assertTrue(line.startsWith(hvals.VERSION_STRING), "Invalid version: " + line);
             
             String version = line;
             Path path = null;
@@ -821,7 +841,7 @@ public class DefaultContentManager implements ContentManager {
                         owner = line.substring(7);
                     } else if (line.startsWith("Token: ")) {
                         token = line.substring(7);
-                    } else if (line.startsWith(FILE_HEADER_END)) {
+                    } else if (line.startsWith(hvals.FILE_HEADER_END)) {
                         line = null;
                     }
                 }
@@ -830,11 +850,11 @@ public class DefaultContentManager implements ContentManager {
             return new FHeader(version, path, owner, token, length);
         }
 
-        void write(Writer wr) {
+        void write(HValues hvals, Writer wr) {
             PrintWriter pw = new PrintWriter(wr);
             
             // First line is the version
-            pw.println(version);
+            pw.println(hvals.VERSION_STRING);
             
             // Second is the location
             pw.println(String.format("Path: %s", path));
@@ -846,7 +866,7 @@ public class DefaultContentManager implements ContentManager {
             pw.println(String.format("Token: %s", token));
             
             // Then comes an end of header marker
-            pw.println(FILE_HEADER_END);
+            pw.println(hvals.FILE_HEADER_END);
         }
     }
     
@@ -854,14 +874,12 @@ public class DefaultContentManager implements ContentManager {
         
         static final byte OP_PUB_KEY = 0x10;
         static final byte OP_FILE_DATA = 0x20;
-        
-        // OP_RETURN defined in Bitcoin
-        static final byte BTC_RETURN = 0x6A; 
+        static final byte OP_RETURN = 0x6A; 
         
         final String OP_PREFIX;
         
-        BCData(String prefix) {
-            OP_PREFIX = prefix;
+        BCData(HValues hvals) {
+            OP_PREFIX = hvals.PREFIX;
         }
 
         byte [] createPubKeyData(byte[] pubKey) {
@@ -897,7 +915,7 @@ public class DefaultContentManager implements ContentManager {
 
         boolean isOurs(byte[] txdata) {
             byte[] prefix = OP_PREFIX.getBytes();
-            if (txdata[0] != BTC_RETURN) return false;
+            if (txdata[0] != OP_RETURN) return false;
             if (txdata[1] != txdata.length - 2) return false;
             byte[] aux = Arrays.copyOfRange(txdata, 2, 2 + prefix.length);
             return Arrays.equals(prefix, aux);

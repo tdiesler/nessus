@@ -1,5 +1,7 @@
 package io.nessus.cipher;
 
+import java.security.GeneralSecurityException;
+
 /*-
  * #%L
  * Nessus :: Cipher
@@ -31,9 +33,14 @@ import org.bouncycastle.util.Arrays;
 
 import io.nessus.utils.AssertState;
 
-public class PlatformVerify {
+public class CipherSanityCheck {
 
     public static void main(String[] args) throws Exception {
+        
+        verifyPlatform();
+    }
+
+    public static void verifyPlatform() throws GeneralSecurityException {
         
         Security.addProvider(new BouncyCastleProvider());
 
@@ -84,7 +91,6 @@ public class PlatformVerify {
         byte[] decrypted = ecies.decrypt(pivKey, ciphertext);
 
         String encResult = Base64.getEncoder().encodeToString(decrypted);
-        System.out.println(encSecret + " => " + encResult);
         AssertState.assertEquals(encSecret, encResult);
     }
 }

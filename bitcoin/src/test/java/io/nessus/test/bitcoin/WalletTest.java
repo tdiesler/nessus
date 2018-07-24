@@ -21,10 +21,10 @@ package io.nessus.test.bitcoin;
  */
 
 import static io.nessus.Wallet.ALL_FUNDS;
-import static io.nessus.Wallet.LABEL_DEFAULT;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,6 +39,41 @@ import io.nessus.bitcoin.AbstractBitcoinTest;
 public class WalletTest extends AbstractBitcoinTest {
 
     @Test
+    public void testInitialImport () throws Exception {
+        
+        Blockchain blockchain = BlockchainFactory.getBlockchain();
+        Wallet wallet = blockchain.getWallet();
+
+        List<String> labels = wallet.getLabels();
+        Assert.assertEquals("[(change), Bob, Marry, Sink]", labels.toString());
+        
+        Address addrBob = wallet.getAddress(LABEL_BOB);
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_BOB));
+        Assert.assertNotNull(addrBob);
+        
+        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_MARRY));
+        Assert.assertNotNull(addrMarry);
+        
+        Address addrSink = wallet.getAddress(LABEL_SINK);
+        Assert.assertNull(wallet.getChangeAddress(LABEL_SINK));
+        Assert.assertNotNull(addrSink);
+        
+        Address addrXXX = addrSink.setLabels(Arrays.asList("XXX"));
+        Assert.assertEquals(Arrays.asList("XXX"), addrXXX.getLabels());
+        Assert.assertEquals(addrSink.getAddress(), addrXXX.getAddress());
+        
+        addrSink = addrSink.setLabels(Arrays.asList(LABEL_SINK));
+        Assert.assertEquals(Arrays.asList(LABEL_SINK), addrSink.getLabels());
+        
+        for (String label : labels) {
+            List<Address> addrs = wallet.getAddresses(label);
+            LOG.info(String.format("%-5s: addr=%s", label, addrs));
+            Assert.assertTrue("At least one address", addrs.size() > 0);
+        }
+    }
+    
+    @Test
     public void testSimpleSpending () throws Exception {
 
         Blockchain blockchain = BlockchainFactory.getBlockchain();
@@ -46,14 +81,15 @@ public class WalletTest extends AbstractBitcoinTest {
         Wallet wallet = blockchain.getWallet();
         
         Address addrBob = wallet.getAddress(LABEL_BOB);
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_BOB));
+        Assert.assertNotNull(addrBob);
+        
         Address addrSink = wallet.getAddress(LABEL_SINK);
+        Assert.assertNull(wallet.getChangeAddress(LABEL_SINK));
+        Assert.assertNotNull(addrSink);
         
         // Show account balances
         showAccountBalances();
-        
-        // Verify that the default account has some bitcoin
-        BigDecimal btcMiner = wallet.getBalance(LABEL_DEFAULT);
-        Assert.assertTrue(new BigDecimal("50.0").compareTo(btcMiner) <= 0);
         
         // Verify that Bob has no funds
         BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
@@ -94,7 +130,12 @@ public class WalletTest extends AbstractBitcoinTest {
         Wallet wallet = blockchain.getWallet();
         
         Address addrBob = wallet.getAddress(LABEL_BOB);
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_BOB));
+        Assert.assertNotNull(addrBob);
+        
         Address addrSink = wallet.getAddress(LABEL_SINK);
+        Assert.assertNull(wallet.getChangeAddress(LABEL_SINK));
+        Assert.assertNotNull(addrSink);
         
         // Send 10 BTC to Bob
         wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("10.0"));
