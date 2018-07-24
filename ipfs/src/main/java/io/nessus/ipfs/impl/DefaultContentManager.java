@@ -66,6 +66,8 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.ECIESCipher;
+import io.nessus.cmd.IPFSException;
+import io.nessus.cmd.MerkleNotFoundException;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
@@ -355,7 +357,15 @@ public class DefaultContentManager implements ContentManager {
                 String cid = fhandle != null ? fhandle.getCid() : null;
                 if (cid != null && filecache.get(cid) == null) {
                     
-                    fhandle = ipfsGet(cid, timeout, TimeUnit.MILLISECONDS);
+                    try {
+                        fhandle = ipfsGet(cid, timeout, TimeUnit.MILLISECONDS);
+                    } catch (IPFSException ex) {
+                        if (ex.getCause() instanceof MerkleNotFoundException) {
+                            continue;
+                        } else {
+                            throw ex;
+                        }
+                    }
                     
                     fhandle = new FHBuilder(fhandle)
                             .txId(txId)

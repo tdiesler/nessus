@@ -83,10 +83,15 @@ public class CmdLineClient {
                 result = stdout.result();
                 LOG.debug(result);
             } else {
+                IPFSException cause = null;
                 if (stderr.length() > 0) {
-                    LOG.error(stderr.result());
+                    String errmsg = stderr.result();
+                    if ("Error: merkledag: not found".equals(errmsg)) {
+                        cause = new MerkleNotFoundException(cmdLine);
+                    }
+                    LOG.error(errmsg);
                 }
-                throw new IllegalStateException("ERROR executing: " + cmdLine);
+                throw new IPFSException("ERROR executing: " + cmdLine, cause);
             }
         } catch (RuntimeException rte) {
             throw rte;
