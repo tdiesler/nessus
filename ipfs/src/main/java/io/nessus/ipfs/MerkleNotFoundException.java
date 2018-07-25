@@ -1,8 +1,8 @@
-package io.nessus.bitcoin;
+package io.nessus.ipfs;
 
 /*-
  * #%L
- * Nessus :: Bitcoin
+ * Nessus :: IPFS
  * %%
  * Copyright (C) 2018 Nessus
  * %%
@@ -20,22 +20,14 @@ package io.nessus.bitcoin;
  * #L%
  */
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+@SuppressWarnings("serial")
+public class MerkleNotFoundException extends IPFSException {
 
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
-
-public abstract class BitcoinClientSupport {
-
-    static final Logger LOG = LoggerFactory.getLogger(BitcoinClientSupport.class);
-
-    protected final BitcoindRpcClient client;
-    
-    public BitcoinClientSupport(BitcoindRpcClient client) {
-        this.client = client;
+    public MerkleNotFoundException(String message) {
+        super(message);
     }
     
-    public BitcoindRpcClient getRpcClient() {
-        return client;
+    public MerkleNotFoundException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

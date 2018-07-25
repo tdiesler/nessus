@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.Network;
+import io.nessus.RpcClientSupport;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
 import io.nessus.TxOutput;
@@ -66,15 +67,18 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.ECIESCipher;
-import io.nessus.cmd.IPFSException;
-import io.nessus.cmd.MerkleNotFoundException;
+import io.nessus.cmd.TimeoutException;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.MerkleNotFoundException;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.LockedUnspent;
 
 public class DefaultContentManager implements ContentManager {
 
@@ -150,7 +154,9 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public PublicKey register(Address addr) throws GeneralSecurityException {
         
+        assertArgumentHasLabel(addr);
         assertArgumentHasPrivateKey(addr);
+        assertArgumentNoChangeAddress(addr);
 
         // Do nothing if already registered
         PublicKey pubKey = findRegistation(addr);
@@ -166,21 +172,38 @@ public class DefaultContentManager implements ContentManager {
 
         // Send a Tx to record the OP_RETURN data
 
-        BigDecimal dataFee = getMinimumDataFee();
-        List<UTXO> utxos = wallet.selectUnspent(Arrays.asList(addr), addFee(dataFee));
+        BigDecimal dataAmount = getRecordedDataAmount();
+        BigDecimal spendAmount = dataAmount.add(getMinimumDataFee());
+        
+        String label = addr.getLabels().get(0);
+        List<UTXO> utxos = wallet.selectUnspent(label, addFee(spendAmount));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
-        BigDecimal changeAmount = utxosAmount.subtract(addFee(dataFee));
+        Address changeAddr = wallet.getChangeAddress(label);
+        BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
 
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
-                .output(new TxOutput(addr.getAddress(), changeAmount, data))
+                .output(new TxOutput(changeAddr.getAddress(), changeAmount))
+                .output(new TxOutput(addr.getAddress(), dataAmount, data))
                 .build();
 
         String txId = wallet.sendTx(tx);
 
         LOG.info("Register pubKey: {} => Tx {}", addr, txId);
 
+        int vout = 1;
+        tx = wallet.getTransaction(txId);
+        List<TxOutput> outs = tx.outputs();
+        TxOutput dataOut = outs.get(vout);
+        AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
+        AssertState.assertEquals(dataAmount, dataOut.getAmount());
+
+        LOG.info("Lock unspent: {} {}", txId, vout);
+        
+        BitcoindRpcClient client = getRpcClient();
+        client.lockUnspent(false, txId, vout);
+        
         return pubKey;
     }
 
@@ -267,7 +290,9 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public FHandle send(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
         
+        assertArgumentHasLabel(owner);
         assertArgumentHasPrivateKey(owner);
+        assertArgumentNoChangeAddress(owner);
         
         PublicKey pubKey = findRegistation(target);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + target);
@@ -318,7 +343,7 @@ public class DefaultContentManager implements ContentManager {
             pubKey = keycache.get(addr);
             if (pubKey == null) {
                 
-                List<UTXO> utoxs = wallet.listUnspent(Arrays.asList(addr));
+                List<UTXO> utoxs = listLockedAndUnlockedUnspent(addr, true, true);
                 for (int i = 0; pubKey == null && i < utoxs.size(); i++) {
                     
                     UTXO utox = utoxs.get(i);
@@ -349,7 +374,9 @@ public class DefaultContentManager implements ContentManager {
                 }
             }
             
-            for (UTXO utox : wallet.listUnspent(Arrays.asList(addr))) {
+            List<UTXO> locked = listLockedAndUnlockedUnspent(addr, false, true);
+            
+            for (UTXO utox : listLockedAndUnlockedUnspent(addr, true, true)) {
                 
                 String txId = utox.getTxId();
                 Tx tx = wallet.getTransaction(txId);
@@ -360,11 +387,26 @@ public class DefaultContentManager implements ContentManager {
                     try {
                         fhandle = ipfsGet(cid, timeout, TimeUnit.MILLISECONDS);
                     } catch (IPFSException ex) {
-                        if (ex.getCause() instanceof MerkleNotFoundException) {
+                        Throwable cause = ex.getCause();
+                        if (cause instanceof MerkleNotFoundException || cause instanceof TimeoutException) {
                             continue;
                         } else {
                             throw ex;
                         }
+                    }
+                    
+                    if (!locked.contains(utox)) {
+                        
+                        int vout = 1;
+                        List<TxOutput> outs = tx.outputs();
+                        TxOutput dataOut = outs.get(vout);
+                        AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
+                        AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
+                        
+                        LOG.info("Lock unspent: {} {}", txId, vout);
+                        
+                        BitcoindRpcClient client = getRpcClient();
+                        client.lockUnspent(false, txId, vout);
                     }
                     
                     fhandle = new FHBuilder(fhandle)
@@ -433,6 +475,10 @@ public class DefaultContentManager implements ContentManager {
         }
         
         return false;
+    }
+
+    protected BitcoindRpcClient getRpcClient() {
+        return ((RpcClientSupport) blockchain).getRpcClient();
     }
 
     protected BigDecimal getMinimumDataFee() {
@@ -513,6 +559,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     private FHandle recordFileData(FHandle fhandle, Address fromAddr, Address toAddr) throws GeneralSecurityException {
+
         AssertArgument.assertTrue(fhandle.isEncrypted(), "File not encrypted: " + fhandle);
 
         // Construct the OP_RETURN data
@@ -521,31 +568,41 @@ public class DefaultContentManager implements ContentManager {
 
         // Send a Tx to record the OP_TOKEN data
 
-        Tx tx;
-        BigDecimal dataFee = getMinimumDataFee();
+        BigDecimal dataAmount = getRecordedDataAmount();
+        BigDecimal spendAmount = dataAmount.add(getMinimumDataFee());
         
-        if (fromAddr.equals(toAddr)) {
+        String label = fromAddr.getLabels().get(0);
+        List<UTXO> utxos = wallet.selectUnspent(label, addFee(spendAmount));
+        BigDecimal utxosAmount = getUTXOAmount(utxos);
+
+        Address changeAddr = wallet.getChangeAddress(label);
+        BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
+
+        Tx tx = new TxBuilder()
+                .unspentInputs(utxos)
+                .output(new TxOutput(changeAddr.getAddress(), changeAmount))
+                .output(new TxOutput(toAddr.getAddress(), dataAmount, data))
+                .build();
+
+        String txId = wallet.sendTx(tx);
+        
+        // Lock the UTOX if we have the priv key for the recipient 
+        
+        if (toAddr.getPrivKey() != null) {
             
-            List<UTXO> utxos = wallet.selectUnspent(Arrays.asList(fromAddr), addFee(dataFee));
-            BigDecimal changeAmount = getUTXOAmount(utxos).subtract(addFee(dataFee));
-            tx = new TxBuilder()
-                    .unspentInputs(utxos)
-                    .output(new TxOutput(fromAddr.getAddress(), changeAmount, data))
-                    .build();
-        } else {
+            int vout = 1;
+            tx = wallet.getTransaction(txId);
+            List<TxOutput> outs = tx.outputs();
+            TxOutput dataOut = outs.get(vout);
+            AssertState.assertEquals(toAddr.getAddress(), dataOut.getAddress());
+            AssertState.assertEquals(dataAmount, dataOut.getAmount());
+
+            LOG.info("Lock unspent: {} {}", txId, vout);
             
-            BigDecimal doubleDataFee = dataFee.multiply(new BigDecimal(2));
-            List<UTXO> utxos = wallet.selectUnspent(Arrays.asList(fromAddr), addFee(doubleDataFee));
-            BigDecimal changeAmount = getUTXOAmount(utxos).subtract(addFee(doubleDataFee));
-            tx = new TxBuilder()
-                    .unspentInputs(utxos)
-                    .output(new TxOutput(fromAddr.getAddress(), changeAmount))
-                    .output(new TxOutput(toAddr.getAddress(), dataFee, data))
-                    .build();
+            BitcoindRpcClient client = getRpcClient();
+            client.lockUnspent(false, txId, vout);
         }
         
-        String txId = wallet.sendTx(tx);
-
         fhandle = new FHBuilder(fhandle).txId(txId).build();
         
         return fhandle;
@@ -765,6 +822,27 @@ public class DefaultContentManager implements ContentManager {
         return fhandle;
     }
     
+    private List<UTXO> listLockedAndUnlockedUnspent(Address addr, boolean unlocked, boolean locked) {
+        List<UTXO> result = new ArrayList<>();
+        if (unlocked) {
+            result.addAll(wallet.listUnspent(Arrays.asList(addr)));
+        }
+        if (locked) {
+            for (LockedUnspent lutox : getRpcClient().listLockUnspent()) {
+                String txId = lutox.txId();
+                int vout = lutox.vout();
+                Tx tx = wallet.getTransaction(txId);
+                TxOutput txout = tx.outputs().get(vout);
+                String rawAddr = txout.getAddress();
+                if (rawAddr.equals(addr.getAddress())) {
+                    BigDecimal amount = txout.getAmount();
+                    result.add(new UTXO(txId, vout, null, rawAddr, amount));
+                }
+            }
+        }
+        return result;
+    }
+
     private boolean isOurs(Tx tx) {
 
         // Expect two outputs
@@ -799,10 +877,23 @@ public class DefaultContentManager implements ContentManager {
         return header;
     }
     
+    // Use 10 * what the network considers as dust as locked data amount
+    private BigDecimal getRecordedDataAmount() {
+        return network.getDustThreshold().multiply(BigDecimal.TEN);
+    }
+
     private void assertArgumentHasPrivateKey(Address addr) {
         AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
     }
 
+    private void assertArgumentHasLabel(Address addr) {
+        AssertArgument.assertTrue(!addr.getLabels().isEmpty(), "Address has no label: " + addr);
+    }
+    
+    private void assertArgumentNoChangeAddress(Address addr) {
+        AssertArgument.assertTrue(!addr.getLabels().contains(Wallet.LABEL_CHANGE), "Cannot use change address: " + addr);
+    }
+    
     private Path assertPlainPath(Address owner, Path path) {
         AssertArgument.assertTrue(path != null && !path.isAbsolute(), "Not a relative path: " + path);
         return getPlainPath(owner).resolve(path);

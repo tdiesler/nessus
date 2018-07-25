@@ -27,12 +27,14 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.RpcClientSupport;
 import io.nessus.Blockchain;
 import io.nessus.Config;
 import io.nessus.Tx;
@@ -56,7 +58,7 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Transaction;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.Unspent;
 import wf.bitcoin.krotjson.HexCoder;
 
-public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
+public class BitcoinWallet extends RpcClientSupport implements Wallet {
 
     static final Logger LOG = LoggerFactory.getLogger(BitcoinWallet.class);
 
@@ -136,8 +138,13 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
     }
 
     @Override
-    public final Address newAddress(List<String> labels) {
-        return createNewAddress(labels);
+    public final Address newAddress(String label) {
+        return createNewAddress(Arrays.asList(label));
+    }
+
+    @Override
+    public final Address newChangeAddress(String label) {
+        return createNewAddress(Arrays.asList(label, LABEL_CHANGE));
     }
 
     protected BitcoinAddress createNewAddress(List<String> labels) {
@@ -179,20 +186,27 @@ public class BitcoinWallet extends BitcoinClientSupport implements Wallet {
     }
 
     @Override
-    public Address getChangeAddress(String label) {
-        List<Address> addrs = getChangeAddresses(label);
-        return addrs != null && addrs.size() > 0 ? addrs.iterator().next() : null;
-    }
-
-    @Override
     public List<Address> getChangeAddresses(String label) {
-        List<Address> filtered = getAddressMapping().values().stream()
-                .filter(a -> a.getLabels().contains(label))
+        AssertArgument.assertNotNull(label, "Null label");
+        List<Address> filtered = getAddresses(label).stream()
                 .filter(a -> a.getLabels().contains(LABEL_CHANGE))
                 .collect(Collectors.toList());
         return filtered;
     }
 
+    @Override
+    public Address getChangeAddress(String label) {
+        List<Address> addrs = getChangeAddresses(label);
+        if (addrs.isEmpty()) {
+            addrs.add(newChangeAddress(label));
+        }
+        if (addrs.size() == 1) {
+            return addrs.get(0);
+        }
+        int idx = new Random().nextInt(addrs.size());
+        return addrs.get(idx);
+    }
+    
     @Override
     public BigDecimal getBalance(String label) {
         List<Address> addrs = label != null ? getAddresses(label) : getAddresses();

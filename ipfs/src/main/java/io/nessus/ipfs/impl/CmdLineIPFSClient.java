@@ -27,7 +27,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.cmd.CmdLineClient;
+import io.nessus.cmd.CmdLineException;
+import io.nessus.cmd.TimeoutException;
 import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.MerkleNotFoundException;
 import io.nessus.utils.AssertState;
 
 public class CmdLineIPFSClient extends CmdLineClient implements IPFSClient {
@@ -51,7 +55,7 @@ public class CmdLineIPFSClient extends CmdLineClient implements IPFSClient {
     @Override
     public String add(Path path, boolean recursive) {
         String cmd = recursive ? "add -r" : "add";
-        String res = exec(concat(cmd, new Object[] { path }));
+        String res = execIPFS(concat(cmd, new Object[] { path }));
         String[] toks = split(res);
         AssertState.assertEquals("added", toks[0]);
         return toks[1];
@@ -59,22 +63,48 @@ public class CmdLineIPFSClient extends CmdLineClient implements IPFSClient {
 
     @Override
     public String cat(String cid) {
-        return exec(concat("cat", new Object[] { cid }));
+        return execIPFS(concat("cat", new Object[] { cid }));
     }
 
     @Override
     public String get(String cid, Path outdir) {
-        return exec(concat("get", new Object[] { "-o " + outdir, cid }));
+        return execIPFS(concat("get", new Object[] { "-o " + outdir, cid }));
     }
 
     @Override
     public String get(String cid, Path outdir, Long timeout, TimeUnit unit) {
-        return exec(concat("get", new Object[] { "-o " + outdir, cid }), timeout, unit);
+        return execIPFS(concat("get", new Object[] { "-o " + outdir, cid }), timeout, unit);
     }
 
     @Override
     public String version() {
-        return exec(concat("version", null));
+        return execIPFS(concat("version", null));
+    }
+
+    private String execIPFS(String cmdLine) {
+        return execIPFS(cmdLine, null, null);
+    }
+
+    private String execIPFS(String cmdLine, Long timeout, TimeUnit unit) {
+        try {
+            
+            return exec(cmdLine, timeout, unit);
+            
+        } catch (CmdLineException ex) {
+            
+            Throwable cause = ex.getCause();
+            if (cause != null) {
+                if ("Error: merkledag: not found".equals(cause.getMessage())) {
+                    cause = new MerkleNotFoundException(cmdLine);
+                }
+            }
+            
+            throw new IPFSException(cmdLine, cause);
+            
+        } catch (TimeoutException ex) {
+            
+            throw new IPFSException(cmdLine, ex);
+        }
     }
 
     private String concat(String cmd, Object[] args) {

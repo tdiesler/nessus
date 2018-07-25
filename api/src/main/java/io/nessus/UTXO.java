@@ -42,6 +42,6 @@ public class UTXO extends TxInput {
     }
     
     public String toString() {
-        return String.format("%s %d => %.8f", getTxId(), getVout(), amount);
+        return String.format("[txid=%s, vout=%d, amount=%.8f]", getTxId(), getVout(), amount);
     }
 }

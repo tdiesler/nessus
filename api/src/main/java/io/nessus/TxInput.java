@@ -43,4 +43,24 @@ public class TxInput {
     public String getScriptPubKey() {
         return scriptPubKey;
     }
+
+    @Override
+    public int hashCode() {
+        int result = 1;
+        result = 31 * result + txId.hashCode();
+        result = 31 * result + vout.hashCode();
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof TxInput)) return false;
+        TxInput other = (TxInput) obj;
+        return txId.equals(other.txId) && vout.equals(other.vout);
+    }
+
+    public String toString() {
+        return String.format("[txid=%s, vout=%d]", getTxId(), getVout());
+    }
 }

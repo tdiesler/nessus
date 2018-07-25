@@ -23,12 +23,13 @@ package io.nessus.bitcoin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.RpcClientSupport;
 import io.nessus.Blockchain;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
-public class BitcoinBlockchain extends BitcoinClientSupport implements Blockchain {
+public class BitcoinBlockchain extends RpcClientSupport implements Blockchain {
 
     static final Logger LOG = LoggerFactory.getLogger(BitcoinBlockchain.class);
 

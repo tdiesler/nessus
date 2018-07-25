@@ -56,7 +56,7 @@ public class WalletTest extends AbstractBitcoinTest {
         Assert.assertNotNull(addrMarry);
         
         Address addrSink = wallet.getAddress(LABEL_SINK);
-        Assert.assertNull(wallet.getChangeAddress(LABEL_SINK));
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_SINK));
         Assert.assertNotNull(addrSink);
         
         Address addrXXX = addrSink.setLabels(Arrays.asList("XXX"));
@@ -85,7 +85,7 @@ public class WalletTest extends AbstractBitcoinTest {
         Assert.assertNotNull(addrBob);
         
         Address addrSink = wallet.getAddress(LABEL_SINK);
-        Assert.assertNull(wallet.getChangeAddress(LABEL_SINK));
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_SINK));
         Assert.assertNotNull(addrSink);
         
         // Show account balances
@@ -134,7 +134,7 @@ public class WalletTest extends AbstractBitcoinTest {
         Assert.assertNotNull(addrBob);
         
         Address addrSink = wallet.getAddress(LABEL_SINK);
-        Assert.assertNull(wallet.getChangeAddress(LABEL_SINK));
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_SINK));
         Assert.assertNotNull(addrSink);
         
         // Send 10 BTC to Bob
@@ -151,7 +151,7 @@ public class WalletTest extends AbstractBitcoinTest {
         Assert.assertEquals(10.0, btcBob.doubleValue(), 0);
         
         // Get a new address for Bob
-        Address addrOther = wallet.newAddress(Arrays.asList(LABEL_BOB));
+        Address addrOther = wallet.newAddress(LABEL_BOB);
         Assert.assertFalse(addrBob.equals(addrOther));
         Assert.assertNotNull(addrOther.getPrivKey());
         

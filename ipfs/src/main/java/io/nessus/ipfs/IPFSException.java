@@ -1,4 +1,4 @@
-package io.nessus.cmd;
+package io.nessus.ipfs;
 
 /*-
  * #%L
@@ -21,13 +21,13 @@ package io.nessus.cmd;
  */
 
 @SuppressWarnings("serial")
-public class MerkleNotFoundException extends IPFSException {
+public class IPFSException extends RuntimeException {
 
-    public MerkleNotFoundException(String message) {
+    public IPFSException(String message) {
         super(message);
     }
     
-    public MerkleNotFoundException(String message, Throwable cause) {
+    public IPFSException(String message, Throwable cause) {
         super(message, cause);
     }
 }

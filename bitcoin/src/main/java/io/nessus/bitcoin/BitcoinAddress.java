@@ -24,10 +24,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import io.nessus.RpcClientSupport;
 import io.nessus.Wallet.Address;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
-public class BitcoinAddress extends BitcoinClientSupport implements Address {
+public class BitcoinAddress extends RpcClientSupport implements Address {
 
     private final BitcoinWallet wallet;
     private final String address;
@@ -35,7 +36,7 @@ public class BitcoinAddress extends BitcoinClientSupport implements Address {
     private final List<String> addrLabels;
 
     public BitcoinAddress(BitcoinWallet wallet, String address, List<String> labels) {
-        super(wallet.client);
+        super(wallet.getRpcClient());
         this.wallet = wallet;
         this.address = address;
         this.watchOnly = getPrivKey() == null;

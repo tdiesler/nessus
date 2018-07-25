@@ -44,9 +44,14 @@ public interface Wallet {
     Address addAddress(String key, List<String> labels);
     
     /**
-     * Generate new address for this wallet
+     * Generate new address.
      */
-    Address newAddress(List<String> labels);
+    Address newAddress(String label);
+    
+    /**
+     * Generate new change address.
+     */
+    Address newChangeAddress(String label);
     
     /**
      * List available label
@@ -74,7 +79,9 @@ public interface Wallet {
     List<Address> getAddresses(String label);
 
     /**
-     * Get the default change address for a given label
+     * Get a random change address for a given label.
+     * 
+     * If there is no change address yet, it creates one. 
      */
     Address getChangeAddress(String label);
 

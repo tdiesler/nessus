@@ -10,7 +10,7 @@ package io.nessus;
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:*www.apache.org/licenses/LICENSE-2.0
  * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,43 +24,53 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import io.nessus.Wallet.Address;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.NetworkInfo;
 
 public interface Network {
 
+    /**
+     * Estimate the network fee
+     */
     BigDecimal estimateFee();
-    
+
     /**
-     * Generate the given number of blocks
+     * "Dust" is defined in terms of dustRelayFee, which has units satoshis-per-kilobyte.
+     * If you'd pay more in fees than the value of the output, then it is considered dust.
      */
-    List<String> generate(int numBlocks);
-    
-    /**
-     * Generate the given number of blocks to the given address
-     */
-    List<String> generate(int numBlocks, Address addr);
-    
+    BigDecimal getDustThreshold();
+
     /**
      * Get the block for the given hash
      */
     Block getBlock(String blockHash);
 
     /**
-     * Get the best block hash
+     * Get the block hash for the given height
      */
-    String getBestBlockHash();
-    
-    /**
-     * Get the best block
-     */
-    Block getBestBlock();
-    
+    String getBlockHash(Integer height);
+
     /**
      * Get the block count
      */
     Integer getBlockCount();
-    
+
     /**
      * Get the block rate in seconds
      */
     Integer getBlockRate();
+
+    /**
+     * Returns information about the node’s connection to the network.
+     */
+    NetworkInfo getNetworkInfo();
+    
+    /**
+     * Generate the given number of blocks
+     */
+    List<String> generate(int numBlocks);
+
+    /**
+     * Generate the given number of blocks to the given address
+     */
+    List<String> generate(int numBlocks, Address addr);
 }

@@ -73,7 +73,9 @@ public class CmdLineClient {
 
             if (timeout != null) {
                 if (!proc.waitFor(timeout, unit)) {
-                    throw new TimeoutException("Timeout executing: " + cmdLine);
+                    String errmsg = "Timeout executing: " + cmdLine;
+                    LOG.error(errmsg);
+                    throw new TimeoutException(errmsg);
                 }
             } else {
                 proc.waitFor();
@@ -83,15 +85,15 @@ public class CmdLineClient {
                 result = stdout.result();
                 LOG.debug(result);
             } else {
-                IPFSException cause = null;
+                CmdLineException cause = null;
                 if (stderr.length() > 0) {
                     String errmsg = stderr.result();
-                    if ("Error: merkledag: not found".equals(errmsg)) {
-                        cause = new MerkleNotFoundException(cmdLine);
-                    }
-                    LOG.error(errmsg);
+                    cause = new CmdLineException(errmsg);
                 }
-                throw new IPFSException("ERROR executing: " + cmdLine, cause);
+                String errmsg = "ERROR executing: " + cmdLine;
+                if (cause != null) errmsg += ", caused by: " + cause.getMessage();
+                LOG.error(errmsg);
+                throw new CmdLineException(errmsg, cause);
             }
         } catch (RuntimeException rte) {
             throw rte;

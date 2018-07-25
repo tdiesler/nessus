@@ -21,13 +21,13 @@ package io.nessus.cmd;
  */
 
 @SuppressWarnings("serial")
-public class IPFSException extends RuntimeException {
+public class CmdLineException extends RuntimeException {
 
-    public IPFSException(String message) {
+    public CmdLineException(String message) {
         super(message);
     }
     
-    public IPFSException(String message, Throwable cause) {
+    public CmdLineException(String message, Throwable cause) {
         super(message, cause);
     }
 }
