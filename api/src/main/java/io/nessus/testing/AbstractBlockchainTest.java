@@ -34,11 +34,8 @@ import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Config;
 import io.nessus.Network;
-import io.nessus.Tx;
-import io.nessus.Tx.TxBuilder;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
-import io.nessus.Wallet.Address;
 
 public abstract class AbstractBlockchainTest {
 
@@ -67,31 +64,6 @@ public abstract class AbstractBlockchainTest {
         }
     }
     
-    protected static void redeemChange(Blockchain blockchain, String label, Address addr) {
-        
-        if (blockchain != null && label != null && addr != null) {
-            
-            Wallet wallet = blockchain.getWallet();
-            Network network = blockchain.getNetwork();
-            
-            List<Address> addrs = wallet.getChangeAddresses(label);
-            List<UTXO> utxos = wallet.listUnspent(addrs);
-            
-            if (!utxos.isEmpty()) {
-                
-                BigDecimal amount = getUTXOAmount(utxos);
-                amount = amount.subtract(network.estimateFee());
-                
-                Tx tx = new TxBuilder()
-                        .unspentInputs(utxos)
-                        .output(addr.getAddress(), amount)
-                        .build();
-                
-                wallet.sendTx(tx);
-            }
-        } 
-    }
-
     protected static BigDecimal getUTXOAmount(List<UTXO> utxos) {
         return AbstractWallet.getUTXOAmount(utxos);
     }

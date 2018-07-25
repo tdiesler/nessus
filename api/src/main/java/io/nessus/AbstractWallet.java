@@ -225,7 +225,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
 
-        BigDecimal estFee = blockchain.getNetwork().estimateFee();
+        BigDecimal estFee = estimateFee();
         
         Tx tx;
         if (amount != ALL_FUNDS) {
@@ -387,6 +387,27 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return findAddress(rawAddr);
     }
     
+    public void redeemChange(String label, Address toAddr) {
+        
+        if (label == null || toAddr == null) return;
+        
+        List<Address> addrs = getChangeAddresses(label);
+        List<UTXO> utxos = listUnspent(addrs);
+        
+        if (!utxos.isEmpty()) {
+            
+            BigDecimal amount = getUTXOAmount(utxos);
+            amount = amount.subtract(estimateFee());
+            
+            Tx tx = new TxBuilder()
+                    .unspentInputs(utxos)
+                    .output(toAddr.getAddress(), amount)
+                    .build();
+            
+            sendTx(tx);
+        }
+    }
+    
     protected abstract Address createAdddressFromRaw(String rawAddr, List<String> labels);
 
     protected abstract Address createNewAddress(List<String> labels);
@@ -417,6 +438,11 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return result;
     }
     
+    private BigDecimal estimateFee() {
+        Network network = blockchain.getNetwork();
+        return network.estimateFee();
+    }
+
     private List<String> getRawAddresses(List<Address> addrs) {
         return addrs.stream().map(a -> a.getAddress()).collect(Collectors.toList());
     }

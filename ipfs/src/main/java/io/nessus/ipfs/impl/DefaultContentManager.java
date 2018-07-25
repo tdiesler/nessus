@@ -56,6 +56,7 @@ import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
 import io.nessus.Network;
 import io.nessus.RpcClientSupport;
@@ -122,6 +123,8 @@ public class DefaultContentManager implements ContentManager {
     // Hence, an IPFS get is needed in any case to get at the IPFS file header. For large files this may result
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
     private final Map<String, FHandle> filecache = new LinkedHashMap<>();
+    
+    private Integer minBlockHeight;
 
     public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain) {
         this.blockchain = blockchain;
@@ -141,6 +144,11 @@ public class DefaultContentManager implements ContentManager {
         return rootPath;
     }
     
+    public void setMinBlockHeight(Integer blockHeight) {
+        LOG.info("Min block height: {}", blockHeight);
+        this.minBlockHeight = blockHeight;
+    }
+
     @Override
     public Blockchain getBlockchain() {
         return blockchain;
@@ -183,20 +191,24 @@ public class DefaultContentManager implements ContentManager {
         Address changeAddr = wallet.getChangeAddress(label);
         BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
 
+        List<TxOutput> outputs = new ArrayList<>();
+        if (network.getDustThreshold().compareTo(changeAmount) < 0) {
+            outputs.add(new TxOutput(changeAddr.getAddress(), changeAmount));
+        }
+        outputs.add(new TxOutput(addr.getAddress(), dataAmount, data));
+            
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
-                .output(new TxOutput(changeAddr.getAddress(), changeAmount))
-                .output(new TxOutput(addr.getAddress(), dataAmount, data))
+                .outputs(outputs)
                 .build();
 
         String txId = wallet.sendTx(tx);
 
         LOG.info("Register pubKey: {} => Tx {}", addr, txId);
 
-        int vout = 1;
         tx = wallet.getTransaction(txId);
-        List<TxOutput> outs = tx.outputs();
-        TxOutput dataOut = outs.get(vout);
+        int vout = tx.outputs().size() - 2;
+        TxOutput dataOut = tx.outputs().get(vout);
         AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
         AssertState.assertEquals(dataAmount, dataOut.getAmount());
 
@@ -204,6 +216,9 @@ public class DefaultContentManager implements ContentManager {
         
         BitcoindRpcClient client = getRpcClient();
         client.lockUnspent(false, txId, vout);
+        
+        LOG.info("Redeem change: {}", changeAmount);
+        ((AbstractWallet) wallet).redeemChange(label, addr);
         
         return pubKey;
     }
@@ -344,44 +359,42 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public PublicKey findRegistation(Address addr) {
         
-        PublicKey pubKey;
-        
         synchronized (keycache) {
-            pubKey = keycache.get(addr);
+            
+            PublicKey pubKey = keycache.get(addr);
+            
             if (pubKey == null) {
                 
                 List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
-                List<UTXO> utoxs = listLockedAndUnlockedUnspent(addr, true, true);
                 
-                for (int i = 0; pubKey == null && i < utoxs.size(); i++) {
+                for (UTXO utox : listLockedAndUnlockedUnspent(addr, true, true)) {
                     
-                    UTXO utox = utoxs.get(i);
                     String txId = utox.getTxId();
                     Tx tx = wallet.getTransaction(txId);
+                    
                     pubKey = getPubKeyFromTx(addr, tx);
-
-                    if (pubKey != null) {
+                    if (pubKey == null) continue;
+                    
+                    if (!locked.contains(utox)) {
                         
-                        if (!locked.contains(utox)) {
-                            
-                            int vout = tx.outputs().size() - 2;
-                            TxOutput dataOut = tx.outputs().get(vout);
-                            AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
-                            AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
-                            
-                            LOG.info("Lock unspent: {} {}", txId, vout);
-                            
-                            BitcoindRpcClient client = getRpcClient();
-                            client.lockUnspent(false, txId, vout);
-                        }
+                        int vout = tx.outputs().size() - 2;
+                        TxOutput dataOut = tx.outputs().get(vout);
+                        AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
+                        AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
                         
-                        keycache.put(addr, pubKey);
+                        LOG.info("Lock unspent: {} {}", txId, vout);
+                        
+                        BitcoindRpcClient client = getRpcClient();
+                        client.lockUnspent(false, txId, vout);
                     }
+                    
+                    keycache.put(addr, pubKey);
+                    break;
                 }
             }
+            
+            return pubKey;
         }
-        
-        return pubKey;
     }
 
     @Override
@@ -403,9 +416,14 @@ public class DefaultContentManager implements ContentManager {
                 
                 String txId = utox.getTxId();
                 Tx tx = wallet.getTransaction(txId);
+                
                 FHandle fhandle = getFHandleFromTx(addr, tx);
-                String cid = fhandle != null ? fhandle.getCid() : null;
-                if (cid != null && filecache.get(cid) == null) {
+                if (fhandle == null) continue;
+                
+                String cid = fhandle.getCid();
+                if (result.containsKey(cid)) continue;
+                
+                if (hasMinBlockHeight(tx, 0)) {
                     
                     try {
                         fhandle = ipfsGet(cid, timeout, TimeUnit.MILLISECONDS);
@@ -578,6 +596,15 @@ public class DefaultContentManager implements ContentManager {
         return fhandle;
     }
 
+    private boolean hasMinBlockHeight(Tx tx, int offset) {
+        boolean result = true;
+        if (minBlockHeight != null && tx.blockHash() != null) {
+            int height = network.getBlock(tx.blockHash()).height();
+            result = (minBlockHeight - offset) <= height;
+        }
+        return result;
+    }
+
     private FHandle recordFileData(FHandle fhandle, Address fromAddr, Address toAddr) throws GeneralSecurityException {
 
         AssertArgument.assertTrue(fhandle.isEncrypted(), "File not encrypted: " + fhandle);
@@ -598,10 +625,15 @@ public class DefaultContentManager implements ContentManager {
         Address changeAddr = wallet.getChangeAddress(label);
         BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
 
+        List<TxOutput> outputs = new ArrayList<>();
+        if (network.getDustThreshold().compareTo(changeAmount) < 0) {
+            outputs.add(new TxOutput(changeAddr.getAddress(), changeAmount));
+        }
+        outputs.add(new TxOutput(toAddr.getAddress(), dataAmount, data));
+        
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
-                .output(new TxOutput(changeAddr.getAddress(), changeAmount))
-                .output(new TxOutput(toAddr.getAddress(), dataAmount, data))
+                .outputs(outputs)
                 .build();
 
         String txId = wallet.sendTx(tx);
@@ -610,10 +642,9 @@ public class DefaultContentManager implements ContentManager {
         
         if (toAddr.getPrivKey() != null) {
             
-            int vout = 1;
             tx = wallet.getTransaction(txId);
-            List<TxOutput> outs = tx.outputs();
-            TxOutput dataOut = outs.get(vout);
+            int vout = tx.outputs().size() - 2;
+            TxOutput dataOut = tx.outputs().get(vout);
             AssertState.assertEquals(toAddr.getAddress(), dataOut.getAddress());
             AssertState.assertEquals(dataAmount, dataOut.getAmount());
 
@@ -623,6 +654,9 @@ public class DefaultContentManager implements ContentManager {
             client.lockUnspent(false, txId, vout);
         }
 
+        LOG.info("Redeem change: {}", changeAmount);
+        ((AbstractWallet) wallet).redeemChange(label, fromAddr);
+        
         fhandle = new FHBuilder(fhandle)
                 .txId(txId)
                 .build();
@@ -827,12 +861,12 @@ public class DefaultContentManager implements ContentManager {
         if (hashBytes != null && outAddr.equals(addr)) {
 
             // Get the file id from stored data
-            String fid = new String(hashBytes);
+            String cid = new String(hashBytes);
 
             // Get the file from IPFS
-            LOG.debug("File Tx: {} => {}", tx.txId(), fid);
+            LOG.debug("File Tx: {} => {}", tx.txId(), cid);
             
-            fhandle = new FHBuilder(fid)
+            fhandle = new FHBuilder(cid)
                     .txId(tx.txId())
                     .owner(addr)
                     .build();
