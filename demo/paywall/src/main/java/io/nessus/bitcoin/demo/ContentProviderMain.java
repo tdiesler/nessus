@@ -67,7 +67,7 @@ public class ContentProviderMain {
         private final Address address;
         
         ContentHandler() {
-            blockchain = (BitcoinBlockchain) BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_TESTNET_URL);
+            blockchain = (BitcoinBlockchain) BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_TESTNET_URL, BitcoinBlockchain.class);
             address = blockchain.getWallet().getAddresses().get(0);
         }
         

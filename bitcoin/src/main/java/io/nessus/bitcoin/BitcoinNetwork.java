@@ -30,13 +30,18 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class BitcoinNetwork extends AbstractNetwork implements Network {
 
-    protected BitcoinNetwork(Blockchain blockchain, BitcoindRpcClient client) {
+    public BitcoinNetwork(Blockchain blockchain, BitcoindRpcClient client) {
         super(blockchain, client);
     }
 
     @Override
     public BigDecimal estimateFee() {
         return new BigDecimal("0.001");
+    }
+
+    @Override
+    public Integer getBlockRate() {
+        return 600;
     }
 
     /**

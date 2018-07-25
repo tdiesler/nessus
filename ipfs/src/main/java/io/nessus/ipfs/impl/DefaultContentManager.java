@@ -343,17 +343,33 @@ public class DefaultContentManager implements ContentManager {
             pubKey = keycache.get(addr);
             if (pubKey == null) {
                 
+                List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
                 List<UTXO> utoxs = listLockedAndUnlockedUnspent(addr, true, true);
+                
                 for (int i = 0; pubKey == null && i < utoxs.size(); i++) {
                     
                     UTXO utox = utoxs.get(i);
                     String txId = utox.getTxId();
                     Tx tx = wallet.getTransaction(txId);
                     pubKey = getPubKeyFromTx(addr, tx);
-                }
-                
-                if (pubKey != null) {
-                    keycache.put(addr, pubKey);
+
+                    if (pubKey != null) {
+                        
+                        if (!locked.contains(utox)) {
+                            
+                            int vout = tx.outputs().size() - 2;
+                            TxOutput dataOut = tx.outputs().get(vout);
+                            AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
+                            AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
+                            
+                            LOG.info("Lock unspent: {} {}", txId, vout);
+                            
+                            BitcoindRpcClient client = getRpcClient();
+                            client.lockUnspent(false, txId, vout);
+                        }
+                        
+                        keycache.put(addr, pubKey);
+                    }
                 }
             }
         }
@@ -374,7 +390,7 @@ public class DefaultContentManager implements ContentManager {
                 }
             }
             
-            List<UTXO> locked = listLockedAndUnlockedUnspent(addr, false, true);
+            List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
             
             for (UTXO utox : listLockedAndUnlockedUnspent(addr, true, true)) {
                 
@@ -397,9 +413,8 @@ public class DefaultContentManager implements ContentManager {
                     
                     if (!locked.contains(utox)) {
                         
-                        int vout = 1;
-                        List<TxOutput> outs = tx.outputs();
-                        TxOutput dataOut = outs.get(vout);
+                        int vout = tx.outputs().size() - 2;
+                        TxOutput dataOut = tx.outputs().get(vout);
                         AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
                         AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
                         
@@ -822,7 +837,7 @@ public class DefaultContentManager implements ContentManager {
         return fhandle;
     }
     
-    private List<UTXO> listLockedAndUnlockedUnspent(Address addr, boolean unlocked, boolean locked) {
+    private List<UTXO> listLockedAndUnlockedUnspent(Address addr, boolean locked, boolean unlocked) {
         List<UTXO> result = new ArrayList<>();
         if (unlocked) {
             result.addAll(wallet.listUnspent(Arrays.asList(addr)));

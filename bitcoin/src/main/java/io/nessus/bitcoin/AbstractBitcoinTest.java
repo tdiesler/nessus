@@ -36,7 +36,7 @@ public abstract class AbstractBitcoinTest extends AbstractBlockchainTest {
     @BeforeClass
     public static void beforeClass() throws IOException {
 
-        Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL);
+        Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
         Wallet wallet = blockchain.getWallet();
         
         // Import the configured addresses and generate a few coins

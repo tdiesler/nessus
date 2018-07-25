@@ -39,38 +39,26 @@ public class BlockchainFactory {
     
     private static Blockchain INSTANCE;
     
-    public static Blockchain getBlockchain(Properties props) throws Exception {
+    public static <T extends Blockchain> T getBlockchain(Properties props, Class<T> bcClass) throws Exception {
         String rpcuser = props.getProperty("rpcuser");
         String rpcpass = props.getProperty("rpcpassword");
         String rpchost = props.getProperty("rpcconnect");
         String rpcport = props.getProperty("rpcport");
-        String className = props.getProperty(Blockchain.class.getName());
-        Class<? extends Blockchain> clazz = loadBlockchainClass(className);
-        return getBlockchain(new URL(String.format("http://%s:%s@%s:%s", rpcuser, rpcpass, rpchost, rpcport)), clazz);
+        return getBlockchain(new URL(String.format("http://%s:%s@%s:%s", rpcuser, rpcpass, rpchost, rpcport)), bcClass);
     }
     
-    public static Blockchain getBlockchain(URL rpcUrl) {
+    @SuppressWarnings("unchecked")
+    public static <T extends Blockchain> T getBlockchain(URL rpcUrl, Class<T> bcClass) {
         if (INSTANCE == null) {
             try {
-                INSTANCE = getBlockchain(rpcUrl, loadBlockchainClass());
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-        return INSTANCE;
-    }
-
-    public static Blockchain getBlockchain(URL rpcUrl, Class<? extends Blockchain> bcclass) {
-        if (INSTANCE == null) {
-            try {
-                LOG.info("{}: {}", bcclass.getSimpleName(), getLogURL(rpcUrl));
+                LOG.info("{}: {}", bcClass.getSimpleName(), getLogURL(rpcUrl));
                 BitcoindRpcClient client = (BitcoindRpcClient) loadRpcClientClass().getConstructor(URL.class).newInstance(rpcUrl);
-                INSTANCE = (Blockchain) bcclass.getConstructor(BitcoindRpcClient.class).newInstance(client);
+                INSTANCE = (Blockchain) bcClass.getConstructor(BitcoindRpcClient.class).newInstance(client);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
         }
-        return INSTANCE;
+        return (T) INSTANCE;
     }
 
     public static Blockchain getBlockchain() {
@@ -84,18 +72,6 @@ public class BlockchainFactory {
         return loader.loadClass(className != null ? className : "wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient");
     }
     
-    private static Class<? extends Blockchain> loadBlockchainClass() throws ClassNotFoundException {
-        String className = System.getenv(BLOCKCHAIN_CLASS_NAME);
-        return loadBlockchainClass(className);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Class<? extends Blockchain> loadBlockchainClass(String className) throws ClassNotFoundException {
-        if (className == null) className = "io.nessus.bitcoin.BitcoinBlockchain";
-        ClassLoader loader = BlockchainFactory.class.getClassLoader();
-        return (Class<? extends Blockchain>) loader.loadClass(className);
-    }
-
     private static URL getLogURL(URL rpcUrl) throws MalformedURLException {
         String protocol = rpcUrl.getProtocol();
         String host = rpcUrl.getHost();

@@ -11,10 +11,13 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.NetworkInfo;
 
 public abstract class AbstractNetwork extends RpcClientSupport implements Network {
 
-    final Logger LOG = LoggerFactory.getLogger(getClass());
+    protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
+    final Blockchain blockchain;
+    
     protected AbstractNetwork(Blockchain blockchain, BitcoindRpcClient client) {
         super(client);
+        this.blockchain = blockchain;
     }
 
     @Override
@@ -25,11 +28,6 @@ public abstract class AbstractNetwork extends RpcClientSupport implements Networ
     @Override
     public Integer getBlockCount() {
         return client.getBlockCount();
-    }
-
-    @Override
-    public Integer getBlockRate() {
-        return 600;
     }
 
     @Override
