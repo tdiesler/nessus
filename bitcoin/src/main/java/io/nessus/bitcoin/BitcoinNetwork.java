@@ -47,7 +47,7 @@ public class BitcoinNetwork extends AbstractNetwork implements Network {
     /**
      * 546 satoshis at the default rate of 3000 sat/kB.
      * 
-     * @see https://github.com/tdiesler/bitcoin/blob/master/src/policy/policy.cpp#L18
+     * https://github.com/tdiesler/bitcoin/blob/master/src/policy/policy.cpp#L18
      */
     @Override
     public BigDecimal getDustThreshold() {

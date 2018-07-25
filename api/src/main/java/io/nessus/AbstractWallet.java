@@ -226,25 +226,29 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
 
         BigDecimal estFee = estimateFee();
+        BigDecimal dustAmount = blockchain.getNetwork().getDustThreshold();
         
-        Tx tx;
+        String txId = null;
         if (amount != ALL_FUNDS) {
             
-            BigDecimal amountPlusFee = amount.add(estFee);
+            BigDecimal sendAmount = amount.add(estFee);
 
-            List<UTXO> utxos = selectUnspent(label, amountPlusFee);
+            List<UTXO> utxos = selectUnspent(label, sendAmount);
             BigDecimal utxosAmount = getUTXOAmount(utxos);
-            AssertState.assertTrue(amountPlusFee.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
+            AssertState.assertTrue(sendAmount.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
 
             String changeAddr = getChangeAddress(label).getAddress();
-            BigDecimal changeAmount = utxosAmount.subtract(amountPlusFee);
+            BigDecimal changeAmount = utxosAmount.subtract(sendAmount);
 
-            TxBuilder builder = new TxBuilder().unspentInputs(utxos).output(toAddress, amount);
+            TxBuilder builder = new TxBuilder()
+                    .unspentInputs(utxos)
+                    .output(toAddress, amount);
 
-            if (0 < changeAmount.doubleValue())
+            if (dustAmount.compareTo(changeAmount) < 0)
                 builder.output(changeAddr, changeAmount);
 
-            tx = builder.build();
+            Tx tx = builder.build();
+            txId = sendTx(tx);
             
         } else {
             
@@ -252,11 +256,17 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             BigDecimal utxosAmount = getUTXOAmount(utxos);
             BigDecimal sendAmount = utxosAmount.subtract(estFee);
             
-            TxBuilder builder = new TxBuilder().unspentInputs(utxos).output(toAddress, sendAmount);
-            tx = builder.build();
+            if (dustAmount.compareTo(sendAmount) < 0) {
+                
+                TxBuilder builder = new TxBuilder()
+                        .unspentInputs(utxos)
+                        .output(toAddress, sendAmount);
+                
+                Tx tx = builder.build();
+                txId = sendTx(tx);
+            }
         }
 
-        String txId = sendTx(tx);
         LOG.debug("txId: {}", txId);
 
         return txId;
