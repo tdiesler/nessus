@@ -209,6 +209,14 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return getUTXOAmount(listUnspent(Arrays.asList(addr)));
     }
 
+    public static BigDecimal getUTXOAmount(List<UTXO> utxos) {
+        BigDecimal result = BigDecimal.ZERO;
+        for (UTXO utxo : utxos) {
+            result = result.add(utxo.getAmount());
+        }
+        return result;
+    }
+    
     @Override
     public String sendToAddress(String toAddress, BigDecimal amount) {
         return client.sendToAddress(toAddress, amount);
@@ -413,14 +421,6 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return addrs.stream().map(a -> a.getAddress()).collect(Collectors.toList());
     }
 
-    private BigDecimal getUTXOAmount(List<UTXO> utxos) {
-        BigDecimal result = BigDecimal.ZERO;
-        for (UTXO utxo : utxos) {
-            result = result.add(utxo.getAmount());
-        }
-        return result;
-    }
-    
     private List<BitcoindRpcClient.TxInput> adaptInputs(List<TxInput> inputs) {
         List<BitcoindRpcClient.TxInput> result = new ArrayList<>();
         for (TxInput aux : inputs) {

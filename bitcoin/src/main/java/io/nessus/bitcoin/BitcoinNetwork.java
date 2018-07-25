@@ -55,6 +55,11 @@ public class BitcoinNetwork extends AbstractNetwork implements Network {
     }
 
     @Override
+    public BigDecimal getMinDataAmount() {
+        return BigDecimal.ZERO;
+    }
+
+    @Override
     public Block getBlock(String blockHash) {
         return new BitcoinBlock(client.getBlock(blockHash));
     }

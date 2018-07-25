@@ -1,5 +1,7 @@
 package io.nessus.test.bitcoin;
 
+import java.net.URL;
+
 /*-
  * #%L
  * Nessus :: Bitcoin
@@ -34,7 +36,8 @@ public class ConfigParserTest {
     @Test
     public void testSimple() throws Exception {
 
-        Config config = Config.parseConfig("/initial-import.json");
+        URL configURL = ConfigParserTest.class.getResource("/initial-import.json");
+        Config config = Config.parseConfig(configURL);
         LOG.info("{}", config);
         
         Assert.assertEquals(5, config.getWallet().getAddresses().size());

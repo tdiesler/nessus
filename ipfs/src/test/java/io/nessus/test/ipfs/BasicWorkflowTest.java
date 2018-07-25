@@ -73,7 +73,7 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         cntmgr = new DefaultContentManager(ipfs, blockchain);
         wallet = blockchain.getWallet();
         
-        importAddresses(wallet);
+        importAddresses(wallet, BasicWorkflowTest.class);
         
         generate(blockchain);
         

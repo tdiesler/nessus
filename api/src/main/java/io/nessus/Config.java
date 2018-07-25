@@ -21,7 +21,7 @@ package io.nessus;
  */
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
@@ -31,18 +31,10 @@ public class Config {
 
     private WalletConfig wallet;
 
-    public static Config parseConfig(String json) throws IOException {
+    public static Config parseConfig(URL configURL) throws IOException {
         
-        Config config = null;
-        
-        InputStream jsonData = Config.class.getResourceAsStream(json);
-        if (jsonData != null) {
-            
-            ObjectMapper objectMapper = new ObjectMapper();
-            config = objectMapper.readValue(jsonData, Config.class);
-        } 
-        
-        return config;
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readValue(configURL, Config.class);
     }
     
     public WalletConfig getWallet() {

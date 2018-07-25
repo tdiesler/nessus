@@ -22,18 +22,23 @@ package io.nessus.testing;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URL;
 import java.util.List;
 
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Config;
 import io.nessus.Network;
+import io.nessus.Tx;
+import io.nessus.Tx.TxBuilder;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
+import io.nessus.Wallet.Address;
 
 public abstract class AbstractBlockchainTest {
 
@@ -43,20 +48,52 @@ public abstract class AbstractBlockchainTest {
     public static final String LABEL_MARRY = "Marry";
     public static final String LABEL_SINK = "Sink";
     
-    protected static void importAddresses(Wallet wallet) throws IOException {
+    protected static void importAddresses(Wallet wallet, Class<?> configSource) throws IOException {
         
-        Config config = Config.parseConfig("/initial-import.json");
-        if (config != null) wallet.importAddresses(config);
+        URL configURL = configSource.getResource("/initial-import.json");
+        if (configURL != null) {
+            Config config = Config.parseConfig(configURL);
+            wallet.importAddresses(config);
+        }
     }
     
     protected static void generate(Blockchain blockchain) {
         Wallet wallet = blockchain.getWallet();
+        Network network = blockchain.getNetwork();
         BigDecimal balance = wallet.getBalance("");
         if (balance.doubleValue() == 0.0) {
-            Network network = blockchain.getNetwork();
             List<String> blocks = network.generate(101, null);
             Assert.assertEquals(101, blocks.size());
         }
+    }
+    
+    protected static void redeemChange(Blockchain blockchain, String label, Address addr) {
+        
+        if (blockchain != null && label != null && addr != null) {
+            
+            Wallet wallet = blockchain.getWallet();
+            Network network = blockchain.getNetwork();
+            
+            List<Address> addrs = wallet.getChangeAddresses(label);
+            List<UTXO> utxos = wallet.listUnspent(addrs);
+            
+            if (!utxos.isEmpty()) {
+                
+                BigDecimal amount = getUTXOAmount(utxos);
+                amount = amount.subtract(network.estimateFee());
+                
+                Tx tx = new TxBuilder()
+                        .unspentInputs(utxos)
+                        .output(addr.getAddress(), amount)
+                        .build();
+                
+                wallet.sendTx(tx);
+            }
+        } 
+    }
+
+    protected static BigDecimal getUTXOAmount(List<UTXO> utxos) {
+        return AbstractWallet.getUTXOAmount(utxos);
     }
     
     protected BigDecimal estimateFee() {
@@ -70,14 +107,6 @@ public abstract class AbstractBlockchainTest {
     
     protected BigDecimal subtractFee(BigDecimal amount) {
         return amount.subtract(estimateFee());
-    }
-    
-    protected BigDecimal getUTXOAmount(List<UTXO> utxos) {
-        BigDecimal result = BigDecimal.ZERO;
-        for (UTXO utxo : utxos) {
-            result = result.add(utxo.getAmount());
-        }
-        return result;
     }
     
     protected void showAccountBalances() {

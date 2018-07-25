@@ -40,6 +40,11 @@ public interface Network {
     BigDecimal getDustThreshold();
 
     /**
+     * The minimum amout that must be given to an OP_RETURN output. 
+     */
+    BigDecimal getMinDataAmount();
+    
+    /**
      * Get the block for the given hash
      */
     Block getBlock(String blockHash);

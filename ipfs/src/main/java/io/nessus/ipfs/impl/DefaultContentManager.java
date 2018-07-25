@@ -99,19 +99,19 @@ public class DefaultContentManager implements ContentManager {
     
     static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
 
-    final Blockchain blockchain;
-    final Network network;
-    final Wallet wallet;
-    
-    final HValues hvals;
-    final IPFSClient ipfs;
-    final BCData bcdata;
-    final Path rootPath;
-    
+    protected final Blockchain blockchain;
+    protected final Network network;
+    protected final Wallet wallet;
+
+    protected final HValues hvals;
+    protected final IPFSClient ipfs;
+    protected final BCData bcdata;
+    protected final Path rootPath;
+
     // Contains the EC pubKey used to encrypt the AES SecretKey 
     // which results in the Token stored in the IPFS file header
-    final Map<Address, PublicKey> keycache = new LinkedHashMap<>();
-    
+    private final Map<Address, PublicKey> keycache = new LinkedHashMap<>();
+
     // Contains fully initialized FHandles pointing to encrypted files.
     // It is guarantied that the wallet contains the privKeys needed to access these files.
     //
@@ -121,8 +121,8 @@ public class DefaultContentManager implements ContentManager {
     // However, no all all the information needed by this app (e.g. path) can be stored on the blockchain.
     // Hence, an IPFS get is needed in any case to get at the IPFS file header. For large files this may result
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
-    final Map<String, FHandle> filecache = new LinkedHashMap<>();
-    
+    private final Map<String, FHandle> filecache = new LinkedHashMap<>();
+
     public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain) {
         this.blockchain = blockchain;
         this.ipfs = ipfs;
@@ -160,7 +160,8 @@ public class DefaultContentManager implements ContentManager {
 
         // Do nothing if already registered
         PublicKey pubKey = findRegistation(addr);
-        if (pubKey != null) return pubKey;
+        if (pubKey != null)
+            return pubKey;
 
         // Store the EC key, which is derived from the privKey
 
@@ -173,8 +174,8 @@ public class DefaultContentManager implements ContentManager {
         // Send a Tx to record the OP_RETURN data
 
         BigDecimal dataAmount = getRecordedDataAmount();
-        BigDecimal spendAmount = dataAmount.add(getMinimumDataFee());
-        
+        BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
+
         String label = addr.getLabels().get(0);
         List<UTXO> utxos = wallet.selectUnspent(label, addFee(spendAmount));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
@@ -224,8 +225,11 @@ public class DefaultContentManager implements ContentManager {
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
         
         URL furl = plainPath.toFile().toURI().toURL();
-        FHandle fhandle = new FHBuilder(furl).owner(owner).path(path).build();
-        
+        FHandle fhandle = new FHBuilder(furl)
+                .owner(owner)
+                .path(path)
+                .build();
+
         LOG.info("Encrypt: {}", fhandle);
         
         fhandle = encrypt(fhandle, pubKey);
@@ -304,9 +308,12 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("Decrypt: {}", fhandle);
 
         fhandle = decrypt(fhandle, owner, null);
-        
-        fhandle = new FHBuilder(fhandle).owner(target).cid(null).build();
-        
+
+        fhandle = new FHBuilder(fhandle)
+                .owner(target)
+                .cid(null)
+                .build();
+
         LOG.info("Encrypt: {}", fhandle);
         
         fhandle = encrypt(fhandle, pubKey);
@@ -470,8 +477,9 @@ public class DefaultContentManager implements ContentManager {
     public InputStream getLocalContent(Address owner, Path path) throws IOException {
         
         Path plainPath = assertPlainPath(owner, path);
-        if (!plainPath.toFile().isFile()) return null;
-        
+        if (!plainPath.toFile().isFile())
+            return null;
+
         return new FileInputStream(plainPath.toFile());
     }
 
@@ -494,10 +502,6 @@ public class DefaultContentManager implements ContentManager {
 
     protected BitcoindRpcClient getRpcClient() {
         return ((RpcClientSupport) blockchain).getRpcClient();
-    }
-
-    protected BigDecimal getMinimumDataFee() {
-        return BigDecimal.ZERO;
     }
 
     protected HValues getHeaderValues() {
@@ -539,10 +543,11 @@ public class DefaultContentManager implements ContentManager {
                 ipfs.get(cid, tmpPath.getParent(), timeout, unit);
                 
                 AssertState.assertTrue(tmpPath.toFile().exists(), "Cannot obtain file from: " + tmpPath);
-                
-                URL furl = tmpPath.toUri().toURL();
-                fhandle = new FHBuilder(furl).cid(cid).build();
-                
+
+                fhandle = new FHBuilder(tmpPath.toUri().toURL())
+                        .cid(cid)
+                        .build();
+
                 try (FileReader fr = new FileReader(tmpPath.toFile())) {
                     BufferedReader br = new BufferedReader(fr);
 
@@ -561,8 +566,8 @@ public class DefaultContentManager implements ContentManager {
                 
                 Path cryptPath = getCryptPath(fhandle.getOwner()).resolve(cid);
                 Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
-                
-                fhandle =  new FHBuilder(fhandle)
+
+                fhandle = new FHBuilder(fhandle)
                         .url(cryptPath.toUri().toURL())
                         .build();
             }
@@ -584,8 +589,8 @@ public class DefaultContentManager implements ContentManager {
         // Send a Tx to record the OP_TOKEN data
 
         BigDecimal dataAmount = getRecordedDataAmount();
-        BigDecimal spendAmount = dataAmount.add(getMinimumDataFee());
-        
+        BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
+
         String label = fromAddr.getLabels().get(0);
         List<UTXO> utxos = wallet.selectUnspent(label, addFee(spendAmount));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
@@ -617,9 +622,11 @@ public class DefaultContentManager implements ContentManager {
             BitcoindRpcClient client = getRpcClient();
             client.lockUnspent(false, txId, vout);
         }
-        
-        fhandle = new FHBuilder(fhandle).txId(txId).build();
-        
+
+        fhandle = new FHBuilder(fhandle)
+                .txId(txId)
+                .build();
+
         return fhandle;
     }
 
@@ -654,7 +661,7 @@ public class DefaultContentManager implements ContentManager {
     private BigDecimal addFee(BigDecimal amount) {
         return amount.add(network.estimateFee());
     }
-    
+
     private BigDecimal getUTXOAmount(List<UTXO> utxos) {
         BigDecimal result = BigDecimal.ZERO;
         for (UTXO utxo : utxos) {
@@ -676,10 +683,10 @@ public class DefaultContentManager implements ContentManager {
         
         // Create the target file handle
         fhandle = new FHBuilder(fhandle)
-            .secretToken(secToken)
-            .cid(null)
-            .build();
-        
+                .secretToken(secToken)
+                .cid(null)
+                .build();
+
         File tmpFile = createTempFile().toFile();
         try (FileWriter fw = new FileWriter(tmpFile)) {
             
@@ -846,33 +853,42 @@ public class DefaultContentManager implements ContentManager {
             for (LockedUnspent lutox : getRpcClient().listLockUnspent()) {
                 String txId = lutox.txId();
                 int vout = lutox.vout();
-                Tx tx = wallet.getTransaction(txId);
-                TxOutput txout = tx.outputs().get(vout);
-                String rawAddr = txout.getAddress();
-                if (rawAddr.equals(addr.getAddress())) {
-                    BigDecimal amount = txout.getAmount();
-                    result.add(new UTXO(txId, vout, null, rawAddr, amount));
+                Tx tx = getLockedTransaction(txId);
+                if (tx != null) {
+                    TxOutput txout = tx.outputs().get(vout);
+                    String rawAddr = txout.getAddress();
+                    if (rawAddr.equals(addr.getAddress())) {
+                        BigDecimal amount = txout.getAmount();
+                        result.add(new UTXO(txId, vout, null, rawAddr, amount));
+                    }
                 }
             }
         }
         return result;
     }
 
+    protected Tx getLockedTransaction(String txId) {
+        return wallet.getTransaction(txId);
+    }
+
     private boolean isOurs(Tx tx) {
 
         // Expect two outputs
         List<TxOutput> outs = tx.outputs();
-        if (outs.size() < 2) return false;
+        if (outs.size() < 2)
+            return false;
 
         TxOutput out0 = outs.get(outs.size() - 2);
         TxOutput out1 = outs.get(outs.size() - 1);
 
         // Expect an address
         Address addr = wallet.findAddress(out0.getAddress());
-        if (addr == null) return false;
+        if (addr == null)
+            return false;
 
         // Expect data on the second output
-        if (out1.getData() == null) return false;
+        if (out1.getData() == null)
+            return false;
 
         // Expect data to be our's
         byte[] txdata = out1.getData();
@@ -998,31 +1014,27 @@ public class DefaultContentManager implements ContentManager {
             OP_PREFIX = hvals.PREFIX;
         }
 
-        byte [] createPubKeyData(byte[] pubKey) {
-            return buffer(OP_PUB_KEY, pubKey.length + 1)
-                    .put((byte) pubKey.length) 
-                    .put(pubKey)
-                    .array();
+        byte[] createPubKeyData(byte[] pubKey) {
+            return buffer(OP_PUB_KEY, pubKey.length + 1).put((byte) pubKey.length).put(pubKey).array();
         }
 
-        byte [] extractPubKeyData(byte[] txdata) {
-            if (extractOpCode(txdata) != OP_PUB_KEY) return null;
+        byte[] extractPubKeyData(byte[] txdata) {
+            if (extractOpCode(txdata) != OP_PUB_KEY)
+                return null;
             byte[] data = extractData(txdata);
             int len = data[0];
             data = Arrays.copyOfRange(data, 1, 1 + len);
             return data;
         }
-        
-        byte [] createFileData(FHandle fhandle) {
+
+        byte[] createFileData(FHandle fhandle) {
             byte[] fid = fhandle.getCid().getBytes();
-            return buffer(OP_FILE_DATA, fid.length + 1)
-                    .put((byte) fid.length) 
-                    .put(fid)
-                    .array();
+            return buffer(OP_FILE_DATA, fid.length + 1).put((byte) fid.length).put(fid).array();
         }
 
-        byte [] extractFileData(byte[] txdata) {
-            if (extractOpCode(txdata) != OP_FILE_DATA) return null;
+        byte[] extractFileData(byte[] txdata) {
+            if (extractOpCode(txdata) != OP_FILE_DATA)
+                return null;
             byte[] data = extractData(txdata);
             int len = data[0];
             data = Arrays.copyOfRange(data, 1, 1 + len);

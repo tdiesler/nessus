@@ -41,7 +41,7 @@ public abstract class AbstractBitcoinTest extends AbstractBlockchainTest {
         
         // Import the configured addresses and generate a few coins
         
-        importAddresses(wallet);
+        importAddresses(wallet, AbstractBitcoinTest.class);
         
         generate(blockchain);
     }
