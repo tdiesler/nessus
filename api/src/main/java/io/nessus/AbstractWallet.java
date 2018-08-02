@@ -245,8 +245,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
                     .unspentInputs(utxos)
                     .output(toAddress, amount);
 
-            if (dustAmount.compareTo(changeAmount) < 0)
+            if (dustAmount.compareTo(changeAmount) < 0) {
                 builder.output(changeAddr, changeAmount);
+            }
 
             Tx tx = builder.build();
             txId = sendTx(tx);
@@ -324,19 +325,27 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         List<UTXO> result = new ArrayList<>();
         List<String> rawAddrs = getRawAddresses(addrs);
         for (LockedUnspent unspnt : client.listLockUnspent()) {
+            
             String txId = unspnt.txId();
             Integer vout = unspnt.vout();
-            Tx tx = getTransaction(txId);
-            TxOutput txout = tx.outputs().get(vout);
-            String rawAddr = txout.getAddress();
-            if (rawAddrs.contains(rawAddr)) {
-                BigDecimal amount = txout.getAmount();
-                result.add(new UTXO(txId, vout, null, rawAddr, amount));
+            Tx tx = getLockedTransaction(txId);
+            if (tx != null) {
+                TxOutput txout = tx.outputs().get(vout);
+                String rawAddr = txout.getAddress();
+                if (rawAddrs.contains(rawAddr)) {
+                    BigDecimal amount = txout.getAmount();
+                    result.add(new UTXO(txId, vout, null, rawAddr, amount));
+                }
             }
         }
         return result;
     }
 
+    // https://github.com/AegeusCoin/aegeus/issues/13
+    protected Tx getLockedTransaction(String txId) {
+        return getTransaction(txId);
+    }
+    
     @Override
     public boolean lockUnspent(UTXO utxo, boolean unlock) {
         return client.lockUnspent(unlock, utxo.getTxId(), utxo.getVout());
@@ -433,12 +442,16 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             BigDecimal amount = getUTXOAmount(utxos);
             amount = amount.subtract(estimateFee());
             
-            Tx tx = new TxBuilder()
-                    .unspentInputs(utxos)
-                    .output(toAddr.getAddress(), amount)
-                    .build();
-            
-            sendTx(tx);
+            BigDecimal dustAmount = blockchain.getNetwork().getDustThreshold();
+            if (dustAmount.compareTo(amount) < 0) {
+                
+                Tx tx = new TxBuilder()
+                        .unspentInputs(utxos)
+                        .output(toAddr.getAddress(), amount)
+                        .build();
+                
+                sendTx(tx);
+            }
         }
     }
     

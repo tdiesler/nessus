@@ -33,14 +33,22 @@ public class FHandle {
     final URL furl;
     final String txId;
     final String secToken;
+    final boolean available;
+    final boolean expired;
+    final int attempt;
+    final Long elapsed;
     
-    private FHandle(String cid, Path path, Address owner, URL furl, String secToken, String txId) {
+    private FHandle(String cid, Path path, Address owner, URL furl, String secToken, String txId, boolean available, boolean expired, int attempt, Long timespent) {
         this.owner = owner;
         this.path = path;
         this.furl = furl;
         this.cid = cid;
         this.txId = txId;
         this.secToken = secToken;
+        this.available = available;
+        this.expired = expired;
+        this.attempt = attempt;
+        this.elapsed = timespent;
     }
 
     public String getCid() {
@@ -59,7 +67,7 @@ public class FHandle {
         return owner;
     }
     
-    public String getTx() {
+    public String getTxId() {
         return txId;
     }
 
@@ -71,8 +79,25 @@ public class FHandle {
         return secToken != null;
     }
 
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public boolean isExpired() {
+        return expired;
+    }
+
+    public int getAttempt() {
+        return attempt;
+    }
+
+    public Long getElapsed() {
+        return elapsed;
+    }
+
     public String toString() {
-        return String.format("[cid=%s, owner=%s, path=%s, url=%s, tx=%s]", cid, owner.getAddress(), path, furl, txId);
+        return String.format("[cid=%s, owner=%s, path=%s, avl=%b, exp=%b, try=%d, time=%s]", 
+                cid, owner.getAddress(), path, available, expired, attempt, elapsed);
     }
     
     public static class FHBuilder {
@@ -83,6 +108,10 @@ public class FHandle {
         private URL furl;
         private String txId;
         private String secToken;
+        private boolean available;
+        private boolean expired;
+        private int attempt;
+        private Long elapsed;
         
         public FHBuilder(FHandle fhandle) {
             this.owner = fhandle.owner;
@@ -91,6 +120,10 @@ public class FHandle {
             this.furl = fhandle.furl;
             this.txId = fhandle.txId;
             this.secToken = fhandle.secToken;
+            this.available = fhandle.available;
+            this.expired = fhandle.expired;
+            this.attempt = fhandle.attempt;
+            this.elapsed = fhandle.elapsed;
         }
 
         public FHBuilder(URL furl) {
@@ -131,8 +164,28 @@ public class FHandle {
             return this;
         }
         
+        public FHBuilder available(boolean available) {
+            this.available = available;
+            return this;
+        }
+        
+        public FHBuilder expired(boolean expired) {
+            this.expired = expired;
+            return this;
+        }
+        
+        public FHBuilder attempt(int attempt) {
+            this.attempt = attempt;
+            return this;
+        }
+        
+        public FHBuilder addElapsed(long millis) {
+            this.elapsed = elapsed != null ? elapsed + millis : millis;
+            return this;
+        }
+        
         public FHandle build() {
-            return new FHandle(cid, path, owner, furl, secToken, txId);
+            return new FHandle(cid, path, owner, furl, secToken, txId, available, expired, attempt, elapsed);
         }
     }
 }

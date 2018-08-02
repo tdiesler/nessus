@@ -1,5 +1,6 @@
 package io.nessus.test.ipfs;
 
+import static io.nessus.Wallet.ALL_FUNDS;
 import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
 
 import java.io.BufferedReader;
@@ -36,16 +37,19 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.PublicKey;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
+import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
@@ -59,30 +63,27 @@ import io.nessus.testing.AbstractBlockchainTest;
 public class BasicWorkflowTest extends AbstractBlockchainTest {
 
     static ContentManager cntmgr;
+    static Blockchain blockchain;
+    static Network network;
     static Wallet wallet;
     
-    static Address addrBob;
-    static Address addrMarry;
+    Address addrBob;
+    Address addrMarry;
     
     @BeforeClass
     public static void beforeClass() throws IOException {
         
-        Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
+        blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
         IPFSClient ipfs = new CmdLineIPFSClient();
 
         cntmgr = new DefaultContentManager(ipfs, blockchain);
+        network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
         
         importAddresses(wallet, BasicWorkflowTest.class);
         
         generate(blockchain);
         
-        addrBob = wallet.getAddress(LABEL_BOB);
-        addrMarry = wallet.getAddress(LABEL_MARRY);
-        
-        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
-        wallet.sendToAddress(addrMarry.getAddress(), new BigDecimal("1.0"));
-
         // Delete all local files
         
         Files.walkFileTree(((DefaultContentManager) cntmgr).getRootPath(), new SimpleFileVisitor<Path>() {
@@ -93,12 +94,41 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         });
     }
     
+    @Before
+    public void before() {
+
+        addrBob = wallet.getAddress(LABEL_BOB);
+        addrMarry = wallet.getAddress(LABEL_MARRY);
+        
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
+        wallet.sendToAddress(addrMarry.getAddress(), new BigDecimal("1.0"));
+    }
+
+    @After
+    public void after() {
+        
+        // Unlock all UTXOs
+        
+        wallet.listLockUnspent(Arrays.asList(addrBob, addrMarry)).stream().forEach(utxo -> {
+            wallet.lockUnspent(utxo, true);
+        });
+
+        // Bob & Marry send everything to the Sink  
+        Address addrSink = wallet.getAddress(LABEL_SINK);
+        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
+        network.generate(1);
+    }
+    
     @Test
     public void basicWorkflow() throws Exception {
         
-        Long timeout = 10000L;
+        Long timeout = 4000L;
         
         // Register the public encryption keys
+        
+        Address addrBob = wallet.getAddress(LABEL_BOB);
+        Address addrMarry = wallet.getAddress(LABEL_MARRY);
         
         PublicKey pubKeyBob = cntmgr.register(addrBob);
         assertKeyEquals(pubKeyBob, cntmgr.findRegistation(addrBob));
@@ -116,13 +146,17 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         Assert.assertEquals(addrBob, fhandle.getOwner());
         Assert.assertTrue(fhandle.isEncrypted());
         Assert.assertNotNull(fhandle.getCid());
-        Assert.assertNotNull(fhandle.getTx());
+        Assert.assertNotNull(fhandle.getTxId());
         
         // Verify local file content
         
         List<FHandle> fhandles = cntmgr.findLocalContent(addrBob);
-        Assert.assertEquals(relPath, fhandles.get(0).getPath());
         Assert.assertEquals(1, fhandles.size());
+        FHandle fhLocal = fhandles.get(0);
+        Assert.assertEquals(relPath, fhLocal.getPath());
+        Assert.assertTrue(fhLocal.isAvailable());
+        Assert.assertFalse(fhLocal.isExpired());
+        Assert.assertFalse(fhLocal.isEncrypted());
         
         InputStream reader = cntmgr.getLocalContent(addrBob, relPath);
         BufferedReader br = new BufferedReader(new InputStreamReader(reader));
@@ -131,20 +165,29 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         Assert.assertTrue(cntmgr.deleteLocalContent(addrBob, relPath));
         Assert.assertTrue(cntmgr.findLocalContent(addrBob).isEmpty());
         
+        // Find IPFS content on blockchain
+        
+        String cidBob = fhandle.getCid();
+        fhandle = findIPFSContent(addrBob, cidBob, timeout);
+        Assert.assertTrue(fhandle.isAvailable());
+        Assert.assertFalse(fhandle.isExpired());
+        Assert.assertEquals(relPath, fhandle.getPath());
+        Assert.assertEquals(addrBob, fhandle.getOwner());
+        Assert.assertTrue(fhandle.isEncrypted());
+        Assert.assertNotNull(fhandle.getTxId());
+        
         // Get content from IPFS
         
-        String cid = fhandle.getCid();
-        
-        fhandle  = cntmgr.get(addrBob, cid, relPath, timeout);
+        fhandle  = cntmgr.get(addrBob, cidBob, relPath, timeout);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
         Assert.assertNull(fhandle.getCid());
         
-        // Send content from IPFS
+        // Send content to IPFS
         
-        fhandle  = cntmgr.send(addrBob, cid, addrMarry, timeout);
+        fhandle  = cntmgr.send(addrBob, cidBob, addrMarry, timeout);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMarry, fhandle.getOwner());
@@ -152,9 +195,14 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         
         // Find IPFS content on blockchain
         
-        fhandles = cntmgr.findIPFSContent(addrMarry, timeout);
-        List<String> cids = fhandles.stream().map(fh -> fh.getCid()).collect(Collectors.toList());
-        Assert.assertTrue(cids.contains(fhandle.getCid()));
+        String cidMarry = fhandle.getCid();
+        fhandle = findIPFSContent(addrMarry, cidMarry, timeout);
+        Assert.assertTrue(fhandle.isAvailable());
+        Assert.assertFalse(fhandle.isExpired());
+        Assert.assertEquals(relPath, fhandle.getPath());
+        Assert.assertEquals(addrMarry, fhandle.getOwner());
+        Assert.assertTrue(fhandle.isEncrypted());
+        Assert.assertNotNull(fhandle.getTxId());
         
         // Get content from IPFS
         
@@ -165,6 +213,22 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
         Assert.assertEquals(addrMarry, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
         Assert.assertNull(fhandle.getCid());
+    }
+
+    private FHandle findIPFSContent(Address addr, String cid, Long timeout) throws IOException, InterruptedException {
+        
+        List<FHandle> fhandles = cntmgr.findIPFSContent(addr, timeout);
+        FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
+        Assert.assertNotNull(fhandle);
+        Assert.assertFalse(fhandle.isAvailable());
+        
+        for (int i = 0; i < 4 && !fhandle.isAvailable(); i++) {
+            Thread.sleep(1000);
+            fhandles = cntmgr.findIPFSContent(addr, timeout);
+            fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
+        }
+        
+        return fhandle;
     }
 
     private void assertKeyEquals(PublicKey exp, PublicKey was) {

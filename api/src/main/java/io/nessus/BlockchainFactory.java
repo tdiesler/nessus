@@ -61,9 +61,14 @@ public class BlockchainFactory {
         return (T) INSTANCE;
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T extends Blockchain> T getBlockchain(Class<T> bcClass) {
+        AssertState.assertNotNull(INSTANCE, "Blockchain not initialized");
+        return (T) INSTANCE;
+    }
+    
     public static Blockchain getBlockchain() {
-        AssertState.assertNotNull(INSTANCE, "Blockchain PRC client not initialized");
-        return INSTANCE;
+        return getBlockchain(Blockchain.class);
     }
     
     private static Class<?> loadRpcClientClass() throws ClassNotFoundException {

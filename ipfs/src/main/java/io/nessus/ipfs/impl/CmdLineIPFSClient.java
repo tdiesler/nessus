@@ -28,9 +28,10 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.cmd.CmdLineClient;
 import io.nessus.cmd.CmdLineException;
-import io.nessus.cmd.TimeoutException;
+import io.nessus.cmd.CmdLineTimeoutException;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.IPFSTimeoutException;
 import io.nessus.ipfs.MerkleNotFoundException;
 import io.nessus.utils.AssertState;
 
@@ -90,6 +91,10 @@ public class CmdLineIPFSClient extends CmdLineClient implements IPFSClient {
             
             return exec(cmdLine, timeout, unit);
             
+        } catch (CmdLineTimeoutException ex) {
+            
+            throw new IPFSTimeoutException(cmdLine, ex);
+            
         } catch (CmdLineException ex) {
             
             Throwable cause = ex.getCause();
@@ -101,9 +106,6 @@ public class CmdLineIPFSClient extends CmdLineClient implements IPFSClient {
             
             throw new IPFSException(cmdLine, cause);
             
-        } catch (TimeoutException ex) {
-            
-            throw new IPFSException(cmdLine, ex);
         }
     }
 

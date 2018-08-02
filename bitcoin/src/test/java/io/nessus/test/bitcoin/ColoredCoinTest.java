@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,64 +51,68 @@ import wf.bitcoin.krotjson.HexCoder;
 public class ColoredCoinTest extends AbstractBitcoinTest {
 
     BitcoinBlockchain blockchain;
-    Address addrBob;
-    Address addrMarry;
-    Address addrSink;
-    
+    Network network;
+    Wallet wallet;
+
     @Before
     public void before() {
-        
-        blockchain = (BitcoinBlockchain) BlockchainFactory.getBlockchain();
-        Network network = blockchain.getNetwork();
-        Wallet wallet = blockchain.getWallet();
-        
-        addrBob = wallet.getAddress(LABEL_BOB);
-        addrMarry = wallet.getAddress(LABEL_MARRY);
-        addrSink = wallet.getAddress(LABEL_SINK);
+
+        blockchain = BlockchainFactory.getBlockchain(BitcoinBlockchain.class);
+        network = blockchain.getNetwork();
+        wallet = blockchain.getWallet();
         
         // Send 0.1 BTC to Bob
+        Address addrBob = wallet.getAddress(LABEL_BOB);
         wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("0.1"));
+    }
+
+    @After
+    public void after() {
+
+        // Bob & Marry send everything to the Sink  
+        Address addrSink = wallet.getAddress(LABEL_SINK);
+        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
         network.generate(1);
     }
-    
-    @Test
-    public void testSimpleSpending () throws Exception {
 
-        Wallet wallet = blockchain.getWallet();
-        Network network = blockchain.getNetwork();
-        
+    @Test
+    public void testSimpleSpending() throws Exception {
+
+        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+
         // Verify that Bob has received 0.1 BTC
         BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertEquals(0.1, btcBob.doubleValue(), 0);
-        
+
         BigDecimal btcSend = new BigDecimal("0.01");
         List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, addFee(btcSend));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
-        
+
         String changeAddr = wallet.getChangeAddress(LABEL_BOB).getAddress();
         BigDecimal changeAmount = utxosAmount.subtract(addFee(btcSend));
-        
+
         byte[] dataIn = "IPFS".getBytes();
-        
+
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
                 .output(changeAddr, changeAmount)
                 .output(new TxOutput(addrMarry.getAddress(), btcSend, dataIn))
                 .build();
-        
+
         String txId = wallet.sendTx(tx);
         LOG.info("Tx: {}", txId);
-        
+
         // Mine the next block
         network.generate(1);
-        
+
         // Show account balances
         showAccountBalances();
-        
+
         // Verify that Marry has received 0.01 BTC
         BigDecimal btcMarry = wallet.getBalance(LABEL_MARRY);
         Assert.assertTrue(btcMarry.doubleValue() > 0);
-        
+
         // Verify that OP_RETURN data has been recorded
         tx = wallet.getTransaction(txId);
         List<TxOutput> outputs = tx.outputs();
@@ -119,57 +124,47 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         Assert.assertEquals("Expected OP_RETURN", 0x6A, dataOut[0]);
         Assert.assertEquals(dataOut.length, dataIn.length + 2);
         Assert.assertArrayEquals(dataIn, Arrays.copyOfRange(dataOut, 2, dataOut.length));
-        
-        // Bob & Marry send everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
     }
 
-    
     @Test
-    public void testRawTxHack () throws Exception {
+    public void testRawTxHack() throws Exception {
 
-        Wallet wallet = blockchain.getWallet();
-        Network network = blockchain.getNetwork();
-        
+        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+
         // Verify that Bob has received 0.1 BTC
         BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertTrue(btcBob.doubleValue() > 0);
-        
+
         BigDecimal btcSend = network.getDustThreshold().multiply(BigDecimal.TEN);
         List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, addFee(btcSend));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
-        
+
         String changeAddr = wallet.getChangeAddress(LABEL_BOB).getAddress();
         BigDecimal changeAmount = utxosAmount.subtract(addFee(btcSend));
-        
+
         byte[] dataIn = "IPFS".getBytes();
-        
-        Tx tx = new TxBuilder()
-                .unspentInputs(utxos)
-                .output(changeAddr, changeAmount)
-                .output(new TxOutput(addrMarry.getAddress(), btcSend))
-                .build();
-        
+
+        Tx tx = new TxBuilder().unspentInputs(utxos).output(changeAddr, changeAmount).output(new TxOutput(addrMarry.getAddress(), btcSend)).build();
+
         ExtWallet extWallet = new ExtWallet(blockchain, blockchain.getRpcClient());
         String rawTx = extWallet.createRawTx(tx, dataIn);
         LOG.info("Raw Tx: {}", rawTx);
-        
+
         String signedTx = extWallet.signRawTx(rawTx, tx.inputs());
         String txId = extWallet.sendRawTransaction(signedTx);
-        
+
         LOG.info("Tx: {}", txId);
-        
+
         // Mine the next block
         network.generate(1);
-        
+
         // Show account balances
         showAccountBalances();
-        
+
         // Verify that Marry has received coins
         BigDecimal btcMarry = wallet.getBalance(LABEL_MARRY);
         Assert.assertTrue(btcMarry.doubleValue() > 0);
-        
+
         // Verify that OP_RETURN data has been recorded
         tx = wallet.getTransaction(txId);
         List<TxOutput> outputs = tx.outputs();
@@ -181,10 +176,6 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         Assert.assertEquals("Expected OP_RETURN", 0x6A, dataOut[0]);
         Assert.assertEquals(dataOut.length, dataIn.length + 2);
         Assert.assertArrayEquals(dataIn, Arrays.copyOfRange(dataOut, 2, dataOut.length));
-        
-        // Bob & Marry send everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
     }
 
     class ExtWallet extends BitcoinWallet {
@@ -192,27 +183,23 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         protected ExtWallet(BitcoinBlockchain blockchain, BitcoindRpcClient client) {
             super(blockchain, client);
         }
-        
+
         public String createRawTx(Tx tx, byte[] dataIn) {
-            
+
             if (dataIn == null) {
                 String rawTx = super.createRawTx(tx);
                 return rawTx;
             }
-            
+
             AssertArgument.assertTrue(dataIn.length <= 80, "Cannot encode more tahn 80 bytes of data");
-            
+
             String suffix = "00000000";
             String dummyAddr = "2MwgFAFb8m7W7Dko1mM8vFQtNMngHWW5Mui";
-            
-            tx = new TxBuilder()
-                    .inputs(tx.inputs())
-                    .outputs(tx.outputs())
-                    .output(new TxOutput(dummyAddr, BigDecimal.ZERO))
-                    .build();
-            
+
+            tx = new TxBuilder().inputs(tx.inputs()).outputs(tx.outputs()).output(new TxOutput(dummyAddr, BigDecimal.ZERO)).build();
+
             String rawTx = super.createRawTx(tx);
-            
+
             int zeroAmountIdx = rawTx.lastIndexOf("0000000000000000");
             AssertState.assertNotNull(zeroAmountIdx, "Cannot find zero amount index: " + rawTx);
             AssertState.assertTrue(rawTx.endsWith(suffix), "Unsupported final bytes: " + rawTx);
@@ -222,11 +209,11 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
             scriptData[1] = 0x6a; // OP_RETURN
             scriptData[2] = (byte) dataIn.length;
             System.arraycopy(dataIn, 0, scriptData, 3, dataIn.length);
-            
+
             rawTx = rawTx.substring(0, zeroAmountIdx + 16);
             rawTx = rawTx + HexCoder.encode(scriptData);
             rawTx = rawTx + suffix;
-            
+
             return rawTx;
         }
 

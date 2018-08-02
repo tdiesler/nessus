@@ -25,7 +25,9 @@ import static io.nessus.Wallet.ALL_FUNDS;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import io.nessus.Blockchain;
@@ -40,16 +42,33 @@ import io.nessus.bitcoin.AbstractBitcoinTest;
 
 public class RawTxTest extends AbstractBitcoinTest {
 
+    Blockchain blockchain;
+    Network network;
+    Wallet wallet;
+    
+    @Before
+    public void before() {
+        
+        blockchain = BlockchainFactory.getBlockchain();
+        network = blockchain.getNetwork();
+        wallet = blockchain.getWallet();
+    }
+    
+    @After
+    public void after() {
+        
+        // Bob & Marry send everything to the Sink  
+        Address addrSink = wallet.getAddress(LABEL_SINK);
+        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
+        network.generate(1);
+    }
+    
     @Test
     public void testSimpleSpending () throws Exception {
 
-        Blockchain blockchain = BlockchainFactory.getBlockchain();
-        Network network = blockchain.getNetwork();
-        Wallet wallet = blockchain.getWallet();
-        
         Address addrBob = wallet.getAddress(LABEL_BOB);
         Address addrMarry = wallet.getAddress(LABEL_MARRY);
-        Address addrSink = wallet.getAddress(LABEL_SINK);
         
         // Show account balances
         showAccountBalances();
@@ -101,25 +120,5 @@ public class RawTxTest extends AbstractBitcoinTest {
         // Verify that Bob has spent 4.0 BTC
         btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertTrue(btcBob.compareTo(new BigDecimal("6.0")) <= 0);
-        
-        // Bob sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        
-        // Marry sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
-        
-        // Mine next block
-        network.generate(1);
-        
-        // Show account balances
-        showAccountBalances();
-        
-        // Verify that Bob has no funds
-        btcBob = wallet.getBalance(LABEL_BOB);
-        Assert.assertEquals(BigDecimal.ZERO, btcBob);
-        
-        // Verify that Marry has no funds
-        btcMarry = wallet.getBalance(LABEL_MARRY);
-        Assert.assertEquals(BigDecimal.ZERO, btcMarry);
     }
 }

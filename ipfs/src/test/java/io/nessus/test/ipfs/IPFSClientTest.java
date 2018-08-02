@@ -30,12 +30,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-import io.nessus.cmd.TimeoutException;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.impl.CmdLineIPFSClient;
 

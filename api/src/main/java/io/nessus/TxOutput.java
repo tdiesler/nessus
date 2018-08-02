@@ -64,6 +64,6 @@ public class TxOutput {
     
     public String toString() {
         String hex = data != null ? HexCoder.encode(data) : null;
-        return String.format("[addr=%s, amnt=%f], data=%s]", addr, amount, hex);
+        return String.format("[addr=%s, amnt=%f, data=%s]", addr, amount, hex);
     }
 }

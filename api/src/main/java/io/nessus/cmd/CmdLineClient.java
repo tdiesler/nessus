@@ -42,7 +42,7 @@ public class CmdLineClient {
         return exec(cmdLine, null, null);
     }
     
-    public String exec(String cmdLine, Long timeout, TimeUnit unit) throws TimeoutException {
+    public String exec(String cmdLine, Long timeout, TimeUnit unit) throws CmdLineTimeoutException {
 
         String result = null;
 
@@ -75,7 +75,7 @@ public class CmdLineClient {
                 if (!proc.waitFor(timeout, unit)) {
                     String errmsg = "Timeout executing: " + cmdLine;
                     LOG.error(errmsg);
-                    throw new TimeoutException(errmsg);
+                    throw new CmdLineTimeoutException(errmsg);
                 }
             } else {
                 proc.waitFor();

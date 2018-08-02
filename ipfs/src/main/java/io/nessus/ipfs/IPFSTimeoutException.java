@@ -1,4 +1,4 @@
-package io.nessus.cmd;
+package io.nessus.ipfs;
 
 /*-
  * #%L
@@ -21,9 +21,13 @@ package io.nessus.cmd;
  */
 
 @SuppressWarnings("serial")
-public class TimeoutException extends RuntimeException {
+public class IPFSTimeoutException extends IPFSException {
 
-    public TimeoutException(String message) {
+    public IPFSTimeoutException(String message) {
         super(message);
+    }
+    
+    public IPFSTimeoutException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

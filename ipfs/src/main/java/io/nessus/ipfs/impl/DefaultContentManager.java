@@ -46,10 +46,18 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
@@ -68,12 +76,12 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.ECIESCipher;
-import io.nessus.cmd.TimeoutException;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.IPFSTimeoutException;
 import io.nessus.ipfs.MerkleNotFoundException;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
@@ -81,6 +89,9 @@ import io.nessus.utils.StreamUtils;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class DefaultContentManager implements ContentManager {
+
+    public static final int IPFS_MAX_ATTEMPTS = 5;
+    public static final long IPFS_DEFAULT_TIMEOUT = 5000L;
 
     public static class HValues {
         
@@ -108,6 +119,9 @@ public class DefaultContentManager implements ContentManager {
     protected final BCData bcdata;
     protected final Path rootPath;
 
+    // Executor service for async IPFS get operations
+    final ExecutorService executorService;
+    
     // Contains fully initialized FHandles pointing to encrypted files.
     // It is guarantied that the wallet contains the privKeys needed to access these files.
     //
@@ -117,10 +131,8 @@ public class DefaultContentManager implements ContentManager {
     // However, no all all the information needed by this app (e.g. path) can be stored on the blockchain.
     // Hence, an IPFS get is needed in any case to get at the IPFS file header. For large files this may result
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
-    private final Map<String, FHandle> filecache = new LinkedHashMap<>();
+    private final IPFSFileCache filecache = new IPFSFileCache();
     
-    private Integer minBlockHeight;
-
     public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain) {
         this.blockchain = blockchain;
         this.ipfs = ipfs;
@@ -133,17 +145,19 @@ public class DefaultContentManager implements ContentManager {
         
         hvals = getHeaderValues();
         bcdata = new BCData(hvals);
+        
+        executorService = Executors.newFixedThreadPool(12, new ThreadFactory() {
+            AtomicInteger count = new AtomicInteger();
+            public Thread newThread(Runnable run) {
+                return new Thread(run, "ipfs-pool-" + count.incrementAndGet());
+            }
+        });
     }
 
     public Path getRootPath() {
         return rootPath;
     }
     
-    public void setMinBlockHeight(Integer blockHeight) {
-        LOG.info("Min block height: {}", blockHeight);
-        this.minBlockHeight = blockHeight;
-    }
-
     @Override
     public Blockchain getBlockchain() {
         return blockchain;
@@ -176,7 +190,8 @@ public class DefaultContentManager implements ContentManager {
 
         // Send a Tx to record the OP_RETURN data
 
-        BigDecimal dataAmount = getRecordedDataAmount();
+        BigDecimal dustAmount = network.getDustThreshold();
+        BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
         String label = addr.getLabels().get(0);
@@ -187,7 +202,7 @@ public class DefaultContentManager implements ContentManager {
         BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
 
         List<TxOutput> outputs = new ArrayList<>();
-        if (network.getDustThreshold().compareTo(changeAmount) < 0) {
+        if (dustAmount.compareTo(changeAmount) < 0) {
             outputs.add(new TxOutput(changeAddr.getAddress(), changeAmount));
         }
         outputs.add(new TxOutput(addr.getAddress(), dataAmount, data));
@@ -199,7 +214,7 @@ public class DefaultContentManager implements ContentManager {
 
         String txId = wallet.sendTx(tx);
 
-        LOG.info("Register pubKey: {} => Tx {}", addr, txId);
+        LOG.info("PubKey register: {} => Tx {}", addr, txId);
 
         tx = wallet.getTransaction(txId);
         int vout = tx.outputs().size() - 2;
@@ -229,7 +244,7 @@ public class DefaultContentManager implements ContentManager {
         
         Path plainPath = assertPlainPath(owner, path);
         
-        LOG.info("Adding: {} {}", owner, path);
+        LOG.info("Start IPFS Add: {} {}", owner, path);
         
         plainPath.getParent().toFile().mkdirs();
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
@@ -240,7 +255,7 @@ public class DefaultContentManager implements ContentManager {
                 .path(path)
                 .build();
 
-        LOG.info("Encrypt: {}", fhandle);
+        LOG.info("IPFS encrypt: {}", fhandle);
         
         fhandle = encrypt(fhandle, pubKey);
         
@@ -261,11 +276,11 @@ public class DefaultContentManager implements ContentManager {
                 .cid(cid)
                 .build();
         
-        LOG.info("Record: {}", fhandle);
+        LOG.info("IPFS record: {}", fhandle);
         
         fhandle = recordFileData(fhandle, owner, owner);
         
-        LOG.info("Done: {}", fhandle);
+        LOG.info("Done IPFS Add: {}", fhandle);
         
         return fhandle;
     }
@@ -277,11 +292,11 @@ public class DefaultContentManager implements ContentManager {
 
         Path plainPath = assertPlainPath(owner, path);
         
-        LOG.info("Getting: {} {}", owner, path);
+        LOG.info("Start IPFS Get: {} {}", owner, path);
         
         FHandle fhandle = ipfsGet(cid, timeout, TimeUnit.MILLISECONDS);
         
-        LOG.info("Decrypt: {}", fhandle);
+        LOG.info("IPFS decrypt: {}", fhandle);
         
         fhandle = decrypt(fhandle, owner, path);
         
@@ -296,7 +311,7 @@ public class DefaultContentManager implements ContentManager {
                 .path(path)
                 .build();
         
-        LOG.info("Done: {}", fhandle);
+        LOG.info("Done IPFS Get: {}", fhandle);
         
         return fhandle;
     }
@@ -311,11 +326,11 @@ public class DefaultContentManager implements ContentManager {
         PublicKey pubKey = findRegistation(target);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + target);
         
-        LOG.info("Sending: {} {}", owner, cid);
+        LOG.info("Start IPFS Send: {} {}", owner, cid);
         
         FHandle fhandle = ipfsGet(cid, timeout, TimeUnit.MILLISECONDS);
         
-        LOG.info("Decrypt: {}", fhandle);
+        LOG.info("IPFS decrypt: {}", fhandle);
 
         fhandle = decrypt(fhandle, owner, null);
 
@@ -324,7 +339,7 @@ public class DefaultContentManager implements ContentManager {
                 .cid(null)
                 .build();
 
-        LOG.info("Encrypt: {}", fhandle);
+        LOG.info("IPFS encrypt: {}", fhandle);
         
         fhandle = encrypt(fhandle, pubKey);
         
@@ -342,11 +357,11 @@ public class DefaultContentManager implements ContentManager {
                 .cid(cid)
                 .build();
         
-        LOG.info("Record: {}", fhandle);
+        LOG.info("IPFS record: {}", fhandle);
         
         fhandle = recordFileData(fhandle, owner, target);
         
-        LOG.info("Done: {}", fhandle);
+        LOG.info("Done IPFS Send: {}", fhandle);
         
         return fhandle;
     }
@@ -381,7 +396,6 @@ public class DefaultContentManager implements ContentManager {
                     int vout = tx.outputs().size() - 2;
                     TxOutput dataOut = tx.outputs().get(vout);
                     AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
-                    AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
                     
                     LOG.info("Lock unspent: {} {}", txId, vout);
                     
@@ -398,66 +412,61 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public List<FHandle> findIPFSContent(Address addr, Long timeout) throws IOException {
 
-        Map<String, FHandle> result = new LinkedHashMap<>();
-        
         synchronized (filecache) {
         
-            for (FHandle fhandle : filecache.values()) {
-                if (fhandle.getOwner().equals(addr)) {
-                    result.put(fhandle.getCid(), fhandle);
-                }
-            }
+            List<FHandle> result = new ArrayList<>();
+            
+            // The list of files that are recorded and unspent
+            List<FHandle> unspentFHandles = new ArrayList<>();
             
             List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
             
-            for (UTXO utxo : listLockedAndUnlockedUnspent(addr, true, true)) {
+            List<UTXO> unspent = listLockedAndUnlockedUnspent(addr, true, true);
+            for (UTXO utxo : unspent) {
                 
                 String txId = utxo.getTxId();
                 Tx tx = wallet.getTransaction(txId);
                 
                 FHandle fhandle = getFHandleFromTx(addr, tx);
-                if (fhandle == null) continue;
-                
-                String cid = fhandle.getCid();
-                if (result.containsKey(cid)) continue;
-                
-                if (hasMinBlockHeight(tx, 0)) {
+                if (fhandle != null) {
                     
-                    try {
-                        fhandle = ipfsGet(cid, timeout, TimeUnit.MILLISECONDS);
-                    } catch (IPFSException ex) {
-                        Throwable cause = ex.getCause();
-                        if (cause instanceof MerkleNotFoundException || cause instanceof TimeoutException) {
-                            continue;
-                        } else {
-                            throw ex;
-                        }
-                    }
+                    unspentFHandles.add(fhandle);
                     
-                    if (!locked.contains(utxo)) {
+                    // The lock state of a registration may get lost due to wallet 
+                    // restart. Here we recreate that lock state if the given
+                    // address owns the registration
+                    
+                    if (!locked.contains(utxo) && addr.getPrivKey() != null) {
                         
                         int vout = tx.outputs().size() - 2;
                         TxOutput dataOut = tx.outputs().get(vout);
                         AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
-                        AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
                         
                         LOG.info("Lock unspent: {} {}", txId, vout);
                         
-                        BitcoindRpcClient client = getRpcClient();
-                        client.lockUnspent(false, txId, vout);
+                        wallet.lockUnspent(utxo, false);
                     }
-                    
-                    fhandle = new FHBuilder(fhandle)
-                            .txId(txId)
-                            .build();
-                    
-                    filecache.put(cid, fhandle);
-                    result.put(cid, fhandle);
                 }
             }
+            
+            // Cleanup the file cache by removing entries that are no longer unspent
+            List<String> cids = unspentFHandles.stream().map(fh -> fh.getCid()).collect(Collectors.toList());
+            for (String cid : new HashSet<>(filecache.keySet())) {
+                FHandle aux = filecache.get(cid);
+                if (addr.equals(aux.getOwner()) && !cids.contains(aux.getCid())) {
+                    filecache.remove(cid);
+                }
+            }
+            
+            // Finally iterate over unspent CIDs to get the IPFS file asynchronously
+            
+            for (FHandle fhAux : unspentFHandles) {
+                FHandle fhandle = ipfsGetAsync(fhAux, timeout, TimeUnit.MILLISECONDS);
+                result.add(fhandle);
+            }
+            
+            return result;
         }
-        
-        return new ArrayList<>(result.values());
     }
 
     @Override
@@ -475,10 +484,12 @@ public class DefaultContentManager implements ContentManager {
         }
         
         if (fullPath.toFile().isFile()) {
+            
             Path relPath = getPlainPath(owner).relativize(fullPath);
             URL furl = fullPath.toUri().toURL();
             
             FHandle fhandle = new FHBuilder(furl)
+                    .available(true)
                     .path(relPath)
                     .owner(owner)
                     .build();
@@ -546,61 +557,185 @@ public class DefaultContentManager implements ContentManager {
         return Files.createTempFile(getTempPath(), "", "");
     }
     
-    FHandle ipfsGet(String cid, Long timeout, TimeUnit unit) throws IOException {
+    private FHandle ipfsGet(String cid, Long timeout, TimeUnit unit) throws IOException {
         
-        FHandle fhandle;
         synchronized (filecache) {
             
-            fhandle = filecache.get(cid);
+            FHandle fhandle = filecache.get(cid);
+            if (fhandle != null && (fhandle.isAvailable() || fhandle.isExpired()))
+                return fhandle;
             
             if (fhandle == null) {
+                fhandle = new FHBuilder(cid).build();
+                filecache.put(fhandle);
+            }
+
+            long before = System.currentTimeMillis();
+            Path tmpPath = getTempPath().resolve(cid);
+            
+            try {
                 
-                Path tmpPath = getTempPath().resolve(cid);
+                timeout = timeout != null ? timeout : IPFS_DEFAULT_TIMEOUT;
                 ipfs.get(cid, tmpPath.getParent(), timeout, unit);
                 
-                AssertState.assertTrue(tmpPath.toFile().exists(), "Cannot obtain file from: " + tmpPath);
-
-                fhandle = new FHBuilder(tmpPath.toUri().toURL())
-                        .cid(cid)
-                        .build();
-
-                try (FileReader fr = new FileReader(tmpPath.toFile())) {
-                    BufferedReader br = new BufferedReader(fr);
-
-                    FHeader header = FHeader.read(hvals, br);
-                    Address addr = getAddress(header.owner);
-                    AssertState.assertNotNull(addr, "Address unknown to this wallet: " + header.owner);
-
-                    LOG.debug("Token: {} => {}", cid, header.token);
-
-                    fhandle = new FHBuilder(fhandle)
-                            .owner(getAddress(header.owner))
-                            .secretToken(header.token)
-                            .path(header.path)
-                            .build();
-                }
+            } catch (IPFSException ex) {
                 
-                Path cryptPath = getCryptPath(fhandle.getOwner()).resolve(cid);
-                Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
+                long elapsed = System.currentTimeMillis() - before;
+                
+                fhandle = new FHBuilder(fhandle)
+                        .addElapsed(elapsed)
+                        .build();
+                
+                filecache.put(fhandle);
+                throw ex;
+            }
+            
+            AssertState.assertTrue(tmpPath.toFile().exists(), "Cannot obtain file from: " + tmpPath);
+
+            long elapsed = System.currentTimeMillis() - before;
+            
+            fhandle = new FHBuilder(fhandle)
+                    .url(tmpPath.toUri().toURL())
+                    .addElapsed(elapsed)
+                    .available(true)
+                    .build();
+
+            try (FileReader fr = new FileReader(tmpPath.toFile())) {
+                BufferedReader br = new BufferedReader(fr);
+
+                FHeader header = FHeader.read(hvals, br);
+                Address addr = getAddress(header.owner);
+                AssertState.assertNotNull(addr, "Address unknown to this wallet: " + header.owner);
+
+                LOG.debug("IPFS token: {} => {}", cid, header.token);
 
                 fhandle = new FHBuilder(fhandle)
-                        .url(cryptPath.toUri().toURL())
+                        .owner(getAddress(header.owner))
+                        .secretToken(header.token)
+                        .path(header.path)
                         .build();
             }
+            
+            Path cryptPath = getCryptPath(fhandle.getOwner()).resolve(cid);
+            Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
+
+            fhandle = new FHBuilder(fhandle)
+                    .url(cryptPath.toUri().toURL())
+                    .build();
+            
+            LOG.info("IPFS found: {}", fhandle);
+
+            filecache.put(fhandle);
+            
+            return fhandle;
         }
-        
-        LOG.info("Found: {}", fhandle);
-        
-        return fhandle;
     }
 
-    private boolean hasMinBlockHeight(Tx tx, int offset) {
-        boolean result = true;
-        if (minBlockHeight != null && tx.blockHash() != null) {
-            int height = network.getBlock(tx.blockHash()).height();
-            result = (minBlockHeight - offset) <= height;
+    private FHandle ipfsGetAsync(FHandle aux, Long timeout, TimeUnit unit) throws IOException {
+        
+        synchronized (filecache) {
+            
+            String cid = aux.getCid();
+            
+            FHandle fhandle = filecache.get(cid);
+            if (fhandle != null && (fhandle.isAvailable() || fhandle.isExpired())) {
+                return fhandle;
+            }
+            
+            fhandle = fhandle != null ? fhandle : aux;
+            
+            if (fhandle.getElapsed() == null) {
+                
+                fhandle = new FHBuilder(fhandle)
+                        .addElapsed(0L)
+                        .build();
+                
+                FHandle fhasync = fhandle;
+                filecache.put(fhasync);
+                
+                LOG.info("IPFS submit: {}", fhasync);
+                
+                executorService.submit(new Callable<FHandle>() {
+                    
+                    public FHandle call() throws Exception {
+                        
+                        FHandle fhres = fhasync;
+                        while (!fhres.isAvailable() && !fhres.isExpired()) {
+                            
+                            int attempt = fhres.getAttempt() + 1;
+                            
+                            try {
+                                
+                                fhres = new FHBuilder(fhres)
+                                        .attempt(attempt)
+                                        .build();
+                                
+                                LOG.info("{}: {}", logPrefix("attempt", attempt),  fhres);
+                                
+                                fhres = ipfsGet(cid, timeout, unit);
+                                
+                            } catch (IPFSException ex) {
+                                
+                                fhres = processIPFSException(cid, attempt, ex);
+                                
+                                if (!fhres.isExpired()) {
+                                    Thread.sleep(timeout / 2);
+                                } else {
+                                    filecache.put(fhres);
+                                }
+                            }
+                        }
+                        
+                        return fhres;
+                    }
+                    
+                    private FHandle processIPFSException(String cid, int attempt, IPFSException ex) throws InterruptedException {
+                        
+                        FHandle fhres = filecache.get(cid);
+                        
+                        if (ex instanceof IPFSTimeoutException) {
+                            
+                            if (IPFS_MAX_ATTEMPTS <= attempt) {
+                                fhres = new FHBuilder(fhres)
+                                        .expired(true)
+                                        .build();
+                            }
+                            
+                            LOG.info("{}: {}", logPrefix("timeout", attempt),  fhres);
+                        }
+                        
+                        else if (ex instanceof MerkleNotFoundException) {
+                            
+                            fhres = new FHBuilder(fhres)
+                                    .expired(true)
+                                    .build();
+                            
+                            LOG.warn("{}: {}", logPrefix("no merkle", attempt),  fhres);
+                        }
+                        
+                        else {
+                            
+                            fhres = new FHBuilder(fhres)
+                                    .expired(true)
+                                    .build();
+                            
+                            LOG.error("{}: {}", logPrefix("error", attempt),  fhres);
+                            
+                            throw ex;
+                        }
+                        
+                        return fhres;
+                    }
+
+                    private String logPrefix(String action, int attempt) {
+                        String trdName = Thread.currentThread().getName();
+                        return String.format("IPFS %s [%s] [%d/%d]", action, trdName, attempt, IPFS_MAX_ATTEMPTS);
+                    }
+                });
+            }
+            
+            return fhandle;
         }
-        return result;
     }
 
     private FHandle recordFileData(FHandle fhandle, Address fromAddr, Address toAddr) throws GeneralSecurityException {
@@ -613,7 +748,8 @@ public class DefaultContentManager implements ContentManager {
 
         // Send a Tx to record the OP_TOKEN data
 
-        BigDecimal dataAmount = getRecordedDataAmount();
+        BigDecimal dustAmount = network.getDustThreshold();
+        BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
         String label = fromAddr.getLabels().get(0);
@@ -624,7 +760,7 @@ public class DefaultContentManager implements ContentManager {
         BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
 
         List<TxOutput> outputs = new ArrayList<>();
-        if (network.getDustThreshold().compareTo(changeAmount) < 0) {
+        if (dustAmount.compareTo(changeAmount) < 0) {
             outputs.add(new TxOutput(changeAddr.getAddress(), changeAmount));
         }
         outputs.add(new TxOutput(toAddr.getAddress(), dataAmount, data));
@@ -920,7 +1056,7 @@ public class DefaultContentManager implements ContentManager {
         String owner = fhandle.getOwner().getAddress();
         String base64Token = fhandle.getSecretToken();
         
-        LOG.info("Token: {}", base64Token);
+        LOG.debug("IPFS token: {}", base64Token);
         
         FHeader header = new FHeader(hvals.VERSION_STRING, fhandle.getPath(), owner, base64Token, -1);
         header.write(hvals, pw);
@@ -928,11 +1064,6 @@ public class DefaultContentManager implements ContentManager {
         return header;
     }
     
-    // Use 10 * what the network considers as dust as locked data amount
-    private BigDecimal getRecordedDataAmount() {
-        return network.getDustThreshold().multiply(BigDecimal.TEN);
-    }
-
     private void assertArgumentHasPrivateKey(Address addr) {
         AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
     }
@@ -950,6 +1081,31 @@ public class DefaultContentManager implements ContentManager {
         return getPlainPath(owner).resolve(path);
     }
 
+    static class IPFSFileCache {
+        
+        private final Map<String, FHandle> filecache = new LinkedHashMap<>();
+
+        Set<String> keySet() {
+            return filecache.keySet();
+        }
+        
+        FHandle get(String cid) {
+            return filecache.get(cid);
+        }
+        
+        FHandle put(FHandle fhandle) {
+            String cid = fhandle.getCid();
+            AssertArgument.assertNotNull(cid, "Null cid");
+            LOG.debug("Cache put: {}", fhandle);
+            return filecache.put(cid, fhandle);
+        }
+        
+        FHandle remove(String cid) {
+            LOG.debug("Cache remove: {}", cid);
+            return filecache.remove(cid);
+        }
+    }
+    
     static class FHeader {
         
         final String version;
@@ -1089,6 +1245,5 @@ public class DefaultContentManager implements ContentManager {
             buffer.put(op);
             return buffer;
         }
-        
     }
 }
