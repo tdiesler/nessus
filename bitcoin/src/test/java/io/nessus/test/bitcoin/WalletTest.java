@@ -26,23 +26,45 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Network;
+import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.AbstractBitcoinTest;
 
 public class WalletTest extends AbstractBitcoinTest {
 
+    Blockchain blockchain;
+    Network network;
+    Wallet wallet;
+    
+    @Before
+    public void before() {
+        
+        blockchain = BlockchainFactory.getBlockchain();
+        network = blockchain.getNetwork();
+        wallet = blockchain.getWallet();
+    }
+    
+    @After
+    public void after() {
+        
+        // Bob & Marry send everything to the Sink  
+        Address addrSink = wallet.getAddress(LABEL_SINK);
+        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
+        network.generate(1);
+    }
+    
     @Test
     public void testInitialImport () throws Exception {
-        
-        Blockchain blockchain = BlockchainFactory.getBlockchain();
-        Wallet wallet = blockchain.getWallet();
 
         List<String> labels = wallet.getLabels();
         Assert.assertEquals("[(change), Bob, Marry, Sink]", labels.toString());
@@ -76,10 +98,6 @@ public class WalletTest extends AbstractBitcoinTest {
     @Test
     public void testSimpleSpending () throws Exception {
 
-        Blockchain blockchain = BlockchainFactory.getBlockchain();
-        Network network = blockchain.getNetwork();
-        Wallet wallet = blockchain.getWallet();
-        
         Address addrBob = wallet.getAddress(LABEL_BOB);
         Assert.assertNotNull(wallet.getChangeAddress(LABEL_BOB));
         Assert.assertNotNull(addrBob);
@@ -107,27 +125,10 @@ public class WalletTest extends AbstractBitcoinTest {
         // Verify that Bob has received 10 BTC
         btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertEquals(10.0, btcBob.doubleValue(), 0);
-        
-        // Bob sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        
-        // Mine next block
-        network.generate(1);
-        
-        // Show account balances
-        showAccountBalances();
-        
-        // Verify that Bob has no funds
-        btcBob = wallet.getBalance(LABEL_BOB);
-        Assert.assertEquals(BigDecimal.ZERO, btcBob);
     }
     
     @Test
     public void testNewAddress () throws Exception {
-        
-        Blockchain blockchain = BlockchainFactory.getBlockchain();
-        Network network = blockchain.getNetwork();
-        Wallet wallet = blockchain.getWallet();
         
         Address addrBob = wallet.getAddress(LABEL_BOB);
         Assert.assertNotNull(wallet.getChangeAddress(LABEL_BOB));
@@ -168,15 +169,36 @@ public class WalletTest extends AbstractBitcoinTest {
         // Verify that Bob has received 10 BTC
         btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertEquals(subtractFee(new BigDecimal("10.0")).doubleValue(), btcBob.doubleValue(), 0);
+    }
+    
+    @Test
+    public void testLockUnspent () throws Exception {
         
-        // Bob sends everything to the Sink  
-        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
+        Address addrBob = wallet.getAddress(LABEL_BOB);
         
-        // Mine next block
-        network.generate(1);
+        List<UTXO> utxos = wallet.listUnspent(Arrays.asList(addrBob));
+        Assert.assertTrue("No utxos", utxos.isEmpty());
         
-        // Verify that Bob has no funds
-        btcBob = wallet.getBalance(LABEL_BOB);
-        Assert.assertEquals(BigDecimal.ZERO, btcBob);
+        // Send 10 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("10.0"));
+        utxos = wallet.listUnspent(Arrays.asList(addrBob));
+        Assert.assertEquals(1, utxos.size());
+        
+        UTXO utxo = utxos.get(0);
+        Assert.assertEquals(addrBob.getAddress(), utxo.getAddress());
+        Assert.assertEquals(new BigDecimal("10.0").doubleValue(), utxo.getAmount().doubleValue(), 0);
+
+        List<UTXO> locked = wallet.listLockUnspent(Arrays.asList(addrBob));
+        Assert.assertTrue("No utxos", locked.isEmpty());
+        
+        Assert.assertTrue(wallet.lockUnspent(utxo, false));
+        
+        utxos = wallet.listUnspent(Arrays.asList(addrBob));
+        Assert.assertTrue("No utxos", utxos.isEmpty());
+        
+        Assert.assertTrue(wallet.lockUnspent(utxo, true));
+        
+        utxos = wallet.listUnspent(Arrays.asList(addrBob));
+        Assert.assertEquals(1, utxos.size());
     }
 }

@@ -79,7 +79,6 @@ import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.LockedUnspent;
 
 public class DefaultContentManager implements ContentManager {
 
@@ -108,10 +107,6 @@ public class DefaultContentManager implements ContentManager {
     protected final IPFSClient ipfs;
     protected final BCData bcdata;
     protected final Path rootPath;
-
-    // Contains the EC pubKey used to encrypt the AES SecretKey 
-    // which results in the Token stored in the IPFS file header
-    private final Map<Address, PublicKey> keycache = new LinkedHashMap<>();
 
     // Contains fully initialized FHandles pointing to encrypted files.
     // It is guarantied that the wallet contains the privKeys needed to access these files.
@@ -359,42 +354,45 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public PublicKey findRegistation(Address addr) {
         
-        synchronized (keycache) {
+        // We used to have a cache of these pubKey registrations.
+        // This is no longer the case, because we want the owner 
+        // to have full control over the registration. If the 
+        // registration UTXO gets spent, it will immediately
+        // no longer available through this method.  
+        
+        PublicKey pubKey = null;
+        
+        List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
+        
+        for (UTXO utxo : listLockedAndUnlockedUnspent(addr, true, true)) {
             
-            PublicKey pubKey = keycache.get(addr);
+            String txId = utxo.getTxId();
+            Tx tx = wallet.getTransaction(txId);
             
-            if (pubKey == null) {
+            pubKey = getPubKeyFromTx(addr, tx);
+            if (pubKey != null) {
                 
-                List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
+                // The lock state of a registration may get lost due to wallet 
+                // restart. Here we recreate that lock state if the given
+                // address owns the registration
                 
-                for (UTXO utox : listLockedAndUnlockedUnspent(addr, true, true)) {
+                if (!locked.contains(utxo) && addr.getPrivKey() != null) {
                     
-                    String txId = utox.getTxId();
-                    Tx tx = wallet.getTransaction(txId);
+                    int vout = tx.outputs().size() - 2;
+                    TxOutput dataOut = tx.outputs().get(vout);
+                    AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
+                    AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
                     
-                    pubKey = getPubKeyFromTx(addr, tx);
-                    if (pubKey == null) continue;
+                    LOG.info("Lock unspent: {} {}", txId, vout);
                     
-                    if (!locked.contains(utox)) {
-                        
-                        int vout = tx.outputs().size() - 2;
-                        TxOutput dataOut = tx.outputs().get(vout);
-                        AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
-                        AssertState.assertEquals(getRecordedDataAmount(), dataOut.getAmount());
-                        
-                        LOG.info("Lock unspent: {} {}", txId, vout);
-                        
-                        BitcoindRpcClient client = getRpcClient();
-                        client.lockUnspent(false, txId, vout);
-                    }
-                    
-                    keycache.put(addr, pubKey);
-                    break;
+                    wallet.lockUnspent(utxo, false);
                 }
+                
+                break;
             }
-            
-            return pubKey;
         }
+        
+        return pubKey;
     }
 
     @Override
@@ -412,9 +410,9 @@ public class DefaultContentManager implements ContentManager {
             
             List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
             
-            for (UTXO utox : listLockedAndUnlockedUnspent(addr, true, true)) {
+            for (UTXO utxo : listLockedAndUnlockedUnspent(addr, true, true)) {
                 
-                String txId = utox.getTxId();
+                String txId = utxo.getTxId();
                 Tx tx = wallet.getTransaction(txId);
                 
                 FHandle fhandle = getFHandleFromTx(addr, tx);
@@ -436,7 +434,7 @@ public class DefaultContentManager implements ContentManager {
                         }
                     }
                     
-                    if (!locked.contains(utox)) {
+                    if (!locked.contains(utxo)) {
                         
                         int vout = tx.outputs().size() - 2;
                         TxOutput dataOut = tx.outputs().get(vout);
@@ -638,7 +636,7 @@ public class DefaultContentManager implements ContentManager {
 
         String txId = wallet.sendTx(tx);
         
-        // Lock the UTOX if we have the priv key for the recipient 
+        // Lock the UTXO if we have the priv key for the recipient 
         
         if (toAddr.getPrivKey() != null) {
             
@@ -879,30 +877,18 @@ public class DefaultContentManager implements ContentManager {
     }
     
     private List<UTXO> listLockedAndUnlockedUnspent(Address addr, boolean locked, boolean unlocked) {
+        
         List<UTXO> result = new ArrayList<>();
+        
         if (unlocked) {
             result.addAll(wallet.listUnspent(Arrays.asList(addr)));
         }
+        
         if (locked) {
-            for (LockedUnspent lutox : getRpcClient().listLockUnspent()) {
-                String txId = lutox.txId();
-                int vout = lutox.vout();
-                Tx tx = getLockedTransaction(txId);
-                if (tx != null) {
-                    TxOutput txout = tx.outputs().get(vout);
-                    String rawAddr = txout.getAddress();
-                    if (rawAddr.equals(addr.getAddress())) {
-                        BigDecimal amount = txout.getAmount();
-                        result.add(new UTXO(txId, vout, null, rawAddr, amount));
-                    }
-                }
-            }
+            result.addAll(wallet.listLockUnspent(Arrays.asList(addr)));
         }
+        
         return result;
-    }
-
-    protected Tx getLockedTransaction(String txId) {
-        return wallet.getTransaction(txId);
     }
 
     private boolean isOurs(Tx tx) {

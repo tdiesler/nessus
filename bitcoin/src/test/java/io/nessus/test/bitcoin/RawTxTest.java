@@ -71,7 +71,7 @@ public class RawTxTest extends AbstractBitcoinTest {
         btcBob = wallet.getBalance(LABEL_BOB);
         Assert.assertEquals(10.0, btcBob.doubleValue(), 0);
         
-        // Select UTOXs that amount to >= 4.0 BTC
+        // Select UTXOs that amount to >= 4.0 BTC
         BigDecimal btcSend = new BigDecimal("4.0");
         List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, addFee(btcSend));
         BigDecimal utxosAmount = getUTXOAmount(utxos);

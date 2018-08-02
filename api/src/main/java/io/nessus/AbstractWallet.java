@@ -42,6 +42,7 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxOutput;
+import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.LockedUnspent;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.RawTransaction;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.RawTransaction.In;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.RawTransaction.Out;
@@ -316,6 +317,29 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             result.add(new UTXO(txId, vout, scriptPubKey, addr, amount));
         }
         return result;
+    }
+
+    @Override
+    public List<UTXO> listLockUnspent(List<Address> addrs) {
+        List<UTXO> result = new ArrayList<>();
+        List<String> rawAddrs = getRawAddresses(addrs);
+        for (LockedUnspent unspnt : client.listLockUnspent()) {
+            String txId = unspnt.txId();
+            Integer vout = unspnt.vout();
+            Tx tx = getTransaction(txId);
+            TxOutput txout = tx.outputs().get(vout);
+            String rawAddr = txout.getAddress();
+            if (rawAddrs.contains(rawAddr)) {
+                BigDecimal amount = txout.getAmount();
+                result.add(new UTXO(txId, vout, null, rawAddr, amount));
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public boolean lockUnspent(UTXO utxo, boolean unlock) {
+        return client.lockUnspent(unlock, utxo.getTxId(), utxo.getVout());
     }
 
     @Override

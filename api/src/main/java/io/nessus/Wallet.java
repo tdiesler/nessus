@@ -134,9 +134,25 @@ public interface Wallet {
     List<UTXO> listUnspent(String label);
     
     /**
-     * List UTOXs associated with a list of addresses
+     * List UTXOs associated with a list of addresses
      */
     List<UTXO> listUnspent(List<Address> addrs);
+    
+    /**
+     * List locked UTXOs associated with a list of addresses
+     * 
+     * The lock state of an UTXO is delegated to the underlying 
+     * wallet implementation and may not survive wallet restart. 
+     */
+    List<UTXO> listLockUnspent(List<Address> addrs);
+    
+    /**
+     * Lock an unspent transaction output.
+     * 
+     * The lock state of an UTXO is delegated to the underlying 
+     * wallet implementation and may not survive wallet restart. 
+     */
+    boolean lockUnspent(UTXO utxo, boolean unlock);
     
     /**
      * Get the transaction for the given Id
