@@ -24,6 +24,7 @@ import java.io.InputStream;
  */
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Future;
 
 public interface IPFSClient {
@@ -34,12 +35,16 @@ public interface IPFSClient {
     String ENV_IPFS_GATEWAY_HOST = "IPFS_GATEWAY_HOST";
     String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
 
-    String add(Path path) throws IOException;
+    List<String> add(Path path) throws IOException;
+
+    String addSingle(Path path) throws IOException;
 
     InputStream cat(String cid) throws IOException;
 
     Future<Path> get(String cid, Path outdir);
 
     String version() throws IOException;
+    
+    boolean hasConnection();
 
 }

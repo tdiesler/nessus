@@ -265,7 +265,7 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("IPFS add: {}", fhandle);
         
         Path auxPath = Paths.get(fhandle.getURL().getPath());
-        String cid = ipfs.add(auxPath);
+        String cid = ipfs.addSingle(auxPath);
         
         // Move the temp file to its crypt path
         
@@ -349,7 +349,7 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("IPFS add: {}", fhandle);
         
         Path tmpPath = Paths.get(fhandle.getURL().getPath());
-        cid = ipfs.add(tmpPath);
+        cid = ipfs.addSingle(tmpPath);
         
         Path cryptPath = getCryptPath(target).resolve(cid);
         Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);

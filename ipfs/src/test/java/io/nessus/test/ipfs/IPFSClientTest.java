@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -52,68 +53,71 @@ public class IPFSClientTest {
         client = new IPFSClientImpl();
         
         Path path = Paths.get("src/test/resources/html");
-        String resHash = client.add(path);
-        Assert.assertEquals("QmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33tcJn43gB5UU", resHash);
+        List<String> cids = client.add(path);
+        Assert.assertEquals(10, cids.size());
+        Assert.assertEquals("Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW", cids.get(9));
     }
     
     @Test
     public void version() throws Exception {
         IPFSClientImpl client = new IPFSClientImpl();
-        Assert.assertEquals("0.4.17", client.version());
+        String version = client.version();
+        Assert.assertTrue("Start with 0.4.1x - " + version, version.startsWith("0.4.1"));
     }
 
     @Test
     public void basicOps() throws Exception {
         
-        String TEST_HASH = "QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6";
+        String HASH = "QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6";
         
         // add
         
         URL furl = getClass().getResource("/html/etc/userfile.txt");
         Path path = Paths.get(furl.getPath());
-        String resHash = client.add(path);
-        Assert.assertEquals(TEST_HASH, resHash);
+        String resHash = client.addSingle(path);
+        Assert.assertEquals(HASH, resHash);
 
         // cat 
         
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        StreamUtils.copyStream(client.cat(TEST_HASH), baos);
+        StreamUtils.copyStream(client.cat(HASH), baos);
         Assert.assertEquals("The quick brown fox jumps over the lazy dog.", new String (baos.toByteArray()));
 
         // get 
-        path = client.get(TEST_HASH, Paths.get("target/ipfs")).get();
+        path = client.get(HASH, Paths.get("target/ipfs")).get();
         Assert.assertTrue("Is file: " + path, path.toFile().isFile());
     }
 
     @Test
     public void binaryAddGet() throws Exception {
         
-        String TEST_HASH = "QmaMgvGJjZU511pzH1fSwh9RRnKckyujoRxVeDSEaEGM5N";
+        String HASH = "QmaMgvGJjZU511pzH1fSwh9RRnKckyujoRxVeDSEaEGM5N";
         
         // add
         
         Path path = Paths.get("src/test/resources/html/img/logo.png");
-        String resHash = client.add(path);
-        Assert.assertEquals(TEST_HASH, resHash);
+        String resHash = client.addSingle(path);
+        Assert.assertEquals(HASH, resHash);
 
         // get 
-        path = client.get(TEST_HASH, Paths.get("target/ipfs")).get();
+        path = client.get(HASH, Paths.get("target/ipfs")).get();
         Assert.assertTrue("Is file: " + path, path.toFile().isFile());
     }
 
     @Test
     public void binaryAddGetInSubDir() throws Exception {
         
-        String TEST_HASH = "QmYhaNnLGtFDEc559T9bVkqYqaXLGojMWDzVqjFZgrmnCi";
+        String HASH = "QmYhaNnLGtFDEc559T9bVkqYqaXLGojMWDzVqjFZgrmnCi";
         
         // add
         
         Path path = Paths.get("src/test/resources/html/img");
-        String resHash = client.add(path);
-        Assert.assertEquals(TEST_HASH, resHash);
+        List<String> cids = client.add(path);
+        Assert.assertEquals(2, cids.size());
+        Assert.assertEquals(HASH, cids.get(1));
 
         // get 
-        path = client.get(TEST_HASH, Paths.get("target/ipfs")).get();
+        path = client.get(HASH, Paths.get("target/ipfs")).get();
         Assert.assertTrue("Is dir: " + path, path.toFile().isDirectory());
         Assert.assertTrue(path.resolve("logo.png").toFile().isFile());
     }
@@ -121,12 +125,12 @@ public class IPFSClientTest {
     @Test
     public void getWithTimeout() throws Exception {
         
-        String TEST_HASH = "QmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33tcJn43gB5UU";
+        String HASH = "QmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33tcJn43gB5UU";
         
         // get 
         Path outPath = Paths.get("target/ipfs");
-        Path path = client.get(TEST_HASH, outPath).get();
-        Assert.assertEquals(outPath.resolve(TEST_HASH), path);
+        Path path = client.get(HASH, outPath).get();
+        Assert.assertEquals(outPath.resolve(HASH), path);
         Assert.assertTrue("Is dir: " + path, path.toFile().isDirectory());
         Assert.assertTrue(path.resolve("index.html").toFile().isFile());
     }
@@ -135,11 +139,11 @@ public class IPFSClientTest {
     @Test
     public void getInvalidIPFSPath() throws Exception {
         
-        String TEST_HASH = "XInvalidHashmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33";
+        String HASH = "XInvalidHashmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33";
         
         // get 
         Path outPath = Paths.get("target/ipfs");
-        Future<Path> future = client.get(TEST_HASH, outPath);
+        Future<Path> future = client.get(HASH, outPath);
         try {
             future.get();
             Assert.fail("ExecutionException expected");

@@ -69,6 +69,14 @@
                     <recursiveInput>true</recursiveInput>
                     <transformRelativeMarkdownLinks>true</transformRelativeMarkdownLinks>
                 </configuration>
+                <!--
+                
+                $ ipfs add -r src/test/resources/html
+                ...
+                added Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW html
+                
+                http://ipfs.io/ipfs/Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW
+                -->
             </plugin>
         </plugins>
     </build>

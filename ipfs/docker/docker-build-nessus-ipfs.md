@@ -100,31 +100,3 @@ docker run --detach \
 
 docker logs $NAME
 ```
-
-### Build the IPFS Java image
-
-```
-rm -rf docker
-mkdir -p docker
-
-cat << EOF > docker/Dockerfile
-FROM nessusio/ipfs
-
-# Install dependencies
-RUN dnf -y install java
-
-CMD ["-version"]
-ENTRYPOINT ["java"]
-EOF
-
-docker rmi -f nessusio/ipfsj
-docker build -t nessusio/ipfsj docker/
-
-docker run --rm nessusio/ipfsj -version
-
-docker tag nessusio/ipfsj nessusio/ipfsj:$IPFS_VERSION
-
-docker push nessusio/ipfsj:$IPFS_VERSION
-docker push nessusio/ipfsj
-```
-
