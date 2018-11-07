@@ -30,12 +30,6 @@
         
         <!-- Test -->
         <dependency>
-            <groupId>io.nessus</groupId>
-            <artifactId>nessus-bitcoin</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
@@ -71,7 +65,7 @@
                 </configuration>
                 <!--
                 
-                $ ipfs add -r src/test/resources/html
+                $ ipfs add -r ipfs/src/test/resources/html
                 ...
                 added Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW html
                 

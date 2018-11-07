@@ -57,7 +57,7 @@ import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.impl.DefaultContentManager;
-import io.nessus.ipfs.impl.IPFSClientImpl;
+import io.nessus.ipfs.impl.DefaultIPFSClient;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public class BasicWorkflowTest extends AbstractBlockchainTest {
@@ -74,7 +74,7 @@ public class BasicWorkflowTest extends AbstractBlockchainTest {
     public static void beforeClass() throws IOException {
         
         blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
-        IPFSClient ipfs = new IPFSClientImpl();
+        IPFSClient ipfs = new DefaultIPFSClient();
 
         cntmgr = new DefaultContentManager(ipfs, blockchain);
         network = blockchain.getNetwork();

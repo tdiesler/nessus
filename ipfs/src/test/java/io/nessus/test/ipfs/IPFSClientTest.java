@@ -29,6 +29,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -36,7 +37,7 @@ import org.junit.Test;
 
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
-import io.nessus.ipfs.impl.IPFSClientImpl;
+import io.nessus.ipfs.impl.DefaultIPFSClient;
 import io.nessus.utils.StreamUtils;
 
 /**
@@ -50,7 +51,7 @@ public class IPFSClientTest {
     
     @BeforeClass
     public static void beforeClass() throws IOException {
-        client = new IPFSClientImpl();
+        client = new DefaultIPFSClient();
         
         Path path = Paths.get("src/test/resources/html");
         List<String> cids = client.add(path);
@@ -60,7 +61,7 @@ public class IPFSClientTest {
     
     @Test
     public void version() throws Exception {
-        IPFSClientImpl client = new IPFSClientImpl();
+        DefaultIPFSClient client = new DefaultIPFSClient();
         String version = client.version();
         Assert.assertTrue("Start with 0.4.1x - " + version, version.startsWith("0.4.1"));
     }
@@ -125,11 +126,24 @@ public class IPFSClientTest {
     @Test
     public void getWithTimeout() throws Exception {
         
-        String HASH = "QmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33tcJn43gB5UU";
+        /*
+        $ ipfs add -r ipfs/src/test/resources/html
+        added QmUNRu2qVDFoA7hg37E7mNCkBurvyfvjRjUJT8d2LwUkDT html/chap/ch01.html
+        added QmT1cVKZQPvKhS8Rg9ek7UgThwFC8gC6gAJBiRwMKMnYyg html/css/default.css
+        added QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6 html/etc/userfile.txt
+        added QmaMgvGJjZU511pzH1fSwh9RRnKckyujoRxVeDSEaEGM5N html/img/logo.png
+        added QmYgjSRbXFPdPYKqQSnUjmXLYLudVahEJQotMaAJKt6Lbd html/index.html
+        added QmSEiybH7aXnsiXN8jY6hGECK5Mzj5nwu2ijHhhCWTzHEs html/chap
+        added QmfPRsChuVCsnN4PGLaDCngvjqCoc9KGkxea4hgiq6qitk html/css
+        added QmehoRufjC3xHPvTffyjMPgYgYMaaSzEwZgqnubv8oy5Mx html/etc
+        added QmYhaNnLGtFDEc559T9bVkqYqaXLGojMWDzVqjFZgrmnCi html/img
+        added Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW html
+        */
+        String HASH = "Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW";
         
         // get 
         Path outPath = Paths.get("target/ipfs");
-        Path path = client.get(HASH, outPath).get();
+        Path path = client.get(HASH, outPath).get(3000, TimeUnit.MILLISECONDS);
         Assert.assertEquals(outPath.resolve(HASH), path);
         Assert.assertTrue("Is dir: " + path, path.toFile().isDirectory());
         Assert.assertTrue(path.resolve("index.html").toFile().isFile());

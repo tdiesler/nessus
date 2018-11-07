@@ -29,9 +29,9 @@ import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
 
-public class IPFSClientImpl implements IPFSClient {
+public class DefaultIPFSClient implements IPFSClient {
 
-    static final Logger LOG = LoggerFactory.getLogger(IPFSClientImpl.class);
+    static final Logger LOG = LoggerFactory.getLogger(DefaultIPFSClient.class);
     
     private MultiAddress addr;
     private IPFS ipfs;
@@ -39,11 +39,11 @@ public class IPFSClientImpl implements IPFSClient {
     // Executor service for async get operations
     private final ExecutorService executorService;
     
-    public IPFSClientImpl() {
+    public DefaultIPFSClient() {
         this(null, null);
     }
     
-    public IPFSClientImpl(String host, Integer port) {
+    public DefaultIPFSClient(String host, Integer port) {
         
         if (host == null) {
             String envvar = System.getenv(ENV_IPFS_API_HOST);
