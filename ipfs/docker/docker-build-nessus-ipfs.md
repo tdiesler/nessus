@@ -32,9 +32,9 @@ docker push nessusio/golang:1.10.3
 This is largly inspired by [Run IPFS latest on a VPS](https://ipfs.io/blog/22-run-ipfs-on-a-vps/).
 
 ```
-export IPFS_VERSION=0.4.17
-export IPFS_PLATFORM=linux-386
-wget --no-check-certificate https://dist.ipfs.io/go-ipfs/v$IPFS_VERSION/go-ipfs_v"$IPFS_VERSION"_"$IPFS_PLATFORM".tar.gz
+export NVERSION=0.4.18
+export PLATFORM=linux-386
+wget --no-check-certificate https://dist.ipfs.io/go-ipfs/v$NVERSION/go-ipfs_v"$NVERSION"_"$PLATFORM".tar.gz
 
 rm -rf docker
 mkdir -p docker
@@ -78,9 +78,9 @@ EOF
 docker rmi -f nessusio/ipfs
 docker build -t nessusio/ipfs docker/
 
-docker tag nessusio/ipfs nessusio/ipfs:$IPFS_VERSION
+docker tag nessusio/ipfs nessusio/ipfs:$NVERSION
 
-docker push nessusio/ipfs:$IPFS_VERSION
+docker push nessusio/ipfs:$NVERSION
 docker push nessusio/ipfs
 
 ```
@@ -93,10 +93,12 @@ export NAME=ipfs
 docker rm -f $NAME
 docker run --detach \
     -p 4001:4001 \
+    -p 5001:5001 \
     -p 8080:8080 \
-    --memory=200m --memory-swap=2g \
     --name $NAME \
-    nessusio/ipfs
+    nessusio/ipfs:$NVERSION
 
-docker logs $NAME
+docker logs ipfs
+
+http://127.0.0.1:5001/webui
 ```
