@@ -93,8 +93,8 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class DefaultContentManager implements ContentManager {
 
-    public static final int IPFS_MAX_ATTEMPTS = 5;
-    public static final long IPFS_DEFAULT_TIMEOUT = 5000L;
+    public static final int IPFS_MAX_ATTEMPTS = 30; // 5 min
+    public static final long IPFS_DEFAULT_TIMEOUT = 10000L; // 10 sec
 
     public static class HValues {
         
@@ -691,7 +691,8 @@ public class DefaultContentManager implements ContentManager {
                                 fhres = processIPFSException(cid, attempt, ex);
                                 
                                 if (!fhres.isExpired()) {
-                                    Thread.sleep(timeout / 2);
+                                    long auxto = timeout != null ? timeout : IPFS_DEFAULT_TIMEOUT;
+                                    Thread.sleep(auxto / 2);
                                 } else {
                                     filecache.put(fhres);
                                 }

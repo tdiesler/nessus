@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.utils.AssertState;
+import io.nessus.utils.SystemUtils;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class BlockchainFactory {
@@ -72,9 +73,9 @@ public class BlockchainFactory {
     }
     
     private static Class<?> loadRpcClientClass() throws ClassNotFoundException {
-        String className = System.getenv(RPC_CLIENT_CLASS_NAME);
+        String className = SystemUtils.getenv(RPC_CLIENT_CLASS_NAME, "wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient");
         ClassLoader loader = BlockchainFactory.class.getClassLoader();
-        return loader.loadClass(className != null ? className : "wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient");
+        return loader.loadClass(className);
     }
     
     private static URL getLogURL(URL rpcUrl) throws MalformedURLException {

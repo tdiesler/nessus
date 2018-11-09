@@ -28,6 +28,7 @@ import io.nessus.ipfs.IPFSException;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
+import io.nessus.utils.SystemUtils;
 
 public class DefaultIPFSClient implements IPFSClient {
 
@@ -46,13 +47,13 @@ public class DefaultIPFSClient implements IPFSClient {
     public DefaultIPFSClient(String host, Integer port) {
         
         if (host == null) {
-            String envvar = System.getenv(ENV_IPFS_API_HOST);
-            host = envvar != null ? envvar : "127.0.0.1";
+            String envvar = SystemUtils.getenv(ENV_IPFS_API_HOST, "127.0.0.1");
+            host = envvar;
         }
             
         if (port == null) {
-            String envvar = System.getenv(ENV_IPFS_API_PORT);
-            port = envvar != null ? Integer.parseInt(envvar) : 5001;
+            String envvar = SystemUtils.getenv(ENV_IPFS_API_PORT, "5001");
+            port = Integer.parseInt(envvar);
         }
         
         addr = new MultiAddress("/ip4/" + host + "/tcp/" + port);

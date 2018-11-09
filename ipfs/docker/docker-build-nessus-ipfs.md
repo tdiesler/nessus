@@ -89,14 +89,16 @@ docker push nessusio/ipfs
 
 ```
 export NAME=ipfs
+export GATEWAYIP=192.168.178.20
 
 docker rm -f $NAME
 docker run --detach \
     -p 4001:4001 \
     -p 5001:5001 \
     -p 8080:8080 \
+    --env GATEWAYIP=$GATEWAYIP \
     --name $NAME \
-    nessusio/ipfs:$NVERSION
+    nessusio/ipfs
 
 docker logs ipfs
 
