@@ -42,7 +42,7 @@ public abstract class AbstractBlockchainTest {
     protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
     public static final String LABEL_BOB = "Bob";
-    public static final String LABEL_MARRY = "Marry";
+    public static final String LABEL_MARY = "Mary";
     public static final String LABEL_SINK = "Sink";
     
     protected static void importAddresses(Wallet wallet, Class<?> configSource) throws IOException {

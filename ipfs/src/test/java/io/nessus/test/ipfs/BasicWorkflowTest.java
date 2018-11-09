@@ -47,13 +47,13 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Register the public encryption keys
         
         Address addrBob = wallet.getAddress(LABEL_BOB);
-        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+        Address addrMary = wallet.getAddress(LABEL_MARY);
         
         PublicKey pubKeyBob = cntmgr.register(addrBob);
         assertKeyEquals(pubKeyBob, cntmgr.findRegistation(addrBob));
         
-        PublicKey pubKeyMarry = cntmgr.register(addrMarry);
-        assertKeyEquals(pubKeyMarry, cntmgr.findRegistation(addrMarry));
+        PublicKey pubKeyMary = cntmgr.register(addrMary);
+        assertKeyEquals(pubKeyMary, cntmgr.findRegistation(addrMary));
         
         // Add content to IPFS
         
@@ -106,30 +106,30 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Send content to IPFS
         
-        fhandle  = cntmgr.send(addrBob, cidBob, addrMarry, timeout);
+        fhandle  = cntmgr.send(addrBob, cidBob, addrMary, timeout);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
-        Assert.assertEquals(addrMarry, fhandle.getOwner());
+        Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertNotNull(fhandle.getCid());
         
         // Find IPFS content on blockchain
         
-        String cidMarry = fhandle.getCid();
-        fhandle = findIPFSContent(addrMarry, cidMarry, timeout);
+        String cidMary = fhandle.getCid();
+        fhandle = findIPFSContent(addrMary, cidMary, timeout);
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
         Assert.assertEquals(relPath, fhandle.getPath());
-        Assert.assertEquals(addrMarry, fhandle.getOwner());
+        Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertTrue(fhandle.isEncrypted());
         Assert.assertNotNull(fhandle.getTxId());
         
         // Get content from IPFS
         
         relPath = Paths.get("marry/userfile.txt");
-        fhandle  = cntmgr.get(addrMarry, fhandle.getCid(), relPath, timeout);
+        fhandle  = cntmgr.get(addrMary, fhandle.getCid(), relPath, timeout);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
-        Assert.assertEquals(addrMarry, fhandle.getOwner());
+        Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
         Assert.assertNull(fhandle.getCid());
     }

@@ -56,10 +56,10 @@ public class WalletTest extends AbstractBitcoinTest {
     @After
     public void after() {
         
-        // Bob & Marry send everything to the Sink  
+        // Bob & Mary send everything to the Sink  
         Address addrSink = wallet.getAddress(LABEL_SINK);
         wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARY, addrSink.getAddress(), ALL_FUNDS);
         network.generate(1);
     }
     
@@ -67,15 +67,15 @@ public class WalletTest extends AbstractBitcoinTest {
     public void testInitialImport () throws Exception {
 
         List<String> labels = wallet.getLabels();
-        Assert.assertEquals("[(change), Bob, Marry, Sink]", labels.toString());
+        Assert.assertEquals("[(change), Bob, Mary, Sink]", labels.toString());
         
         Address addrBob = wallet.getAddress(LABEL_BOB);
         Assert.assertNotNull(wallet.getChangeAddress(LABEL_BOB));
         Assert.assertNotNull(addrBob);
         
-        Address addrMarry = wallet.getAddress(LABEL_MARRY);
-        Assert.assertNotNull(wallet.getChangeAddress(LABEL_MARRY));
-        Assert.assertNotNull(addrMarry);
+        Address addrMary = wallet.getAddress(LABEL_MARY);
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_MARY));
+        Assert.assertNotNull(addrMary);
         
         Address addrSink = wallet.getAddress(LABEL_SINK);
         Assert.assertNotNull(wallet.getChangeAddress(LABEL_SINK));

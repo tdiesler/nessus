@@ -69,17 +69,17 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
     @After
     public void after() {
 
-        // Bob & Marry send everything to the Sink  
+        // Bob & Mary send everything to the Sink  
         Address addrSink = wallet.getAddress(LABEL_SINK);
         wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARY, addrSink.getAddress(), ALL_FUNDS);
         network.generate(1);
     }
 
     @Test
     public void testSimpleSpending() throws Exception {
 
-        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+        Address addrMary = wallet.getAddress(LABEL_MARY);
 
         // Verify that Bob has received 0.1 BTC
         BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
@@ -97,7 +97,7 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
                 .output(changeAddr, changeAmount)
-                .output(new TxOutput(addrMarry.getAddress(), btcSend, dataIn))
+                .output(new TxOutput(addrMary.getAddress(), btcSend, dataIn))
                 .build();
 
         String txId = wallet.sendTx(tx);
@@ -109,16 +109,16 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         // Show account balances
         showAccountBalances();
 
-        // Verify that Marry has received 0.01 BTC
-        BigDecimal btcMarry = wallet.getBalance(LABEL_MARRY);
-        Assert.assertTrue(btcMarry.doubleValue() > 0);
+        // Verify that Mary has received 0.01 BTC
+        BigDecimal btcMary = wallet.getBalance(LABEL_MARY);
+        Assert.assertTrue(btcMary.doubleValue() > 0);
 
         // Verify that OP_RETURN data has been recorded
         tx = wallet.getTransaction(txId);
         List<TxOutput> outputs = tx.outputs();
         Assert.assertEquals(3, outputs.size());
         Assert.assertEquals(changeAddr, outputs.get(0).getAddress());
-        Assert.assertEquals(addrMarry.getAddress(), outputs.get(1).getAddress());
+        Assert.assertEquals(addrMary.getAddress(), outputs.get(1).getAddress());
         Assert.assertNotNull(outputs.get(2).getData());
         byte[] dataOut = outputs.get(2).getData();
         Assert.assertEquals("Expected OP_RETURN", 0x6A, dataOut[0]);
@@ -129,7 +129,7 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
     @Test
     public void testRawTxHack() throws Exception {
 
-        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+        Address addrMary = wallet.getAddress(LABEL_MARY);
 
         // Verify that Bob has received 0.1 BTC
         BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
@@ -144,7 +144,7 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
 
         byte[] dataIn = "IPFS".getBytes();
 
-        Tx tx = new TxBuilder().unspentInputs(utxos).output(changeAddr, changeAmount).output(new TxOutput(addrMarry.getAddress(), btcSend)).build();
+        Tx tx = new TxBuilder().unspentInputs(utxos).output(changeAddr, changeAmount).output(new TxOutput(addrMary.getAddress(), btcSend)).build();
 
         ExtWallet extWallet = new ExtWallet(blockchain, blockchain.getRpcClient());
         String rawTx = extWallet.createRawTx(tx, dataIn);
@@ -161,16 +161,16 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         // Show account balances
         showAccountBalances();
 
-        // Verify that Marry has received coins
-        BigDecimal btcMarry = wallet.getBalance(LABEL_MARRY);
-        Assert.assertTrue(btcMarry.doubleValue() > 0);
+        // Verify that Mary has received coins
+        BigDecimal btcMary = wallet.getBalance(LABEL_MARY);
+        Assert.assertTrue(btcMary.doubleValue() > 0);
 
         // Verify that OP_RETURN data has been recorded
         tx = wallet.getTransaction(txId);
         List<TxOutput> outputs = tx.outputs();
         Assert.assertEquals(3, outputs.size());
         Assert.assertEquals(changeAddr, outputs.get(0).getAddress());
-        Assert.assertEquals(addrMarry.getAddress(), outputs.get(1).getAddress());
+        Assert.assertEquals(addrMary.getAddress(), outputs.get(1).getAddress());
         Assert.assertNotNull(outputs.get(2).getData());
         byte[] dataOut = outputs.get(2).getData();
         Assert.assertEquals("Expected OP_RETURN", 0x6A, dataOut[0]);

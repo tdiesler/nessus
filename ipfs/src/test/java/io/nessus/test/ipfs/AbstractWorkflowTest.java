@@ -39,7 +39,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     static Wallet wallet;
     
     Address addrBob;
-    Address addrMarry;
+    Address addrMary;
     
     @BeforeClass
     public static void beforeClass() throws IOException {
@@ -69,10 +69,10 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     public void before() {
 
         addrBob = wallet.getAddress(LABEL_BOB);
-        addrMarry = wallet.getAddress(LABEL_MARRY);
+        addrMary = wallet.getAddress(LABEL_MARY);
         
         wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
-        wallet.sendToAddress(addrMarry.getAddress(), new BigDecimal("1.0"));
+        wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
     }
 
     @After
@@ -80,14 +80,14 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         
         // Unlock all UTXOs
         
-        wallet.listLockUnspent(Arrays.asList(addrBob, addrMarry)).stream().forEach(utxo -> {
+        wallet.listLockUnspent(Arrays.asList(addrBob, addrMary)).stream().forEach(utxo -> {
             wallet.lockUnspent(utxo, true);
         });
 
-        // Bob & Marry send everything to the Sink  
+        // Bob & Mary send everything to the Sink  
         Address addrSink = wallet.getAddress(LABEL_SINK);
         wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARY, addrSink.getAddress(), ALL_FUNDS);
         network.generate(1);
     }
 

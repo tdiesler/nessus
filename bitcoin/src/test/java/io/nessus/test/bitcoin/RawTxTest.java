@@ -57,10 +57,10 @@ public class RawTxTest extends AbstractBitcoinTest {
     @After
     public void after() {
         
-        // Bob & Marry send everything to the Sink  
+        // Bob & Mary send everything to the Sink  
         Address addrSink = wallet.getAddress(LABEL_SINK);
         wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARRY, addrSink.getAddress(), ALL_FUNDS);
+        wallet.sendFromLabel(LABEL_MARY, addrSink.getAddress(), ALL_FUNDS);
         network.generate(1);
     }
     
@@ -68,7 +68,7 @@ public class RawTxTest extends AbstractBitcoinTest {
     public void testSimpleSpending () throws Exception {
 
         Address addrBob = wallet.getAddress(LABEL_BOB);
-        Address addrMarry = wallet.getAddress(LABEL_MARRY);
+        Address addrMary = wallet.getAddress(LABEL_MARY);
         
         // Show account balances
         showAccountBalances();
@@ -101,7 +101,7 @@ public class RawTxTest extends AbstractBitcoinTest {
         
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
-                .output(addrMarry.getAddress(), btcSend)
+                .output(addrMary.getAddress(), btcSend)
                 .output(changeAddr, changeAmount)
                 .build();
 
@@ -113,9 +113,9 @@ public class RawTxTest extends AbstractBitcoinTest {
         // Show account balances
         showAccountBalances();
         
-        // Verify that Marry has received 4.0 BTC
-        BigDecimal btcMarry = wallet.getBalance(LABEL_MARRY);
-        Assert.assertEquals(btcSend.doubleValue(), btcMarry.doubleValue(), 0);
+        // Verify that Mary has received 4.0 BTC
+        BigDecimal btcMary = wallet.getBalance(LABEL_MARY);
+        Assert.assertEquals(btcSend.doubleValue(), btcMary.doubleValue(), 0);
         
         // Verify that Bob has spent 4.0 BTC
         btcBob = wallet.getBalance(LABEL_BOB);

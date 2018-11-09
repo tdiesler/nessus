@@ -11,11 +11,11 @@
             },
             {
                 "privKey": "cMcT5vjU5UiF2mh8WE6EsD3YdFEuFuUKm6rCcA8UuR9FUS6VLeRx",
-                "labels": [ "Marry" ]
+                "labels": [ "Mary" ]
             },
             {
                 "privKey": "cTT6AV1D1yU5C9gpjmWuPHhvvHAd8UJvz9QDL7yYAdE68WtBZKmQ",
-                "labels": [ "Marry", "(change)" ]
+                "labels": [ "Mary", "(change)" ]
             },
 			{
 				"pubKey": "moN1yVCXs6ropmrvucRQCusg9ydwz9eRnu",
