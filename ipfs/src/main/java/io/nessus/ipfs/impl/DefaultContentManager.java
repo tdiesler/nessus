@@ -381,8 +381,9 @@ public class DefaultContentManager implements ContentManager {
         PublicKey pubKey = null;
         
         List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
+        List<UTXO> allUnspent = listLockedAndUnlockedUnspent(addr, true, true);
         
-        for (UTXO utxo : listLockedAndUnlockedUnspent(addr, true, true)) {
+        for (UTXO utxo : allUnspent) {
             
             String txId = utxo.getTxId();
             Tx tx = wallet.getTransaction(txId);

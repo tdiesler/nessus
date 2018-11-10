@@ -79,16 +79,21 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     public void after() {
         
         // Unlock all UTXOs
-        
-        wallet.listLockUnspent(Arrays.asList(addrBob, addrMary)).stream().forEach(utxo -> {
-            wallet.lockUnspent(utxo, true);
-        });
+        if (unlockUnspentAfterTest()) {
+            wallet.listLockUnspent(Arrays.asList(addrBob, addrMary)).stream().forEach(utxo -> {
+                wallet.lockUnspent(utxo, true);
+            });
+        }
 
         // Bob & Mary send everything to the Sink  
         Address addrSink = wallet.getAddress(LABEL_SINK);
         wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
         wallet.sendFromLabel(LABEL_MARY, addrSink.getAddress(), ALL_FUNDS);
         network.generate(1);
+    }
+
+    boolean unlockUnspentAfterTest() {
+        return true;
     }
 
     FHandle addContent(Address addrBob, String path) throws Exception {

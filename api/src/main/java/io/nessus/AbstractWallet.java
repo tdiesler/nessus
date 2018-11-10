@@ -322,6 +322,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public List<UTXO> listLockUnspent(List<Address> addrs) {
+        
         List<UTXO> result = new ArrayList<>();
         List<String> rawAddrs = getRawAddresses(addrs);
         for (LockedUnspent unspnt : client.listLockUnspent()) {
