@@ -36,12 +36,12 @@ public interface Wallet {
     /**
      * Add an address deriven from a private key to this wallet
      */
-    Address addPrivateKey(String privKey, List<String> labels);
+    Address importPrivateKey(String privKey, List<String> labels);
     
     /**
      * Add a watch only address to this wallet
      */
-    Address addAddress(String key, List<String> labels);
+    Address importAddress(String key, List<String> labels);
     
     /**
      * Generate new address.
@@ -112,6 +112,12 @@ public interface Wallet {
      */
     String sendFromLabel(String label, String toAddr, BigDecimal amount);
 
+    /**
+     * Sends funds given by specific utxos to an address
+     * @return The transaction id
+     */
+    String sendToAddress(String toAddr, String changeAddr, BigDecimal amount, List<UTXO> utxos);
+    
     /**
      * Send a raw transaction to the network
      * @return The transaction id

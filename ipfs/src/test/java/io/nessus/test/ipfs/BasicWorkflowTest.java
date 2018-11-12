@@ -39,10 +39,13 @@ import io.nessus.ipfs.FHandle;
 
 public class BasicWorkflowTest extends AbstractWorkflowTest {
 
+    long timeout = 2000L;
+    int attempts = 5;
+
     @Test
     public void basicWorkflow() throws Exception {
         
-        Long timeout = 4000L;
+        createContentManager(timeout, attempts);
         
         // Register the public encryption keys
         
@@ -87,7 +90,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Find IPFS content on blockchain
         
         String cidBob = fhandle.getCid();
-        fhandle = findIPFSContent(addrBob, cidBob, timeout);
+        fhandle = findIPFSContent(addrBob, cidBob, null);
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
         Assert.assertEquals(relPath, fhandle.getPath());
@@ -97,7 +100,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Get content from IPFS
         
-        fhandle  = cntmgr.get(addrBob, cidBob, relPath, timeout);
+        fhandle  = cntmgr.get(addrBob, cidBob, relPath, null);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
@@ -106,7 +109,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Send content to IPFS
         
-        fhandle  = cntmgr.send(addrBob, cidBob, addrMary, timeout);
+        fhandle  = cntmgr.send(addrBob, cidBob, addrMary, null);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());
@@ -115,7 +118,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Find IPFS content on blockchain
         
         String cidMary = fhandle.getCid();
-        fhandle = findIPFSContent(addrMary, cidMary, timeout);
+        fhandle = findIPFSContent(addrMary, cidMary, null);
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
         Assert.assertEquals(relPath, fhandle.getPath());
@@ -126,28 +129,12 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Get content from IPFS
         
         relPath = Paths.get("marry/userfile.txt");
-        fhandle  = cntmgr.get(addrMary, fhandle.getCid(), relPath, timeout);
+        fhandle  = cntmgr.get(addrMary, fhandle.getCid(), relPath, null);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
         Assert.assertNull(fhandle.getCid());
-    }
-
-    private FHandle findIPFSContent(Address addr, String cid, Long timeout) throws Exception {
-        
-        List<FHandle> fhandles = cntmgr.findIPFSContent(addr, timeout);
-        FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
-        Assert.assertNotNull(fhandle);
-        Assert.assertFalse(fhandle.isAvailable());
-        
-        for (int i = 0; i < 4 && !fhandle.isAvailable(); i++) {
-            Thread.sleep(1000);
-            fhandles = cntmgr.findIPFSContent(addr, timeout);
-            fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
-        }
-        
-        return fhandle;
     }
 
     private void assertKeyEquals(PublicKey exp, PublicKey was) {

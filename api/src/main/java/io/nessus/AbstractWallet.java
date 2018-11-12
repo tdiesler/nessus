@@ -74,9 +74,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             String pubKey = addr.getPubKey();
             try {
                 if (privKey != null && pubKey == null) {
-                    addPrivateKey(privKey, addr.getLabels());
+                    importPrivateKey(privKey, addr.getLabels());
                 } else {
-                    addAddress(pubKey, addr.getLabels());
+                    importAddress(pubKey, addr.getLabels());
                 }
             } catch (BitcoinRPCException ex) {
                 String message = ex.getMessage();
@@ -86,7 +86,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     @Override
-    public Address addPrivateKey(String privKey, List<String> labels) {
+    public Address importPrivateKey(String privKey, List<String> labels) {
         AssertArgument.assertNotNull(privKey, "Null privKey");
 
         // Check if we already have this privKey
@@ -97,7 +97,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         }
 
         // Note, the bitcoin-core account system will be removed in 0.18.0
-        client.importPrivKey(privKey, concatLabels(labels), true);
+        String lstr = concatLabels(labels);
+        LOG.info("Import privKey {} {}", privKey.substring(0, 2) + "************", lstr);
+        client.importPrivKey(privKey, lstr, true);
 
         // bitcoin-core -regtest v0.16.0 generates three public addresses for
         // every private key that gets imported. These are
@@ -118,7 +120,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     @Override
-    public Address addAddress(String rawAddr, List<String> labels) {
+    public Address importAddress(String rawAddr, List<String> labels) {
         AssertArgument.assertNotNull(rawAddr, "Null privKey");
 
         // Check if we already have this privKey
@@ -129,7 +131,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         }
 
         // Note, the bitcoin-core account system will be removed in 0.18.0
-        client.importAddress(rawAddr, concatLabels(labels), true);
+        String lstr = concatLabels(labels);
+        LOG.info("Import address {} {}", rawAddr, lstr);
+        client.importAddress(rawAddr, lstr, true);
 
         return createAdddressFromRaw(rawAddr, labels);
     }
@@ -226,48 +230,79 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
 
-        BigDecimal estFee = estimateFee();
+        List<UTXO> utxos = selectUnspent(label, amount);
+        String changeAddr = getChangeAddress(label).getAddress();
+        return sendToAddress(toAddress, changeAddr, amount, utxos);
+    }
+
+    @Override
+    public String sendToAddress(String toAddress, String changeAddr, BigDecimal amount, List<UTXO> utxos) {
+
         BigDecimal dustAmount = blockchain.getNetwork().getDustThreshold();
+        BigDecimal feeAmount = estimateFee();
         
-        String txId = null;
+        BigDecimal utxosAmount = getUTXOAmount(utxos);
+        BigDecimal sendAmount = amount;
+        BigDecimal changeAmount;
+        
+        /*
         if (amount != ALL_FUNDS) {
-            
-            BigDecimal sendAmount = amount.add(estFee);
-
-            List<UTXO> utxos = selectUnspent(label, sendAmount);
-            BigDecimal utxosAmount = getUTXOAmount(utxos);
-            AssertState.assertTrue(sendAmount.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
-
-            String changeAddr = getChangeAddress(label).getAddress();
-            BigDecimal changeAmount = utxosAmount.subtract(sendAmount);
-
-            TxBuilder builder = new TxBuilder()
-                    .unspentInputs(utxos)
-                    .output(toAddress, amount);
-
-            if (dustAmount.compareTo(changeAmount) < 0) {
-                builder.output(changeAddr, changeAmount);
-            }
-
-            Tx tx = builder.build();
-            txId = sendTx(tx);
-            
+            sendAmount = amount.add(feePerKB);
+            changeAmount = utxosAmount.subtract(sendAmount);
         } else {
-            
-            List<UTXO> utxos = listUnspent(label);
-            BigDecimal utxosAmount = getUTXOAmount(utxos);
-            BigDecimal sendAmount = utxosAmount.subtract(estFee);
-            
-            if (dustAmount.compareTo(sendAmount) < 0) {
-                
-                TxBuilder builder = new TxBuilder()
-                        .unspentInputs(utxos)
-                        .output(toAddress, sendAmount);
-                
-                Tx tx = builder.build();
-                txId = sendTx(tx);
-            }
+            sendAmount = utxosAmount.subtract(feePerKB);
+            changeAmount = BigDecimal.ZERO;
         }
+        
+        AssertState.assertTrue(sendAmount.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
+        if (sendAmount.doubleValue() <= dustAmount.doubleValue()) {
+            LOG.warn("Cannot send less than dust amount: {}", sendAmount);
+            return null;
+        }
+        
+        TxBuilder tmpBuilder = new TxBuilder()
+                .unspentInputs(utxos)
+                .output(toAddress, sendAmount);
+
+        if (dustAmount.compareTo(changeAmount) < 0) {
+            tmpBuilder.output(changeAddr, changeAmount);
+        }
+        
+        Tx tmpTx = tmpBuilder.build();
+        
+        // Estimate the fees based on Tx size
+        byte[] bytes = HexCoder.decode(createRawTx(tmpTx));
+        BigDecimal feeAmount = new BigDecimal(String.format("%.6f", feePerKB.doubleValue() * bytes.length / 1024));
+        */
+        
+        LOG.debug("Sending using fee: {}", feeAmount);
+        
+        if (amount != ALL_FUNDS) {
+            changeAmount = utxosAmount.subtract(sendAmount);
+            changeAmount = changeAmount.subtract(feeAmount);
+        } else {
+            sendAmount = utxosAmount.subtract(feeAmount);
+            changeAmount = BigDecimal.ZERO;
+        }
+        
+        AssertState.assertTrue(sendAmount.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
+        if (sendAmount.doubleValue() <= dustAmount.doubleValue()) {
+            if (0 < sendAmount.doubleValue()) 
+                LOG.warn("Cannot send less than dust amount: {}", sendAmount);
+            return null;
+        }
+        
+        TxBuilder builder = new TxBuilder()
+                .unspentInputs(utxos)
+                .output(toAddress, sendAmount);
+
+        if (dustAmount.compareTo(changeAmount) < 0) {
+            builder.output(changeAddr, changeAmount);
+        }
+        
+        Tx tx = builder.build();
+        
+        String txId = sendTx(tx);
 
         LOG.debug("txId: {}", txId);
 

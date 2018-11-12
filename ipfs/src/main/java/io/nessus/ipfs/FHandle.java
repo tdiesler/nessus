@@ -22,6 +22,7 @@ package io.nessus.ipfs;
 
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.nessus.Wallet.Address;
 
@@ -38,7 +39,9 @@ public class FHandle {
     final int attempt;
     final Long elapsed;
     
-    private FHandle(String cid, Path path, Address owner, URL furl, String secToken, String txId, boolean available, boolean expired, int attempt, Long timespent) {
+    final AtomicBoolean scheduled;
+    
+    private FHandle(String cid, Path path, Address owner, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, Long elapsed) {
         this.owner = owner;
         this.path = path;
         this.furl = furl;
@@ -47,8 +50,9 @@ public class FHandle {
         this.secToken = secToken;
         this.available = available;
         this.expired = expired;
+        this.scheduled = scheduled;
         this.attempt = attempt;
-        this.elapsed = timespent;
+        this.elapsed = elapsed;
     }
 
     public String getCid() {
@@ -87,6 +91,14 @@ public class FHandle {
         return expired;
     }
 
+    public boolean setScheduled(boolean flag) {
+        return scheduled.compareAndSet(!flag, flag);
+    }
+
+    public boolean isScheduled() {
+        return scheduled.get();
+    }
+
     public int getAttempt() {
         return attempt;
     }
@@ -95,9 +107,13 @@ public class FHandle {
         return elapsed;
     }
 
+    public boolean isMissing() {
+        return !available && !expired;
+    } 
+    
     public String toString() {
-        return String.format("[cid=%s, owner=%s, path=%s, avl=%b, exp=%b, try=%d, time=%s]", 
-                cid, owner.getAddress(), path, available, expired, attempt, elapsed);
+        return String.format("[cid=%s, owner=%s, path=%s, avl=%d, exp=%d, try=%d, time=%s]", 
+                cid, owner.getAddress(), path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
     }
     
     public static class FHBuilder {
@@ -113,6 +129,8 @@ public class FHandle {
         private int attempt;
         private Long elapsed;
         
+        private AtomicBoolean scheduled = new AtomicBoolean();
+        
         public FHBuilder(FHandle fhandle) {
             this.owner = fhandle.owner;
             this.cid = fhandle.cid;
@@ -122,6 +140,7 @@ public class FHandle {
             this.secToken = fhandle.secToken;
             this.available = fhandle.available;
             this.expired = fhandle.expired;
+            this.scheduled = fhandle.scheduled;
             this.attempt = fhandle.attempt;
             this.elapsed = fhandle.elapsed;
         }
@@ -179,13 +198,13 @@ public class FHandle {
             return this;
         }
         
-        public FHBuilder addElapsed(long millis) {
+        public FHBuilder elapsed(long millis) {
             this.elapsed = elapsed != null ? elapsed + millis : millis;
             return this;
         }
         
         public FHandle build() {
-            return new FHandle(cid, path, owner, furl, secToken, txId, available, expired, attempt, elapsed);
+            return new FHandle(cid, path, owner, furl, secToken, txId, available, expired, scheduled, attempt, elapsed);
         }
     }
 }

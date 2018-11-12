@@ -66,7 +66,7 @@ public class DefaultIPFSClient implements IPFSClient {
         executorService = Executors.newFixedThreadPool(12, new ThreadFactory() {
             AtomicInteger count = new AtomicInteger();
             public Thread newThread(Runnable run) {
-                return new Thread(run, "ipfs-pool-" + count.incrementAndGet());
+                return new Thread(run, "ipfs-client-" + count.incrementAndGet());
             }
         });
     }

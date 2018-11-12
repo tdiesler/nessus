@@ -5,15 +5,20 @@ import java.security.PublicKey;
 import org.junit.Assert;
 import org.junit.Test;
 
+import io.nessus.UTXO;
 import io.nessus.Wallet.Address;
+import io.nessus.ipfs.FHandle;
 
 public class FindRegistrationTest extends AbstractWorkflowTest {
 
     @Override
-    boolean unlockUnspentAfterTest() {
-        // set to false when simulating wallet restart
-        // rm -rf ~/.bitcoin/regtest
-        return true;
+    void unlockAddressRegistration(Address addr, PublicKey pubKey, UTXO utxo) {
+        super.unlockAddressRegistration(addr, pubKey, utxo);
+    }
+
+    @Override
+    void unlockFileRegistration(Address addr, FHandle fhandle, UTXO utxo) {
+        super.unlockFileRegistration(addr, fhandle, utxo);
     }
     
     @Test
@@ -32,6 +37,10 @@ public class FindRegistrationTest extends AbstractWorkflowTest {
 }
 
 /*
+
+- With a fresh wallet
+
+rm -rf ~/.bitcoin/regtest
 
 - First Run
 
