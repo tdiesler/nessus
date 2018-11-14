@@ -24,6 +24,7 @@ import static io.nessus.Wallet.ALL_FUNDS;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.After;
@@ -200,5 +201,23 @@ public class WalletTest extends AbstractBitcoinTest {
         
         utxos = wallet.listUnspent(Arrays.asList(addrBob));
         Assert.assertEquals(1, utxos.size());
+    }
+
+    @Test
+    public void testListUnspent() throws Exception {
+        
+        Address addrBob = wallet.getAddress(LABEL_BOB);
+        
+        List<UTXO> utxos = wallet.listUnspent(Arrays.asList(addrBob));
+        Assert.assertTrue("No utxos", utxos.isEmpty());
+        
+        // Send 10 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("10.0"));
+        utxos = wallet.listUnspent(Arrays.asList(addrBob));
+        Assert.assertEquals(1, utxos.size());
+        
+        utxos = wallet.listUnspent(Collections.emptyList());
+        utxos.forEach(utxo -> LOG.info("{}", utxo));
+        Assert.assertTrue(utxos.isEmpty());
     }
 }

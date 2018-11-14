@@ -98,28 +98,13 @@ public class DefaultContentManager implements ContentManager {
     public static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
     public static final int DEFAULT_IPFS_THREADS = 12;
 
-    public static class HeaderId {
-        
-        public final String PREFIX;
-        public final String VERSION;
-        public final String VERSION_STRING;
-        public final String FILE_HEADER_END;
-        
-        public HeaderId(String prefix, String version) {
-            this.PREFIX = prefix;
-            this.VERSION = version;
-            this.VERSION_STRING = PREFIX + "-Version: " + VERSION;
-            this.FILE_HEADER_END = PREFIX + "_HEADER_END";
-        }
-    }
-    
     static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
 
     protected final Blockchain blockchain;
     protected final Network network;
     protected final Wallet wallet;
 
-    protected final HeaderId hvals;
+    protected final FHeaderId fhid;
     protected final IPFSClient ipfs;
     protected final BCData bcdata;
     protected final Path rootPath;
@@ -156,8 +141,8 @@ public class DefaultContentManager implements ContentManager {
         rootPath = Paths.get(System.getProperty("user.home"), ".fman");
         rootPath.toFile().mkdirs();
         
-        hvals = getHeaderValues();
-        bcdata = new BCData(hvals);
+        fhid = getFHeaderId();
+        bcdata = new BCData(fhid);
         
         ipfsTimeout = timeout != null ? timeout : DEFAULT_IPFS_TIMEOUT;
         ipfsAttempts = attepts != null ? attepts : DEFAULT_IPFS_ATTEMPTS;
@@ -568,8 +553,8 @@ public class DefaultContentManager implements ContentManager {
         return ((RpcClientSupport) blockchain).getRpcClient();
     }
 
-    protected HeaderId getHeaderValues() {
-        return new HeaderId("DAT", "1.0");
+    protected FHeaderId getFHeaderId() {
+        return new FHeaderId("DAT", "1.0");
     }
 
     Path getPlainPath(Address owner) {
@@ -903,7 +888,7 @@ public class DefaultContentManager implements ContentManager {
         FHeader header;
         try (FileReader fr = new FileReader(cryptPath.toFile())) {
             header = readFHeader(fr);
-            AssertState.assertEquals(hvals.VERSION_STRING, header.version);
+            AssertState.assertEquals(fhid.VERSION_STRING, header.version);
         }
         
         FHandle fhres;
@@ -1091,7 +1076,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     public FHeader readFHeader(Reader rd) throws IOException {
-        return FHeader.create(hvals, rd);
+        return FHeader.create(fhid, rd);
     }
 
     public FHeader writeHeader(FHandle fhandle, Writer pw) throws GeneralSecurityException, IOException {
@@ -1101,8 +1086,8 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.debug("IPFS token: {}", base64Token);
         
-        FHeader header = new FHeader(hvals.VERSION_STRING, fhandle.getPath(), owner, base64Token, -1);
-        header.write(hvals, pw);
+        FHeader header = new FHeader(fhid.VERSION_STRING, fhandle.getPath(), owner, base64Token, -1);
+        header.write(fhid, pw);
         
         return header;
     }
@@ -1240,6 +1225,21 @@ public class DefaultContentManager implements ContentManager {
         }
     }
     
+    public static class FHeaderId {
+        
+        public final String PREFIX;
+        public final String VERSION;
+        public final String VERSION_STRING;
+        public final String FILE_HEADER_END;
+        
+        public FHeaderId(String prefix, String version) {
+            this.PREFIX = prefix;
+            this.VERSION = version;
+            this.VERSION_STRING = PREFIX + "-Version: " + VERSION;
+            this.FILE_HEADER_END = PREFIX + "_HEADER_END";
+        }
+    }
+    
     public static class FHeader {
         
         public final String version;
@@ -1256,12 +1256,12 @@ public class DefaultContentManager implements ContentManager {
             this.length = length;
         }
 
-        static FHeader create(HeaderId hvals, Reader rd) throws IOException {
+        static FHeader create(FHeaderId fhid, Reader rd) throws IOException {
             BufferedReader br = new BufferedReader(rd);
             
             // First line is the version
             String line = br.readLine();
-            AssertState.assertTrue(line.startsWith(hvals.VERSION_STRING), "Invalid version: " + line);
+            AssertState.assertTrue(line.startsWith(fhid.VERSION_STRING), "Invalid version: " + line);
             
             String version = line;
             Path path = null;
@@ -1283,7 +1283,7 @@ public class DefaultContentManager implements ContentManager {
                         owner = line.substring(7);
                     } else if (line.startsWith("Token: ")) {
                         token = line.substring(7);
-                    } else if (line.startsWith(hvals.FILE_HEADER_END)) {
+                    } else if (line.startsWith(fhid.FILE_HEADER_END)) {
                         line = null;
                     }
                 }
@@ -1292,11 +1292,11 @@ public class DefaultContentManager implements ContentManager {
             return new FHeader(version, path, owner, token, length);
         }
 
-        void write(HeaderId hvals, Writer wr) {
+        void write(FHeaderId fhid, Writer wr) {
             PrintWriter pw = new PrintWriter(wr);
             
             // First line is the version
-            pw.println(hvals.VERSION_STRING);
+            pw.println(fhid.VERSION_STRING);
             
             // Second is the location
             pw.println(String.format("Path: %s", path));
@@ -1308,7 +1308,7 @@ public class DefaultContentManager implements ContentManager {
             pw.println(String.format("Token: %s", token));
             
             // Then comes an end of header marker
-            pw.println(hvals.FILE_HEADER_END);
+            pw.println(fhid.FILE_HEADER_END);
         }
         
         public String toString() {
@@ -1324,8 +1324,8 @@ public class DefaultContentManager implements ContentManager {
         
         final String OP_PREFIX;
         
-        BCData(HeaderId hvals) {
-            OP_PREFIX = hvals.PREFIX;
+        BCData(FHeaderId fhid) {
+            OP_PREFIX = fhid.PREFIX;
         }
 
         byte[] createPubKeyData(byte[] pubKey) {

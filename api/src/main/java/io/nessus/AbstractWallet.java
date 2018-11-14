@@ -343,14 +343,16 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public List<UTXO> listUnspent(List<Address> addrs) {
         List<UTXO> result = new ArrayList<>();
-        List<String> rawAddrs = getRawAddresses(addrs);
-        for (Unspent unspnt : client.listUnspent(0, Integer.MAX_VALUE, rawAddrs.toArray(new String[addrs.size()]))) {
-            String txId = unspnt.txid();
-            Integer vout = unspnt.vout();
-            String addr = unspnt.address();
-            String scriptPubKey = unspnt.scriptPubKey();
-            BigDecimal amount = unspnt.amount();
-            result.add(new UTXO(txId, vout, scriptPubKey, addr, amount));
+        if (!addrs.isEmpty()) {
+            List<String> rawAddrs = getRawAddresses(addrs);
+            for (Unspent unspnt : client.listUnspent(0, Integer.MAX_VALUE, rawAddrs.toArray(new String[addrs.size()]))) {
+                String txId = unspnt.txid();
+                Integer vout = unspnt.vout();
+                String addr = unspnt.address();
+                String scriptPubKey = unspnt.scriptPubKey();
+                BigDecimal amount = unspnt.amount();
+                result.add(new UTXO(txId, vout, scriptPubKey, addr, amount));
+            }
         }
         return result;
     }
