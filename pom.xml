@@ -34,12 +34,17 @@
                 
         <!-- Plugin versions -->
         <version-codehaus-license-plugin>1.16</version-codehaus-license-plugin>
+        <version-groovy-maven-plugin>2.0</version-groovy-maven-plugin>
         <version-maven-assembly-plugin>3.1.0</version-maven-assembly-plugin>
         <version-maven-compiler-plugin>3.1</version-maven-compiler-plugin>
         <version-maven-jar-plugin>2.6</version-maven-jar-plugin>
         <version-maven-release-plugin>2.5</version-maven-release-plugin>
         <version-maven-surefire-plugin>2.19.1</version-maven-surefire-plugin>
         <version-markdown-plugin>2.1.0</version-markdown-plugin>
+
+        <!-- GitHub -->
+        <github.namespace>tdiesler</github.namespace>
+        <github.project>nessus</github.project>
     </properties>
     
     <modules>
@@ -48,6 +53,7 @@
         <module>cipher</module>
         <module>ipfs</module>
         <module>demo</module>
+        <module>docs</module>
     </modules>
 
     <dependencyManagement>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.nessus</groupId>
+        <artifactId>nessus</artifactId>
+        <version>1.0.0.Beta1-SNAPSHOT</version>
+    </parent>
+    
+    <artifactId>nessus-docs</artifactId>
+    <packaging>pom</packaging>
+    
+    <name>Nessus :: Docs</name>
+
+    <!-- Generate the changelog -->
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.gmaven</groupId>
+                        <artifactId>groovy-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>generate-changelog</id>
+                                <goals>
+                                    <goal>execute</goal>
+                                </goals>
+                                <phase>verify</phase>
+                                <configuration>
+                                    <source>${project.basedir}/scripts/changelog-generate.groovy</source>
+                                </configuration>
+                            </execution>
+                        </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.eclipse.mylyn.github</groupId>
+                                <artifactId>org.eclipse.egit.github.core</artifactId>
+                                <version>2.1.5</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+    
+</project>
