@@ -164,7 +164,6 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         List<FHandle> fhandles = cntmgr.findIPFSContent(addr, timeout);
         FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
         Assert.assertNotNull(fhandle);
-        Assert.assertTrue(fhandle.isAvailable());
         
         return fhandle;
     }

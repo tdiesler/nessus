@@ -318,6 +318,8 @@ public class DefaultContentManager implements ContentManager {
                 .available(true)
                 .build();
         
+        filecache.put(fhandle);
+        
         LOG.info("Done IPFS Add: {}", fhandle);
         
         return fhandle;
