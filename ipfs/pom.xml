@@ -9,76 +9,13 @@
     </parent>
     
     <artifactId>nessus-ipfs</artifactId>
-
+    <packaging>pom</packaging>
+    
     <name>Nessus :: IPFS</name>
 
-    <dependencies>
-        <dependency>
-            <groupId>io.nessus</groupId>
-            <artifactId>nessus-bitcoin</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.nessus</groupId>
-            <artifactId>nessus-cipher</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.ipfs</groupId>
-            <artifactId>java-ipfs-api</artifactId>
-        </dependency>
-        
-        <!-- Test -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>core</module>
+        <module>jaxrs</module>
+    </modules>
     
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>com.ruleoftech</groupId>
-                <artifactId>markdown-page-generator-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <inputDirectory>${basedir}/src/test/resources/markdown</inputDirectory>
-                    <outputDirectory>${basedir}/src/test/resources/html</outputDirectory>
-                    <headerHtmlFile>${basedir}/src/test/resources/markdown/html/header.html</headerHtmlFile>
-                    <footerHtmlFile>${basedir}/src/test/resources/markdown/html/footer.html</footerHtmlFile>
-                    <copyDirectories>css,etc,img</copyDirectories>
-                    <recursiveInput>true</recursiveInput>
-                    <transformRelativeMarkdownLinks>true</transformRelativeMarkdownLinks>
-                </configuration>
-                <!--
-                
-                $ ipfs add -r ipfs/src/test/resources/html
-                ...
-                added Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW html
-                
-                http://ipfs.io/ipfs/Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW
-                -->
-            </plugin>
-        </plugins>
-    </build>
-
-    <repositories>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
 </project>

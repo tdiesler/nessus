@@ -22,8 +22,6 @@ package io.nessus.bitcoin;
 
 import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
 
-import java.io.IOException;
-
 import org.junit.BeforeClass;
 
 import io.nessus.Blockchain;
@@ -34,7 +32,7 @@ import io.nessus.testing.AbstractBlockchainTest;
 public abstract class AbstractBitcoinTest extends AbstractBlockchainTest {
 
     @BeforeClass
-    public static void beforeClass() throws IOException {
+    public static void beforeClass() throws Exception {
 
         Blockchain blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
         Wallet wallet = blockchain.getWallet();

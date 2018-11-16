@@ -20,18 +20,20 @@
     </scm>
     
     <properties>
+        <version.apache.velocity>1.7</version.apache.velocity>
         <version.args4j>2.0.31</version.args4j>
         <version.bitcoinj>0.14.7</version.bitcoinj>
         <version.bouncycastle>1.59</version.bouncycastle>
         <version.fasterxml.jackson>2.9.5</version.fasterxml.jackson>
         <version.ipfs>v1.2.2</version.ipfs>
+        <version.io.undertow>2.0.15.Final</version.io.undertow>
+        <version.jboss.resteasy>3.6.0.Final</version.jboss.resteasy>
         <version.junit>4.11</version.junit>
         <version.mockito>1.10.19</version.mockito>
         <version.slf4j>1.8.0-beta2</version.slf4j>
-        <version.undertow>2.0.15.Final</version.undertow>
         <version.wf.bitcoin>0.17.0.Alpha2</version.wf.bitcoin>
         <version.xchange>4.3.5</version.xchange>
-                
+        
         <!-- Plugin versions -->
         <version-codehaus-license-plugin>1.16</version-codehaus-license-plugin>
         <version-groovy-maven-plugin>2.0</version-groovy-maven-plugin>
@@ -76,7 +78,12 @@
             <dependency>
                 <groupId>io.undertow</groupId>
                 <artifactId>undertow-core</artifactId>
-                <version>${version.undertow}</version>
+                <version>${version.io.undertow}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.velocity</groupId>
+                <artifactId>velocity</artifactId>
+                <version>${version.apache.velocity}</version>
             </dependency>
             <dependency>
                 <groupId>org.bitcoinj</groupId>
@@ -87,6 +94,26 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk15on</artifactId>
                 <version>${version.bouncycastle}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.resteasy</groupId>
+                <artifactId>resteasy-client</artifactId>
+                <version>${version.jboss.resteasy}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.resteasy</groupId>
+                <artifactId>resteasy-jackson-provider</artifactId>
+                <version>${version.jboss.resteasy}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.resteasy</groupId>
+                <artifactId>resteasy-jaxrs</artifactId>
+                <version>${version.jboss.resteasy}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.resteasy</groupId>
+                <artifactId>resteasy-undertow</artifactId>
+                <version>${version.jboss.resteasy}</version>
             </dependency>
             <dependency>
                 <groupId>org.knowm.xchange</groupId>

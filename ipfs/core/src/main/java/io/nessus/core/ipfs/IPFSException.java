@@ -1,8 +1,8 @@
-package io.nessus.bitcoin;
+package io.nessus.core.ipfs;
 
 /*-
  * #%L
- * Nessus :: Bitcoin
+ * Nessus :: IPFS
  * %%
  * Copyright (C) 2018 Nessus
  * %%
@@ -20,25 +20,18 @@ package io.nessus.bitcoin;
  * #L%
  */
 
-import io.nessus.AbstractBlockchain;
-import io.nessus.AbstractNetwork;
-import io.nessus.AbstractWallet;
-import io.nessus.Blockchain;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
+@SuppressWarnings("serial")
+public class IPFSException extends RuntimeException {
 
-public class BitcoinBlockchain extends AbstractBlockchain implements Blockchain {
-
-    public BitcoinBlockchain(BitcoindRpcClient client) {
-        super(client);
+    public IPFSException(String message) {
+        super(message);
     }
     
-    @Override
-    protected AbstractWallet createWallet() {
-        return new BitcoinWallet(this, getRpcClient());
+    public IPFSException(Throwable cause) {
+        super(cause);
     }
-
-    @Override
-    protected AbstractNetwork createNetwork() {
-        return new BitcoinNetwork(this, getRpcClient());
+    
+    public IPFSException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

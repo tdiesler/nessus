@@ -1,8 +1,8 @@
-package io.nessus;
+package io.nessus.ipfs.jaxrs;
 
 /*-
  * #%L
- * Nessus :: API
+ * Nessus :: IPFS :: JAXRS
  * %%
  * Copyright (C) 2018 Nessus
  * %%
@@ -20,17 +20,17 @@ package io.nessus;
  * #L%
  */
 
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
+import java.util.ArrayList;
+import java.util.List;
 
-public abstract class RpcClientSupport {
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.Option;
 
-    protected final BitcoindRpcClient client;
-    
-    public RpcClientSupport(BitcoindRpcClient client) {
-        this.client = client;
-    }
-    
-    public BitcoindRpcClient getRpcClient() {
-        return client;
-    }
+final class Options {
+
+    @Option(name = "--help", help = true)
+    boolean help;
+
+    @Argument
+    List<String> args = new ArrayList<String>();
 }
