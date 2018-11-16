@@ -1,0 +1,69 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="/css/demo.css">
+</head>
+
+<body>
+<table>
+<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
+</table>
+
+
+<h1>Files</h1>
+
+<p/>
+
+<table>
+<tr class="gray">
+    <td style=".owner">$addr.label</td>
+    <td>$addr.address</td>
+    <td>$addr.balance</td>
+</tr>
+</table>
+
+<form action="/portal/padd">
+<input type="hidden" name="addr" value="$addr.address">
+<input type="submit" value="Add Content">
+</form>
+
+#if ( ! $files.empty )
+
+    <h2>List of IPFS files</h2>
+
+    <table>
+    #foreach( $file in $files )
+        #if ( $file.cid && $file.available )
+            <tr>
+            <form id="form-$file.cid" action="/portal/fget">
+            <input type="hidden" name="addr" value="$addr.address">
+            <input type="hidden" name="cid" value="$file.cid">
+            <td><input type="text" name="path" value="$file.path"></td>
+            <td><a href="$gatewayUrl/$file.cid" target="_blank">$file.cid</a></td>
+            <td><a href="javascript:{}" onclick="document.getElementById('form-$file.cid').submit()">get</a></td>
+            <td><a href="/portal/psend?addr=$addr.address&path=$file.path&cid=$file.cid">send</a></td>
+            </form>
+            </tr>
+        #end
+    #end
+    </table>
+
+    <h2>List of local files</h2>
+
+    <table>
+    #foreach( $file in $files )
+        #if ( ! $file.cid && $file.available )
+            <tr>
+            <td>$file.path</td>
+            <td>&nbsp;</td>
+            <td><a href="/portal/fshow?addr=$addr.address&path=$file.path">show</a></td>
+            <td><a href="/portal/fdel?addr=$addr.address&path=$file.path">delete</a></td>
+            </tr>
+        #end
+    #end
+    </table>
+#end
+
+
+</body>
+</html>

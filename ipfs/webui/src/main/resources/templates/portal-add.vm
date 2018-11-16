@@ -1,0 +1,69 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="/css/demo.css">
+</head>
+
+<body>
+<table>
+<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
+</table>
+
+<h1>Add Content</h1>
+
+<table>
+<tr class="gray">
+    <td>$addr.label</td>
+    <td><a href="/portal/plist?addr=$addr.address">$addr.address</a></td>
+    <td>$addr.balance</td>
+</tr>
+</table>
+
+<h2>Add by Content</h2>
+
+<table>
+<tr>
+    <td>
+        <form action="/portal/addtxt">
+        <input name="addr" type="hidden" value="$addr.address">
+        <input name="path" type="text" size="80" value="$addr.label/file01.txt">
+    </td>
+</tr>
+<tr>
+    <td>
+        <textarea name="content" rows="10" cols="80">The cat was playing in the garden.</textarea>
+    </td>
+</tr>
+<tr>
+    <td>
+        <input type="submit">
+        </form>
+    </td>
+</tr>
+</table>
+
+<h2>Add by URL</h2>
+
+<table>
+<tr>
+    <td>
+        <form action="/portal/addurl">
+        <input name="addr" type="hidden" value="$addr.address">
+        <input name="path" type="text" size="80" value="$addr.label/README.md">
+    </td>
+</tr>
+<tr>
+    <td>
+        <input name="url" type="text" size="80" value="https://raw.githubusercontent.com/tdiesler/nessus/master/ipfs/jaxrs/src/test/resources/userfile.txt">
+    </td>
+</tr>
+<tr>
+    <td>
+        <input type="submit">
+        </form>
+    </td>
+</tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,82 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="/css/demo.css">
+</head>
+
+<body>
+<table>
+<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
+</table>
+
+<h1>Addresses</h1>
+
+#if ( ! $addrs.empty )
+
+    <h2>Receiving Addresses</h2>
+
+    <table>
+    <tr>
+    </tr>
+    #foreach( $addr in $addrs )
+
+        #if ( $addr.watchOnly )
+            <tr class="gray">
+        #else
+            <tr>
+        #end
+
+        #if ( $addr.label != "" )
+            <td>$addr.label</td>
+        #else
+            <form id="form-assign-label-$velocityCount" action="/portal/assign">
+            <input name="addr" type="hidden" value="$addr.address">
+            <td><input name="label" type="text" value="$envLabel"></td>
+        #end
+
+        #if ( $addr.watchOnly )
+            <td>$addr.address</td>
+            <td>&nbsp;</td>
+        #else
+            #if ( $addr.balance == 0 || ! $addr.registered )
+                <td>$addr.address</td>
+            #else
+                <td><a href="/portal/plist?addr=$addr.address">$addr.address</a></td>
+            #end
+            <td>$addr.balance</td>
+        #end
+
+        #if ( $addr.label != "" )
+            #if ( ! $addr.registered && ! $addr.watchOnly && $addr.balance > 0 )
+                <td><a href="/portal/regaddr?addr=$addr.address">register</a></td>
+            #end
+        #else
+            <td><a href="#" onclick="document.getElementById('form-assign-label-$velocityCount').submit();">assign</a></td>
+            </form>
+        #end
+
+        </tr>
+
+    #end
+    </table>
+#end
+
+<p/>
+
+<table>
+<tr><td><h2>New Address</h2></td></tr>
+<form action="/portal/newaddr">
+<tr><td><input name="label" type="text" value="$envLabel"></td><td><input type="submit"></td></tr>
+</form>
+
+<tr><td>&nbsp;</td></tr>
+
+<tr><td><h2>Import Key</h2></td></tr>
+<form action="/portal/impkey">
+<tr><td><input name="label" type="text" value="$envLabel"></td><td><input name="impkey" type="text" size="40"></td><td><input type="submit"></td></tr>
+</form>
+</table>
+
+
+</body>
+</html>

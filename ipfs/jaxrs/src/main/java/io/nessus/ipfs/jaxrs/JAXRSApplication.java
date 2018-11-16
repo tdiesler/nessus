@@ -21,7 +21,6 @@ package io.nessus.ipfs.jaxrs;
  */
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
@@ -54,8 +53,6 @@ import io.nessus.core.ipfs.ContentManager;
 import io.nessus.core.ipfs.IPFSClient;
 import io.nessus.core.ipfs.impl.DefaultContentManager;
 import io.nessus.core.ipfs.impl.DefaultIPFSClient;
-import io.nessus.utils.AssertState;
-import io.nessus.utils.StreamUtils;
 import io.nessus.utils.SystemUtils;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
@@ -90,14 +87,13 @@ public class JAXRSApplication extends Application {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public static JAXRSServer serverStart() throws Exception {
 
-        String className = SystemUtils.getenv(BlockchainFactory.BLOCKCHAIN_CLASS_NAME, BitcoinBlockchain.class.getName());
-        ClassLoader classLoader = JAXRSApplication.class.getClassLoader();
-        Class<Blockchain> bcclass = (Class<Blockchain>) classLoader.loadClass(className);
         
-        Blockchain blockchain = BlockchainFactory.getBlockchain(rpcUrl(), bcclass);
+        URL jsonrpcURL = jsonrpcURL();
+        Class<Blockchain> bcclass = blockchainClass();
+        
+        Blockchain blockchain = BlockchainFactory.getBlockchain(jsonrpcURL, bcclass);
         String networkName = blockchain.getNetwork().getClass().getSimpleName();
         BitcoindRpcClient rpcclient = ((RpcClientSupport) blockchain).getRpcClient();
         LOG.info("{} Version: {}",  networkName, rpcclient.getNetworkInfo().version());
@@ -158,21 +154,28 @@ public class JAXRSApplication extends Application {
         return classes;
     }
 
-    public static URL rpcUrl() {
+    @SuppressWarnings("unchecked")
+    public static Class<Blockchain> blockchainClass() throws ClassNotFoundException {
+        String className = SystemUtils.getenv(BlockchainFactory.BLOCKCHAIN_CLASS_NAME, BitcoinBlockchain.class.getName());
+        ClassLoader classLoader = JAXRSApplication.class.getClassLoader();
+        return (Class<Blockchain>) classLoader.loadClass(className);
+    }
+
+    public static URL jsonrpcURL() {
         URL rpcUrl;
-        String urlstr = SystemUtils.getenv(Constants.ENV_JSONRPC_URL, null);
-        String user = SystemUtils.getenv(Constants.ENV_JSONRPC_USER, null);
-        String pass = SystemUtils.getenv(Constants.ENV_JSONRPC_PASS, null);
+        String urlstr = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_URL, null);
+        String rpcuser = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_USER, null);
+        String rpcpass = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_PASS, null);
         if (urlstr != null) {
             try {
                 rpcUrl = new URL(String.format("http://%s", urlstr));
                 String userInfo = rpcUrl.getUserInfo();
-                if (userInfo == null && user != null && pass != null) {
+                if (userInfo == null) {
                     String protocol = rpcUrl.getProtocol();
                     String host = rpcUrl.getHost();
                     int port = rpcUrl.getPort();
                     String path = rpcUrl.getPath();
-                    rpcUrl = new URL(String.format("%s://%s:%s@%s:%d%s", protocol, user, pass, host, port, path));
+                    rpcUrl = new URL(String.format("%s://%s:%s@%s:%d%s", protocol, rpcuser, rpcpass, host, port, path));
                 }
             } catch (MalformedURLException ex) {
                 throw new IllegalStateException(ex);
@@ -205,11 +208,11 @@ public class JAXRSApplication extends Application {
 
     private static void process(CmdLineParser parser, Options options) throws Exception {
 
-        if (options.args.contains("start")) {
+        if ("start".equals(options.cmd)) {
             serverStart();
         }
 
-        else if (options.args.contains("stop")) {
+        else if ("stop".equals(options.cmd)) {
             serverStop();
             System.exit(0);
         }
@@ -219,14 +222,9 @@ public class JAXRSApplication extends Application {
         }
     }
 
-    private static void helpScreen(CmdLineParser cmdParser) {
-        InputStream readme = JAXRSApplication.class.getResourceAsStream("/README.md");
-        AssertState.assertNotNull(readme, "Cannot obtain README.md");
-        try {
-            StreamUtils.copyStream(readme, System.out);
-        } catch (IOException e) {
-            // ignore
-        }
+    private static void helpScreen(CmdLineParser parser) {
+        System.err.println("nessus-jaxrs [start|stop]");
+        parser.printUsage(System.err);
     }
 
     public static class JAXRSServer {
