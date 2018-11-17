@@ -22,7 +22,10 @@ package io.nessus.ipfs.portal;
 
 public class WebUIConstants {
 
-    public static final String ENV_NESSUS_WEBUI_HOST = "NESSUS_WEBUI_HOST";
+    public static final String ENV_NESSUS_JAXRS_ADDR = "NESSUS_JAXRS_ADDR";
+    public static final String ENV_NESSUS_JAXRS_PORT = "NESSUS_JAXRS_PORT";
+    
+    public static final String ENV_NESSUS_WEBUI_ADDR = "NESSUS_WEBUI_ADDR";
     public static final String ENV_NESSUS_WEBUI_PORT = "NESSUS_WEBUI_PORT";
     public static final String ENV_NESSUS_WEBUI_LABEL = "NESSUS_WEBUI_LABEL";
 }

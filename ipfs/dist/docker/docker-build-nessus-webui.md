@@ -1,10 +1,10 @@
 ## Build the Nessus WebUI image
 
 ```
+export NVERSION=1.0.0-SNAPSHOT
+
 rm -rf docker
 mkdir -p docker
-
-export NVERSION=1.0.0-SNAPSHOT
 
 tar xzf nessus-ipfs-dist-$NVERSION-deps.tgz -C docker
 tar xzf nessus-ipfs-dist-$NVERSION-proj.tgz -C docker
@@ -26,7 +26,32 @@ docker build -t nessusio/ipfs-webui docker/
 docker push nessusio/ipfs-webui
 ```
 
-Run the Nessus WebUI
+### Run the WebUI image
+
+```
+export CNAME=webui
+
+docker rm -f $CNAME
+docker run --detach \
+    -p 8082:8082 \
+    --link ipfs:ipfs \
+    --link jaxrs:jaxrs \
+    --link btcd:blockchain \
+    --memory=200m --memory-swap=2g \
+    --name $CNAME \
+    nessusio/ipfs-webui
+
+# Follow the info log
+docker logs -f webui
+
+# Follow the info log on the journal
+journalctl CONTAINER_NAME=webui -f
+
+# Follow the debug log
+docker exec -it webui tail -f -n 100 debug.log
+```
+
+### Run the WebUI Mixed Mode
 
 ```
 export NAME=webui

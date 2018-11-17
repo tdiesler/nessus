@@ -40,8 +40,6 @@ import javax.ws.rs.ext.Provider;
 import org.jboss.resteasy.plugins.server.undertow.UndertowJaxrsServer;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.jboss.resteasy.util.PortProvider;
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,25 +79,25 @@ public class JAXRSApplication extends Application {
         JAXRSSanityCheck.verifyPlatform();
 
         try {
-            JAXRSApplication.mainInternal(args);
+            serverStart();
         } catch (Throwable th) {
+            LOG.error("Error executing command", th);
             Runtime.getRuntime().exit(1);
         }
     }
 
     public static JAXRSServer serverStart() throws Exception {
-
         
-        URL jsonrpcURL = jsonrpcURL();
+        URL blockchinURL = blockchainURL();
         Class<Blockchain> bcclass = blockchainClass();
         
-        Blockchain blockchain = BlockchainFactory.getBlockchain(jsonrpcURL, bcclass);
+        Blockchain blockchain = BlockchainFactory.getBlockchain(blockchinURL, bcclass);
         String networkName = blockchain.getNetwork().getClass().getSimpleName();
         BitcoindRpcClient rpcclient = ((RpcClientSupport) blockchain).getRpcClient();
         LOG.info("{} Version: {}",  networkName, rpcclient.getNetworkInfo().version());
 
-        IPFSClient ipfs = new DefaultIPFSClient();
-        LOG.info("IPFS Version: {}",  ipfs.version());
+        IPFSClient ipfsClient = ipfsClient();
+        LOG.info("IPFS Version: {}",  ipfsClient.version());
 
         Builder builder = Undertow.builder().addHttpListener(config.port, config.host);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
@@ -161,21 +159,18 @@ public class JAXRSApplication extends Application {
         return (Class<Blockchain>) classLoader.loadClass(className);
     }
 
-    public static URL jsonrpcURL() {
+    public static URL blockchainURL() {
         URL rpcUrl;
-        String urlstr = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_URL, null);
+        String rpcaddr = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_ADDR, null);
+        String rpcport = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_PORT, null);
         String rpcuser = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_USER, null);
         String rpcpass = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_PASS, null);
-        if (urlstr != null) {
+        if (rpcaddr != null && rpcport != null) {
             try {
-                rpcUrl = new URL(String.format("http://%s", urlstr));
+                rpcUrl = new URL(String.format("http://%s:%s", rpcaddr, rpcport));
                 String userInfo = rpcUrl.getUserInfo();
                 if (userInfo == null) {
-                    String protocol = rpcUrl.getProtocol();
-                    String host = rpcUrl.getHost();
-                    int port = rpcUrl.getPort();
-                    String path = rpcUrl.getPath();
-                    rpcUrl = new URL(String.format("%s://%s:%s@%s:%d%s", protocol, rpcuser, rpcpass, host, port, path));
+                    rpcUrl = new URL(String.format("http://%s:%s@%s:%s", rpcuser, rpcpass, rpcaddr, rpcport));
                 }
             } catch (MalformedURLException ex) {
                 throw new IllegalStateException(ex);
@@ -186,45 +181,11 @@ public class JAXRSApplication extends Application {
         return rpcUrl;
     }
 
-    // Entry point with no system exit
-    private static void mainInternal(String[] args) throws Exception {
-
-        Options options = new Options();
-        CmdLineParser parser = new CmdLineParser(options);
-        try {
-            parser.parseArgument(args);
-        } catch (CmdLineException ex) {
-            helpScreen(parser);
-            throw ex;
-        }
-
-        try {
-            JAXRSApplication.process(parser, options);
-        } catch (Throwable th) {
-            LOG.error("Error executing command", th);
-            throw th;
-        }
-    }
-
-    private static void process(CmdLineParser parser, Options options) throws Exception {
-
-        if ("start".equals(options.cmd)) {
-            serverStart();
-        }
-
-        else if ("stop".equals(options.cmd)) {
-            serverStop();
-            System.exit(0);
-        }
-
-        else {
-            helpScreen(parser);
-        }
-    }
-
-    private static void helpScreen(CmdLineParser parser) {
-        System.err.println("nessus-jaxrs [start|stop]");
-        parser.printUsage(System.err);
+    public static IPFSClient ipfsClient() {
+        String rpcaddr = SystemUtils.getenv(IPFSClient.ENV_IPFS_JSONRPC_ADDR, null);
+        String rpcport = SystemUtils.getenv(IPFSClient.ENV_IPFS_JSONRPC_PORT, null);
+        Integer port = rpcport != null ? new Integer(rpcport) : null;
+        return new DefaultIPFSClient(rpcaddr, port);
     }
 
     public static class JAXRSServer {

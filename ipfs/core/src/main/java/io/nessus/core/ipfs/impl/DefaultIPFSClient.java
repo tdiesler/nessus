@@ -67,12 +67,12 @@ public class DefaultIPFSClient implements IPFSClient {
     public DefaultIPFSClient(String host, Integer port) {
         
         if (host == null) {
-            String envvar = SystemUtils.getenv(ENV_IPFS_API_HOST, "127.0.0.1");
+            String envvar = SystemUtils.getenv(ENV_IPFS_JSONRPC_ADDR, "127.0.0.1");
             host = envvar;
         }
             
         if (port == null) {
-            String envvar = SystemUtils.getenv(ENV_IPFS_API_PORT, "5001");
+            String envvar = SystemUtils.getenv(ENV_IPFS_JSONRPC_PORT, "5001");
             port = Integer.parseInt(envvar);
         }
         

@@ -29,12 +29,12 @@ import java.util.concurrent.Future;
 
 public interface IPFSClient {
 
-    String ENV_IPFS_API_HOST = "IPFS_API_HOST";
-    String ENV_IPFS_API_PORT = "IPFS_API_PORT";
+    public static final String ENV_IPFS_JSONRPC_ADDR = "IPFS_JSONRPC_ADDR";
+    public static final String ENV_IPFS_JSONRPC_PORT = "IPFS_JSONRPC_PORT";
     
-    String ENV_IPFS_GATEWAY_HOST = "IPFS_GATEWAY_HOST";
-    String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
-
+    public static final String ENV_IPFS_GATEWAY_ADDR = "IPFS_GATEWAY_ADDR";
+    public static final String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
+    
     List<String> add(Path path) throws IOException;
 
     String addSingle(Path path) throws IOException;

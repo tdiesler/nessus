@@ -22,19 +22,9 @@ package io.nessus.ipfs.jaxrs;
 
 public class JAXRSConstants {
 
-    public static final String APP_PREFIX = "NES";
-    public static final String APP_VERSION = "1.0";
-
-    public static final String ENV_NESSUS_JAXRS_HOST = "NESSUS_JAXRS_HOST";
-    public static final String ENV_NESSUS_JAXRS_PORT = "NESSUS_JAXRS_PORT";
-
-    public static final String ENV_NESSUS_WEBUI_HOST = "NESSUS_WEBUI_HOST";
-    public static final String ENV_NESSUS_WEBUI_PORT = "NESSUS_WEBUI_PORT";
-    public static final String ENV_NESSUS_WEBUI_LABEL = "NESSUS_WEBUI_LABEL";
-
-    public static final String ENV_BLOCKCHAIN_JSONRPC_URL = "BLOCKCHAIN_JSONRPC_URL";
     public static final String ENV_BLOCKCHAIN_JSONRPC_ADDR = "BLOCKCHAIN_JSONRPC_ADDR";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PORT = "BLOCKCHAIN_JSONRPC_PORT";
     public static final String ENV_BLOCKCHAIN_JSONRPC_USER = "BLOCKCHAIN_JSONRPC_USER";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PASS = "BLOCKCHAIN_JSONRPC_PASS";
+
 }

@@ -9,7 +9,8 @@
     </parent>
 
     <artifactId>nessus-ipfs-dist</artifactId>
-
+    <packaging>pom</packaging>
+    
     <name>Nessus :: IPFS :: Dist</name>
 
     <dependencies>
