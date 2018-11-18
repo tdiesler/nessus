@@ -22,8 +22,10 @@ ENTRYPOINT ["nessus-webui"]
 EOF
 
 docker build -t nessusio/ipfs-webui docker/
-
 docker push nessusio/ipfs-webui
+
+docker tag nessusio/ipfs-webui nessusio/ipfs-webui:$NVERSION
+docker push nessusio/ipfs-webui:$NVERSION
 ```
 
 ### Run the WebUI image
@@ -37,7 +39,7 @@ docker run --detach \
     --link ipfs:ipfs \
     --link jaxrs:jaxrs \
     --link btcd:blockchain \
-    --memory=200m --memory-swap=2g \
+    --memory=100m --memory-swap=2g \
     --name $CNAME \
     nessusio/ipfs-webui
 
@@ -49,30 +51,4 @@ journalctl CONTAINER_NAME=webui -f
 
 # Follow the debug log
 docker exec -it webui tail -f -n 100 debug.log
-```
-
-### Run the WebUI Mixed Mode
-
-```
-export NAME=webui
-export LABEL=Bob
-
-docker rm -f $NAME
-docker run --detach \
-    -p 8082:8082 \
-    --link jaxrs:jaxrs \
-    --env IPFS_PORT_5001_TCP_ADDR=$LOCALIP \
-    --env IPFS_PORT_5001_TCP_PORT=5001 \
-    --env IPFS_PORT_8080_TCP_ADDR=$LOCALIP \
-    --env IPFS_PORT_8080_TCP_PORT=8080 \
-    --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \
-    --env BLOCKCHAIN_JSONRPC_PORT=18443 \
-    --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
-    --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
-    --env NESSUS_WEBUI_LABEL=$LABEL \
-    --memory=200m --memory-swap=2g \
-    --name $NAME \
-    nessusio/ipfs-webui
-    
-docker logs -f webui
 ```

@@ -452,7 +452,7 @@ public class DefaultContentManager implements ContentManager {
         // This is no longer the case, because we want the owner 
         // to have full control over the registration. If the 
         // registration UTXO gets spent, it will immediately
-        // no longer available through this method.  
+        // no longer be available through this method.  
         
         PublicKey pubKey = null;
         
@@ -610,7 +610,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     protected FHeaderId getFHeaderId() {
-        return new FHeaderId("DAT", "1.0");
+        return new FHeaderId("Nessus", "1.0");
     }
 
     Path getPlainPath(Address owner) {

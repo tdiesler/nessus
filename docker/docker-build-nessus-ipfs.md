@@ -20,7 +20,6 @@ docker rmi -f nessusio/golang
 docker build -t nessusio/golang docker/
 
 docker run --rm nessusio/golang
-
 docker push nessusio/golang
 
 docker tag nessusio/golang nessusio/golang:1.10.3
@@ -94,8 +93,7 @@ export GATEWAYIP=192.168.178.20
 docker rm -f $CNAME
 docker run --detach \
     -p 4001:4001 \
-    -p 8080:8080 \
-    --env GATEWAYIP=$GATEWAYIP \
+    -p $GATEWAYIP:8080:8080 \
     --name $CNAME \
     nessusio/ipfs
 

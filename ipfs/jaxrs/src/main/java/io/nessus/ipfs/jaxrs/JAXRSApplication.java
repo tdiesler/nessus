@@ -1,5 +1,8 @@
 package io.nessus.ipfs.jaxrs;
 
+import static io.nessus.ipfs.jaxrs.JAXRSConstants.ENV_NESSUS_JAXRS_ADDR;
+import static io.nessus.ipfs.jaxrs.JAXRSConstants.ENV_NESSUS_JAXRS_PORT;
+
 /*-
  * #%L
  * Nessus :: IPFS :: JAXRS
@@ -64,9 +67,9 @@ public class JAXRSApplication extends Application {
 
     static final JAXRSConfig config;
     static {
-        int port = PortProvider.getPort();
-        String host = PortProvider.getHost();
-        config = new JAXRSConfig(host, port);
+        String jaxrsAddr = SystemUtils.getenv(ENV_NESSUS_JAXRS_ADDR, PortProvider.getHost());
+        int jaxrsPort = Integer.parseInt(SystemUtils.getenv(ENV_NESSUS_JAXRS_PORT, "" + PortProvider.getPort()));
+        config = new JAXRSConfig(jaxrsAddr, jaxrsPort);
     }
 
     private static JAXRSApplication INSTANCE;
@@ -88,16 +91,16 @@ public class JAXRSApplication extends Application {
 
     public static JAXRSServer serverStart() throws Exception {
         
+        IPFSClient ipfsClient = ipfsClient();
+        LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
+        LOG.info("IPFS Version: {}",  ipfsClient.version());
+
         URL blockchinURL = blockchainURL();
         Class<Blockchain> bcclass = blockchainClass();
-        
         Blockchain blockchain = BlockchainFactory.getBlockchain(blockchinURL, bcclass);
         String networkName = blockchain.getNetwork().getClass().getSimpleName();
         BitcoindRpcClient rpcclient = ((RpcClientSupport) blockchain).getRpcClient();
         LOG.info("{} Version: {}",  networkName, rpcclient.getNetworkInfo().version());
-
-        IPFSClient ipfsClient = ipfsClient();
-        LOG.info("IPFS Version: {}",  ipfsClient.version());
 
         Builder builder = Undertow.builder().addHttpListener(config.port, config.host);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
@@ -231,6 +234,10 @@ public class JAXRSApplication extends Application {
 
         public int getPort() {
             return port;
+        }
+        
+        public String toString() {
+            return String.format("http://%s:%d", host, port);
         }
     }
 

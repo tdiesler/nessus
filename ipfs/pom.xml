@@ -17,6 +17,7 @@
         <module>core</module>
         <module>jaxrs</module>
         <module>webui</module>
+        <module>docs</module>
         <module>dist</module>
     </modules>
     

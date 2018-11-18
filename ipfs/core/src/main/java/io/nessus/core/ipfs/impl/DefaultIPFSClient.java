@@ -54,8 +54,8 @@ public class DefaultIPFSClient implements IPFSClient {
 
     static final Logger LOG = LoggerFactory.getLogger(DefaultIPFSClient.class);
     
-    private MultiAddress addr;
-    private IPFS ipfs;
+    private final MultiAddress addr;
+    private final IPFS ipfs;
     
     // Executor service for async get operations
     private final ExecutorService executorService;
@@ -81,6 +81,7 @@ public class DefaultIPFSClient implements IPFSClient {
             ipfs = new IPFS(addr);
         } catch (RuntimeException ex) {
             LOG.error("Cannot connect to: " + addr);
+            throw ex;
         }
         
         executorService = Executors.newFixedThreadPool(12, new ThreadFactory() {
@@ -89,6 +90,11 @@ public class DefaultIPFSClient implements IPFSClient {
                 return new Thread(run, "ipfs-client-" + count.incrementAndGet());
             }
         });
+    }
+
+    @Override
+    public MultiAddress getAPIAddress() {
+        return addr;
     }
 
     @Override

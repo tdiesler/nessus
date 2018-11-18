@@ -1,4 +1,4 @@
-## Build the Nessus Bitcoin image
+## Build the Bitcoin image
 
 ```
 export NVERSION=0.17.0.1
@@ -23,7 +23,6 @@ rpcpassword=$RPCPASS
 rpcallowip=172.17.0.1/24
 deprecatedrpc=accounts
 deprecatedrpc=signrawtransaction
-txindex=1
 server=1
 EOF
 
@@ -52,20 +51,31 @@ ENV RPCUSER=$RPCUSER
 ENV RPCPASS=$RPCPASS
 
 # Use the daemon as entry point
-CMD ["-testnet=1"]
+
 ENTRYPOINT ["bitcoind", "-datadir=/var/lib/bitcoind", "-conf=/etc/bitcoind/bitcoin.conf"]
 EOF
 
-docker rmi -f nessusio/bitcoind
 docker build -t nessusio/bitcoind docker/
-
 docker push nessusio/bitcoind
 
 docker tag nessusio/bitcoind nessusio/bitcoind:$NVERSION
 docker push nessusio/bitcoind:$NVERSION
 ```
 
-### Run the Bitcoin testnet
+## Run the Bitcoin testnet
+
+### Populate the blockstore volume
+
+```
+docker volume rm blockstore
+docker run -it --rm \
+    -v blockstore:/var/lib/bitcoind \
+    nessusio/bitcoin-testnet-blockstore ls -l /var/lib/bitcoind
+
+docker volume inspect blockstore
+```
+
+### Run the Bitcoin daemon 
 
 ```
 export CNAME=btcd
@@ -74,13 +84,37 @@ docker rm -f $CNAME
 docker run --detach \
     -p 18333:18333 \
     --expose=18332 \
-    --memory=200m --memory-swap=2g \
+    -v blockstore:/var/lib/bitcoind \
     --name $CNAME \
-    nessusio/bitcoind
+    nessusio/bitcoind -testnet=1 -prune=1024
+
+watch docker exec btcd bitcoin-cli -testnet=1 getblockcount
 
 docker logs -f btcd
-
-docker exec btcd bitcoin-cli -testnet=1 getwalletinfo
-docker exec btcd bitcoin-cli -testnet=1 getnetworkinfo
-docker exec btcd bitcoin-cli -testnet=1 getblockchaininfo
 ```
+
+## Build the blockstore image 
+
+```
+rm -rf docker
+mkdir docker
+
+export BLOCKSTORE_ARCHIVE=`ls testnet3-*.tgz`
+
+# Copy bitcoin binary to the build dir
+tar -C docker -xzf $BLOCKSTORE_ARCHIVE
+
+cat << EOF > docker/Dockerfile
+# Based in Ubuntu 16.04
+FROM ubuntu:16.04
+
+# Copy the blockstate
+RUN mkdir /var/lib/bitcoind
+COPY testnet3 /var/lib/bitcoind/testnet3
+
+EOF
+
+docker build -t nessusio/bitcoin-testnet-blockstore docker/
+docker push nessusio/bitcoin-testnet-blockstore
+```
+

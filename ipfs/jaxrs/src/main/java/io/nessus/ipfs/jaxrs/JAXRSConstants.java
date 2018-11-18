@@ -1,5 +1,7 @@
 package io.nessus.ipfs.jaxrs;
 
+import io.nessus.core.ipfs.IPFSClient;
+
 /*-
  * #%L
  * Nessus :: IPFS :: JAXRS
@@ -22,9 +24,17 @@ package io.nessus.ipfs.jaxrs;
 
 public class JAXRSConstants {
 
+    public static final String ENV_IPFS_JSONRPC_ADDR = IPFSClient.ENV_IPFS_JSONRPC_ADDR;
+    public static final String ENV_IPFS_JSONRPC_PORT = IPFSClient.ENV_IPFS_JSONRPC_PORT;
+    
+    public static final String ENV_IPFS_GATEWAY_ADDR = IPFSClient.ENV_IPFS_GATEWAY_ADDR;
+    public static final String ENV_IPFS_GATEWAY_PORT = IPFSClient.ENV_IPFS_GATEWAY_PORT;
+
     public static final String ENV_BLOCKCHAIN_JSONRPC_ADDR = "BLOCKCHAIN_JSONRPC_ADDR";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PORT = "BLOCKCHAIN_JSONRPC_PORT";
     public static final String ENV_BLOCKCHAIN_JSONRPC_USER = "BLOCKCHAIN_JSONRPC_USER";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PASS = "BLOCKCHAIN_JSONRPC_PASS";
 
+    public static final String ENV_NESSUS_JAXRS_ADDR = "NESSUS_JAXRS_ADDR";
+    public static final String ENV_NESSUS_JAXRS_PORT = "NESSUS_JAXRS_PORT";
 }

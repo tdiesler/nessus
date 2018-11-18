@@ -20,30 +20,68 @@ CURDIR=`pwd`
 HOMEDIR=`cd $HOMEDIR; pwd`
 cd $CURDIR
 
-if [[ ! -z "${IPFS_ENV_GATEWAY_ADDR}" ]] && [[ ! -z "${IPFS_PORT_5001_TCP_PORT}" ]]
-then
-    export IPFS_GATEWAY_ADDR="$IPFS_ENV_GATEWAY_ADDR"
-    export IPFS_GATEWAY_PORT="$IPFS_PORT_5001_TCP_PORT"
+#######################################################
+#
+# IPSF GATEWAY CONFIG
+#
+if [[ -z "${IPFS_GATEWAY_ADDR}" ]]; then
+    export IPFS_GATEWAY_ADDR="$IPFS_ENV_GATEWAYIP"
+fi
+if [[ -z "${IPFS_GATEWAY_PORT}" ]]; then
+    export IPFS_GATEWAY_PORT="$IPFS_PORT_8080_TCP_PORT"
 fi
 
-if [[ ! -z "${JAXRS_PORT_8081_TCP_ADDR}" ]] && [[ ! -z "${JAXRS_PORT_8081_TCP_PORT}" ]]
-then
+#######################################################
+#
+# JAXRS API CONFIG
+#
+if [[ -z "${NESSUS_JAXRS_ADDR}" ]]; then
     export NESSUS_JAXRS_ADDR="$JAXRS_PORT_8081_TCP_ADDR"
+fi
+if [[ -z "${NESSUS_JAXRS_PORT}" ]]; then
     export NESSUS_JAXRS_PORT="$JAXRS_PORT_8081_TCP_PORT"
 fi
 
-export BLOCKCHAIN_CLASS_NAME="io.nessus.bitcoin.BitcoinBlockchain"
-
-if [[ ! -z "${BLOCKCHAIN_PORT_18332_TCP_ADDR}" ]] && [[ ! -z "${BLOCKCHAIN_PORT_18332_TCP_PORT}" ]]
-then
+#######################################################
+#
+# BLOCKCHAIN API CONFIG
+#
+if [[ -z "${BLOCKCHAIN_CLASS_NAME}" ]]; then
+    export BLOCKCHAIN_CLASS_NAME="io.nessus.bitcoin.BitcoinBlockchain"
+fi
+if [[ -z "${BLOCKCHAIN_JSONRPC_ADDR}" ]]; then
     export BLOCKCHAIN_JSONRPC_ADDR="$BLOCKCHAIN_PORT_18332_TCP_ADDR"
+fi
+if [[ -z "${BLOCKCHAIN_JSONRPC_PORT}" ]]; then
     export BLOCKCHAIN_JSONRPC_PORT="$BLOCKCHAIN_PORT_18332_TCP_PORT"
 fi
-if [[ ! -z "${BLOCKCHAIN_ENV_RPCUSER}" ]] && [[ ! -z "${BLOCKCHAIN_ENV_RPCPASS}" ]]
-then
+if [[ -z "${BLOCKCHAIN_JSONRPC_USER}" ]]; then
     export BLOCKCHAIN_JSONRPC_USER="$BLOCKCHAIN_ENV_RPCUSER"
+fi
+if [[ -z "${BLOCKCHAIN_JSONRPC_PASS}" ]]; then
     export BLOCKCHAIN_JSONRPC_PASS="$BLOCKCHAIN_ENV_RPCPASS"
 fi
+
+#######################################################
+#
+# JAXRS API CONFIG
+#
+if [[ -z "${NESSUS_WEBUI_ADDR}" ]]; then
+    export NESSUS_WEBUI_ADDR="0.0.0.0"
+fi
+if [[ -z "${NESSUS_WEBUI_PORT}" ]]; then
+    export NESSUS_WEBUI_PORT="8082"
+fi
+if [[ -z "${NESSUS_WEBUI_LABEL}" ]]; then
+    export NESSUS_WEBUI_LABEL="Bob"
+fi
+
+# DEBUG LOG
+#
+#echo "BLOCKCHAIN:   $BLOCKCHAIN_JSONRPC_USER:$BLOCKCHAIN_JSONRPC_PASS@$BLOCKCHAIN_JSONRPC_ADDR:$BLOCKCHAIN_JSONRPC_PORT"
+#echo "IPFS_GATEWAY: $IPFS_GATEWAY_ADDR:$IPFS_GATEWAY_PORT"
+#echo "NESSUS_JAXRS: $NESSUS_JAXRS_ADDR:$NESSUS_JAXRS_PORT"
+#echo "NESSUS_WEBUI: $NESSUS_WEBUI_ADDR:$NESSUS_WEBUI_PORT"
 
 JAVA_OPTS="-Xmx200m"
 

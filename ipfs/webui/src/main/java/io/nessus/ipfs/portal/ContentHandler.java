@@ -320,7 +320,7 @@ public class ContentHandler implements HttpHandler {
 
         client.send(rawFromAddr, cid, rawToAddr, 10000L);
 
-        redirectHomePage(exchange);
+        redirectFileList(exchange, rawFromAddr);
     }
 
     private ByteBuffer actFileShow(HttpServerExchange exchange, VelocityContext context) throws Exception {
