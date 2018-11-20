@@ -46,8 +46,8 @@ public class BitcoinWallet extends AbstractWallet implements Wallet {
     }
 
     @Override
-    // https://en.bitcoin.it/wiki/List_of_address_prefixes
-    protected boolean isP2PKH(String addr) {
+    public boolean isP2PKH(String addr) {
+        // https://en.bitcoin.it/wiki/List_of_address_prefixes
         return addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n");
     }
 

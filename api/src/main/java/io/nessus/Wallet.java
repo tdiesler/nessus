@@ -29,19 +29,26 @@ public interface Wallet {
     static final BigDecimal ALL_FUNDS = new BigDecimal(Integer.MIN_VALUE);
     
     /**
+     * True if the given address is a P2PKH address.
+     */
+    boolean isP2PKH(String addr);
+    
+    /**
      * Import addressses from configuration.
      */
     void importAddresses(Config config);
     
     /**
      * Add an address deriven from a private key to this wallet
+     * @param rescan TODO
      */
-    Address importPrivateKey(String privKey, List<String> labels);
+    Address importPrivateKey(String privKey, List<String> labels, boolean rescan);
     
     /**
      * Add a watch only address to this wallet
+     * @param rescan TODO
      */
-    Address importAddress(String key, List<String> labels);
+    Address importAddress(String key, List<String> labels, boolean rescan);
     
     /**
      * Generate new address.

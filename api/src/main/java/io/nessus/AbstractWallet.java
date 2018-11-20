@@ -74,9 +74,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             String pubKey = addr.getPubKey();
             try {
                 if (privKey != null && pubKey == null) {
-                    importPrivateKey(privKey, addr.getLabels());
+                    importPrivateKey(privKey, addr.getLabels(), true);
                 } else {
-                    importAddress(pubKey, addr.getLabels());
+                    importAddress(pubKey, addr.getLabels(), true);
                 }
             } catch (BitcoinRPCException ex) {
                 String message = ex.getMessage();
@@ -86,7 +86,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     @Override
-    public Address importPrivateKey(String privKey, List<String> labels) {
+    public Address importPrivateKey(String privKey, List<String> labels, boolean rescan) {
         AssertArgument.assertNotNull(privKey, "Null privKey");
 
         // Check if we already have this privKey
@@ -120,7 +120,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     @Override
-    public Address importAddress(String rawAddr, List<String> labels) {
+    public Address importAddress(String rawAddr, List<String> labels, boolean rescan) {
         AssertArgument.assertNotNull(rawAddr, "Null privKey");
 
         // Check if we already have this privKey
@@ -133,7 +133,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         // Note, the bitcoin-core account system will be removed in 0.18.0
         String lstr = concatLabels(labels);
         LOG.info("Import address {} {}", rawAddr, lstr);
-        client.importAddress(rawAddr, lstr, true);
+        client.importAddress(rawAddr, lstr, rescan);
 
         return createAdddressFromRaw(rawAddr, labels);
     }
@@ -496,8 +496,6 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     protected abstract Address createAdddressFromRaw(String rawAddr, List<String> labels);
 
     protected abstract Address createNewAddress(List<String> labels);
-
-    protected abstract boolean isP2PKH(String addr);
 
     protected String concatLabels(List<String> labels) {
         String result = labels.toString();

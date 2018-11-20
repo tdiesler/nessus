@@ -295,19 +295,18 @@ public class ContentHandler implements HttpHandler {
         String key = qparams.get("impkey").getFirst();
         String label = qparams.get("label").getFirst();
 
-        // Import key asynch
-        new Thread(new Runnable() {
-            public void run() {
-
-                if (key.startsWith("A")) {
-                    LOG.info("Importing watch only address: {}", key);
-                    wallet.importAddress(key, Arrays.asList(label));
-                } else if (key.startsWith("P")) {
+        if (wallet.isP2PKH(key)) {
+            LOG.info("Importing watch only address: {}", key);
+            wallet.importAddress(key, Arrays.asList(label), false);
+        } else {
+            // Import key asynch with rescan
+            new Thread(new Runnable() {
+                public void run() {
                     LOG.info("Importing private key: P**************");
-                    wallet.importPrivateKey(key, Arrays.asList(label));
+                    wallet.importPrivateKey(key, Arrays.asList(label), true);
                 }
-            }
-        }).start();
+            }).start();
+        }
 
         redirectHomePage(exchange);
     }
