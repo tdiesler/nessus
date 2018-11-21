@@ -61,6 +61,6 @@ public class TxInput {
     }
 
     public String toString() {
-        return String.format("[txid=%s, vout=%d]", getTxId(), getVout());
+        return String.format("[txid=%s, vout=%d, spk=%s]", txId, vout, scriptPubKey);
     }
 }

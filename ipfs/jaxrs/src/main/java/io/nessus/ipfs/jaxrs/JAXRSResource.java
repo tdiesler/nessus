@@ -53,14 +53,25 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public String register(String rawAddr) throws GeneralSecurityException {
+    public String registerAddress(String rawAddr) throws GeneralSecurityException {
 
         Address addr = assertWalletAddress(rawAddr);
 
-        PublicKey pubKey = cntmgr.register(addr);
-        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-        LOG.info("/register => {}", encKey);
+        PublicKey pubKey = cntmgr.registerAddress(addr);
+        LOG.info("/register => {}", pubKey);
 
+        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+        return encKey;
+    }
+
+    @Override
+    public String unregisterAddress(String rawAddr) {
+
+        Address addr = assertWalletAddress(rawAddr);
+        PublicKey pubKey = cntmgr.unregisterAddress(addr);
+        LOG.info("/unregaddr => {}", pubKey);
+
+        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
         return encKey;
     }
 
@@ -110,10 +121,10 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public String findRegistation(String rawAddr) {
+    public String findAddressRegistation(String rawAddr) {
 
         Address addr = assertWalletAddress(rawAddr);
-        PublicKey pubKey = cntmgr.findRegistation(addr);
+        PublicKey pubKey = cntmgr.findAddressRegistation(addr);
 
         String encKey = pubKey != null ? Base64.getEncoder().encodeToString(pubKey.getEncoded()) : null;
         LOG.info("/findkey => {}", encKey);
@@ -131,6 +142,20 @@ public class JAXRSResource implements JAXRSEndpoint {
             result.add(new SFHandle(fhandle));
         }
         LOG.info("/findipfs => {}", result);
+
+        return result;
+    }
+
+    @Override
+    public List<SFHandle> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
+        
+        List<SFHandle> result = new ArrayList<>();
+
+        Address owner = assertWalletAddress(rawAddr);
+        for (FHandle fhandle : cntmgr.unregisterIPFSContent(owner, cids)) {
+            result.add(new SFHandle(fhandle));
+        }
+        LOG.info("/unregipfs => {}", result);
 
         return result;
     }
@@ -163,7 +188,7 @@ public class JAXRSResource implements JAXRSEndpoint {
     public boolean deleteLocalContent(String rawAddr, String path) throws IOException {
 
         Address owner = assertWalletAddress(rawAddr);
-        boolean deleted = cntmgr.deleteLocalContent(owner, Paths.get(path));
+        boolean deleted = cntmgr.removeLocalContent(owner, Paths.get(path));
         LOG.info("/dellocal => {}", deleted);
 
         return deleted;

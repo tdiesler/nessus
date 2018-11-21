@@ -37,11 +37,11 @@ public class FindRegistrationTest extends AbstractJAXRSTest {
         if (balBob.doubleValue() < 1.0)
             wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
         
-        PublicKey pubKey = cntmgr.findRegistation(addrBob);
+        PublicKey pubKey = cntmgr.findAddressRegistation(addrBob);
 
         if (pubKey == null) {
-            cntmgr.register(addrBob);
-            pubKey = cntmgr.findRegistation(addrBob);
+            cntmgr.registerAddress(addrBob);
+            pubKey = cntmgr.findAddressRegistation(addrBob);
         }
 
         Assert.assertNotNull(pubKey);

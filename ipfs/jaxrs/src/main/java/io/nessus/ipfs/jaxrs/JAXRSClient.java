@@ -54,7 +54,7 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public String register(String rawAddr) throws IOException {
+    public String registerAddress(String rawAddr) throws IOException {
 
         WebTarget target = client.target(generateURL("/register"))
                 .queryParam("addr", rawAddr);
@@ -63,6 +63,19 @@ public class JAXRSClient implements JAXRSEndpoint {
 
         String encKey = res.readEntity(String.class);
         LOG.info("/register => {}", encKey);
+
+        return encKey;
+    }
+
+    @Override
+    public String unregisterAddress(String rawAddr) throws IOException {
+
+        WebTarget target = client.target(generateURL("/unregaddr"))
+                .queryParam("addr", rawAddr);
+
+        Response res = processResponse(target.request().get(Response.class));
+        String encKey = res.readEntity(String.class);
+        LOG.info("/unregaddr => {}", encKey);
 
         return encKey;
     }
@@ -117,7 +130,7 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public String findRegistation(String rawAddr) throws IOException {
+    public String findAddressRegistation(String rawAddr) throws IOException {
 
         WebTarget target = client.target(generateURL("/findkey"))
                 .queryParam("addr", rawAddr);
@@ -142,6 +155,21 @@ public class JAXRSClient implements JAXRSEndpoint {
 
         List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
         LOG.info("/findipfs => {}", result);
+
+        return result;
+    }
+
+    @Override
+    public List<SFHandle> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
+
+        WebTarget target = client.target(generateURL("/unregipfs"))
+                .queryParam("addr", rawAddr)
+                .queryParam("cids", cids);
+
+        Response res = processResponse(target.request().get(Response.class));
+
+        List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
+        LOG.info("/unregipfs => {}", result);
 
         return result;
     }

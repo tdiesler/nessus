@@ -25,31 +25,19 @@ import java.security.PublicKey;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.nessus.UTXO;
 import io.nessus.Wallet.Address;
-import io.nessus.core.ipfs.FHandle;
 
-public class FindRegistrationTest extends AbstractWorkflowTest {
+public class FindAddressRegistrationTest extends AbstractWorkflowTest {
 
-    @Override
-    void unlockAddressRegistration(Address addr, PublicKey pubKey, UTXO utxo) {
-        super.unlockAddressRegistration(addr, pubKey, utxo);
-    }
-
-    @Override
-    void unlockFileRegistration(Address addr, FHandle fhandle, UTXO utxo) {
-        super.unlockFileRegistration(addr, fhandle, utxo);
-    }
-    
     @Test
-    public void findRegistration() throws Exception {
+    public void findAddressRegistration() throws Exception {
 
         Address addrBob = wallet.getAddress(LABEL_BOB);
-        PublicKey pubKey = cntmgr.findRegistation(addrBob);
+        PublicKey pubKey = cntmgr.findAddressRegistation(addrBob);
         
         if (pubKey == null) {
-            cntmgr.register(addrBob);
-            pubKey = cntmgr.findRegistation(addrBob);
+            cntmgr.registerAddress(addrBob);
+            pubKey = cntmgr.findAddressRegistation(addrBob);
         }
         
         Assert.assertNotNull(pubKey);

@@ -38,8 +38,13 @@ public interface JAXRSEndpoint {
     @GET
     @Path("/register")
     @Produces(MediaType.TEXT_PLAIN)
-    String register(@QueryParam("addr") String rawAddr) throws GeneralSecurityException, IOException;
+    String registerAddress(@QueryParam("addr") String rawAddr) throws GeneralSecurityException, IOException;
 
+    @GET
+    @Path("/unregaddr")
+    @Produces(MediaType.TEXT_PLAIN)
+    String unregisterAddress(@QueryParam("addr") String rawAddr) throws IOException;
+    
     @POST
     @Path("/add")
     @Produces(MediaType.APPLICATION_JSON)
@@ -58,13 +63,18 @@ public interface JAXRSEndpoint {
     @GET
     @Path("/findkey")
     @Produces(MediaType.APPLICATION_JSON)
-    String findRegistation(@QueryParam("addr") String rawAddr) throws IOException;
+    String findAddressRegistation(@QueryParam("addr") String rawAddr) throws IOException;
 
     @GET
     @Path("/findipfs")
     @Produces(MediaType.APPLICATION_JSON)
     List<SFHandle> findIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("timeout") Long timeout) throws IOException;
 
+    @GET
+    @Path("/unregipfs")
+    @Produces(MediaType.APPLICATION_JSON)
+    List<SFHandle> unregisterIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
+    
     @GET
     @Path("/findlocal")
     @Produces(MediaType.APPLICATION_JSON)

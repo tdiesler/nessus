@@ -251,7 +251,7 @@ public class ContentHandler implements HttpHandler {
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
 
-        client.register(rawAddr);
+        client.registerAddress(rawAddr);
 
         redirectHomePage(exchange);
     }
@@ -356,7 +356,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
 
         Address addr = wallet.findAddress(rawAddr);
-        String pubKey = client.findRegistation(rawAddr);
+        String pubKey = client.findAddressRegistation(rawAddr);
         AddressDTO paddr = portalAddress(addr, pubKey != null);
         context.put("addr", paddr);
 
@@ -400,7 +400,7 @@ public class ContentHandler implements HttpHandler {
 
         for (Address addr : getAddressWithLabel()) {
             BigDecimal balance = wallet.getBalance(addr);
-            String pubKey = client.findRegistation(addr.getAddress());
+            String pubKey = client.findAddressRegistation(addr.getAddress());
             addrs.add(new AddressDTO(addr, balance, pubKey != null));
         }
 

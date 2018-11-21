@@ -43,18 +43,23 @@ public interface ContentManager {
     IPFSClient getIPFSClient();
     
     /**
-     * Register an address with the system.
+     * Register a public address.
      * 
      * @return An Eliptic Curve public key
      */
-    PublicKey register(Address addr) throws GeneralSecurityException;
+    PublicKey registerAddress(Address addr) throws GeneralSecurityException;
+
+    /**
+     * Unregister a public address.
+     */
+    PublicKey unregisterAddress(Address addr);
     
     /**
-     * Find the registered public key for a given address.
+     * Find the registered key for a given address.
      * 
      * @return An Eliptic Curve public key
      */
-    PublicKey findRegistation(Address addr);
+    PublicKey findAddressRegistation(Address addr);
     
     /**
      * Add content to IPFS.
@@ -77,6 +82,11 @@ public interface ContentManager {
     List<FHandle> findIPFSContent(Address owner, Long timeout) throws IOException;
     
     /**
+     * Unregister a IPFS content.
+     */
+    List<FHandle> unregisterIPFSContent(Address owner, List<String> cids) throws IOException;
+    
+    /**
      * Find local content for a given address.
      */
     List<FHandle> findLocalContent(Address owner) throws IOException;
@@ -87,7 +97,8 @@ public interface ContentManager {
     InputStream getLocalContent(Address owner, Path path) throws IOException;
     
     /**
-     * Delete a plain file from local storage.  
+     * Remove a plain file content from local storage.  
      */
-    boolean deleteLocalContent(Address owner, Path path) throws IOException;
+    boolean removeLocalContent(Address owner, Path path) throws IOException;
+
 }

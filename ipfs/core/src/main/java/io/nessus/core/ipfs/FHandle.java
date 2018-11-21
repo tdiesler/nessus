@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.nessus.Wallet.Address;
+import io.nessus.utils.AssertArgument;
 
 public class FHandle {
     
@@ -42,6 +43,8 @@ public class FHandle {
     final AtomicBoolean scheduled;
     
     private FHandle(String cid, Path path, Address owner, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, Long elapsed) {
+        boolean urlBased = owner != null && path != null && furl != null;
+        AssertArgument.assertTrue(urlBased || cid != null, "Neither url not cid based");
         this.owner = owner;
         this.path = path;
         this.furl = furl;
@@ -145,7 +148,9 @@ public class FHandle {
             this.elapsed = fhandle.elapsed;
         }
 
-        public FHBuilder(URL furl) {
+        public FHBuilder(Address owner, Path path, URL furl) {
+            this.owner = owner;
+            this.path = path;
             this.furl = furl;
         }
 

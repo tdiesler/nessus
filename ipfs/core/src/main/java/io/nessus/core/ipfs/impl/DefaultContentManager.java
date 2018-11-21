@@ -185,15 +185,15 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public PublicKey register(Address addr) throws GeneralSecurityException {
+    public PublicKey registerAddress(Address addr) throws GeneralSecurityException {
         AssertArgument.assertNotNull(addr, "Null addr");
         
         assertArgumentHasLabel(addr);
         assertArgumentHasPrivateKey(addr);
-        assertArgumentNoChangeAddress(addr);
+        assertArgumentNotChangeAddress(addr);
 
         // Do nothing if already registered
-        PublicKey pubKey = findRegistation(addr);
+        PublicKey pubKey = findAddressRegistation(addr);
         if (pubKey != null)
             return pubKey;
 
@@ -252,6 +252,66 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
+    public PublicKey unregisterAddress(Address addr) {
+        AssertArgument.assertNotNull(addr, "Null addr");
+        
+        assertArgumentHasLabel(addr);
+        
+        // Do nothing if not registered
+        PublicKey pubKey = findAddressRegistation(addr);
+        if (pubKey == null) return null;
+        
+        List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(addr)).stream()
+                .filter(utxo -> pubKey.equals(getPubKeyFromTx(utxo, addr)))
+                .peek(utxo -> wallet.lockUnspent(utxo, true))
+                .collect(Collectors.toList());
+
+        String changeAddr = wallet.getChangeAddress(addr.getLabels().get(0)).getAddress();
+        String txId = wallet.sendToAddress(changeAddr, changeAddr, Wallet.ALL_FUNDS, utxos);
+        if (txId == null) {
+            LOG.warn("Cannot unregister PubKey: {} => {}", addr, pubKey);
+            return null;
+        }
+        
+        LOG.info("Unregister PubKey: {} => {} => {}", addr, pubKey, txId);
+        
+        return pubKey;
+    }
+    
+    @Override
+    public List<FHandle> unregisterIPFSContent(Address owner, List<String> cids) throws IOException {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        
+        assertArgumentHasLabel(owner);
+        
+        List<FHandle> fhandles = findIPFSContent(owner, null).stream()
+            .filter(fh -> cids == null || cids.contains(fh.getCid()))
+            .collect(Collectors.toList());
+        
+        List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(owner)).stream()
+                .filter(utxo -> {
+                    FHandle fh = getFHandleFromTx(utxo, owner);
+                    return fh != null && cids.contains(fh.getCid());
+                })
+                .peek(utxo -> wallet.lockUnspent(utxo, true))
+                .collect(Collectors.toList());
+                
+        String changeAddr = wallet.getChangeAddress(owner.getLabels().get(0)).getAddress();
+        String txId = wallet.sendToAddress(changeAddr, changeAddr, Wallet.ALL_FUNDS, utxos);
+        if (txId == null) {
+            LOG.warn("Cannot unregister IPFS: {} => {}", owner, fhandles);
+            return null;
+        }
+        
+        fhandles.forEach(fh -> {
+            LOG.info("Unregister IPFS: {} => {}", fh, txId);
+            filecache.remove(fh.getCid());
+        });
+        
+        return fhandles;
+    }
+
+    @Override
     public FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(input, "Null input");
@@ -259,7 +319,7 @@ public class DefaultContentManager implements ContentManager {
         
         assertArgumentHasPrivateKey(owner);
         
-        PublicKey pubKey = findRegistation(owner);
+        PublicKey pubKey = findAddressRegistation(owner);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
         Path plainPath = assertPlainPath(owner, path);
@@ -270,10 +330,7 @@ public class DefaultContentManager implements ContentManager {
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
         
         URL furl = plainPath.toFile().toURI().toURL();
-        FHandle fhandle = new FHBuilder(furl)
-                .owner(owner)
-                .path(path)
-                .build();
+        FHandle fhandle = new FHBuilder(owner, path, furl).build();
 
         LOG.info("IPFS encrypt: {}", fhandle);
         
@@ -341,9 +398,9 @@ public class DefaultContentManager implements ContentManager {
         
         assertArgumentHasLabel(owner);
         assertArgumentHasPrivateKey(owner);
-        assertArgumentNoChangeAddress(owner);
+        assertArgumentNotChangeAddress(owner);
         
-        PublicKey pubKey = findRegistation(target);
+        PublicKey pubKey = findAddressRegistation(target);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + target);
         
         LOG.info("Start IPFS Send: {} {}", owner, cid);
@@ -388,7 +445,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public PublicKey findRegistation(Address addr) {
+    public PublicKey findAddressRegistation(Address addr) {
         AssertArgument.assertNotNull(addr, "Null addr");
         
         // We used to have a cache of these pubKey registrations.
@@ -507,10 +564,8 @@ public class DefaultContentManager implements ContentManager {
             Path relPath = getPlainPath(owner).relativize(fullPath);
             URL furl = fullPath.toUri().toURL();
             
-            FHandle fhandle = new FHBuilder(furl)
+            FHandle fhandle = new FHBuilder(owner, relPath, furl)
                     .available(true)
-                    .path(relPath)
-                    .owner(owner)
                     .build();
             
             fhandles.add(fhandle);
@@ -532,14 +587,14 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public boolean deleteLocalContent(Address owner, Path path) throws IOException {
+    public boolean removeLocalContent(Address owner, Path path) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(path, "Null path");
         
         Path plainPath = assertPlainPath(owner, path);
         if (plainPath.toFile().isDirectory()) {
             for (String child : plainPath.toFile().list()) {
-                deleteLocalContent(owner, path.resolve(child));
+                removeLocalContent(owner, path.resolve(child));
             }
         }
         
@@ -933,10 +988,7 @@ public class DefaultContentManager implements ContentManager {
             Files.move(tmpPath, plainPath, StandardCopyOption.REPLACE_EXISTING);
             
             URL furl = plainPath.toFile().toURI().toURL();
-            fhres = new FHBuilder(furl)
-                    .owner(owner)
-                    .path(destPath)
-                    .build();
+            fhres = new FHBuilder(owner, destPath, furl).build();
         }
         
         return fhres;
@@ -962,32 +1014,11 @@ public class DefaultContentManager implements ContentManager {
         Address outAddr = wallet.findAddress(out0.getAddress());
         if (keyBytes != null && outAddr != null) {
 
-            String encKey = Base64.getEncoder().encodeToString(keyBytes);
-            
-            LOG.info("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), outAddr, encKey });
-            
             // Not owned by the given address
             if (owner != null && !owner.equals(outAddr)) return null;
             
-            pubKey = new PublicKey() {
-
-                private static final long serialVersionUID = 1L;
-
-                @Override
-                public String getFormat() {
-                    return "X.509";
-                }
-
-                @Override
-                public byte[] getEncoded() {
-                    return keyBytes;
-                }
-
-                @Override
-                public String getAlgorithm() {
-                    return "EC";
-                }
-            };
+            pubKey = new PublicECKey(keyBytes); 
+            LOG.info("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), outAddr, pubKey });
         }
 
         return pubKey;
@@ -1098,7 +1129,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(!addr.getLabels().isEmpty(), "Address has no label: " + addr);
     }
     
-    private void assertArgumentNoChangeAddress(Address addr) {
+    private void assertArgumentNotChangeAddress(Address addr) {
         AssertArgument.assertTrue(!addr.getLabels().contains(Wallet.LABEL_CHANGE), "Cannot use change address: " + addr);
     }
     
@@ -1195,6 +1226,51 @@ public class DefaultContentManager implements ContentManager {
         private String logPrefix(String action, int attempt) {
             String trdName = Thread.currentThread().getName();
             return String.format("IPFS %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);
+        }
+    }
+    
+    @SuppressWarnings("serial")
+    static class PublicECKey implements PublicKey {
+        
+        final byte[] keyBytes;
+        final String encKey;
+
+        PublicECKey(byte[] keyBytes) {
+            this.keyBytes = keyBytes;
+            this.encKey = Base64.getEncoder().encodeToString(keyBytes);
+            
+        }
+
+        @Override
+        public String getFormat() {
+            return "X.509";
+        }
+
+        @Override
+        public byte[] getEncoded() {
+            return keyBytes;
+        }
+
+        @Override
+        public String getAlgorithm() {
+            return "EC";
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(keyBytes);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof PublicECKey)) return false;
+            PublicECKey other = (PublicECKey) obj;
+            return Arrays.equals(keyBytes, other.keyBytes);
+        }
+        
+        public String toString() {
+            return encKey;
         }
     }
     

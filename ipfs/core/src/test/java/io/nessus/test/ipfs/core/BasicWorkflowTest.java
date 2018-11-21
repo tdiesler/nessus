@@ -52,11 +52,11 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         Address addrBob = wallet.getAddress(LABEL_BOB);
         Address addrMary = wallet.getAddress(LABEL_MARY);
         
-        PublicKey pubKeyBob = cntmgr.register(addrBob);
-        assertKeyEquals(pubKeyBob, cntmgr.findRegistation(addrBob));
+        PublicKey pubKeyBob = cntmgr.registerAddress(addrBob);
+        assertKeyEquals(pubKeyBob, cntmgr.findAddressRegistation(addrBob));
         
-        PublicKey pubKeyMary = cntmgr.register(addrMary);
-        assertKeyEquals(pubKeyMary, cntmgr.findRegistation(addrMary));
+        PublicKey pubKeyMary = cntmgr.registerAddress(addrMary);
+        assertKeyEquals(pubKeyMary, cntmgr.findAddressRegistation(addrMary));
         
         // Add content to IPFS
         
@@ -84,7 +84,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         BufferedReader br = new BufferedReader(new InputStreamReader(reader));
         Assert.assertEquals("The quick brown fox jumps over the lazy dog.", br.readLine());
         
-        Assert.assertTrue(cntmgr.deleteLocalContent(addrBob, relPath));
+        Assert.assertTrue(cntmgr.removeLocalContent(addrBob, relPath));
         Assert.assertTrue(cntmgr.findLocalContent(addrBob).isEmpty());
         
         // Find IPFS content on blockchain

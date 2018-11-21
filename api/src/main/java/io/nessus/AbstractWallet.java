@@ -241,6 +241,30 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         // Nothing to do
         if (utxos.isEmpty()) return null;
         
+        List<UTXO> utxoWithoutSPK = utxos.stream()
+                .filter(utxo -> utxo.getScriptPubKey() == null)
+                .collect(Collectors.toList());
+        
+        // Some APIs like listLockUnspent mey return a list of
+        // UTXOs that have their scriptPubKey not initialised
+        // https://github.com/tdiesler/nessus/issues/65
+        
+        if (!utxoWithoutSPK.isEmpty()) {
+            
+            List<Address> addrs = utxos.stream()
+                    .map(utxo -> utxo.getAddress())
+                    .map(raw -> findAddress(raw))
+                    .collect(Collectors.toList());
+            
+            List<UTXO> futxos = utxos;
+            List<UTXO> utxoWithSPK = listUnspent(addrs).stream()
+                    .filter(utxo -> futxos.contains(utxo))
+                    .collect(Collectors.toList());
+            
+            AssertState.assertEquals(utxos, utxoWithSPK);
+            utxos = utxoWithSPK;
+        }
+        
         Network network = blockchain.getNetwork();
         BigDecimal dustAmount = network.getDustThreshold();
         BigDecimal feePerKB = network.estimateSmartFee(null);
@@ -314,7 +338,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     public String createRawTx(Tx tx) {
-        return client.createRawTransaction(adaptInputs(tx.inputs()), adaptOutputs(tx.outputs()));
+        List<BitcoindRpcClient.TxInput> auxIns = adaptInputs(tx.inputs());
+        List<BitcoindRpcClient.TxOutput> auxOuts = adaptOutputs(tx.outputs());
+        return client.createRawTransaction(auxIns, auxOuts);
     }
 
     public String signRawTx(String rawTx, List<TxInput> inputs) {
@@ -416,14 +442,14 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public Tx getTransaction(String txId) {
         
-        Transaction tx = client.getTransaction(txId);
+        Transaction transaction = client.getTransaction(txId);
         
         TxBuilder builder = new TxBuilder();
-        builder.txId(tx.txId());
-        builder.blockHash(tx.blockHash());
-        builder.blockTime(tx.blockTime());
+        builder.txId(transaction.txId());
+        builder.blockHash(transaction.blockHash());
+        builder.blockTime(transaction.blockTime());
 
-        RawTransaction rawTx = tx.raw();
+        RawTransaction rawTx = transaction.raw();
         if (rawTx != null) {
             for (In in : rawTx.vIn()) {
                 TxInput txIn = new TxInput(in.txid(), in.vout(), in.scriptPubKey());
@@ -455,7 +481,8 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             }
         }
 
-        return builder.build();
+        Tx txres = builder.build();
+        return txres;
     }
 
     public Address updateAddress(Address addr, List<String> labels) {

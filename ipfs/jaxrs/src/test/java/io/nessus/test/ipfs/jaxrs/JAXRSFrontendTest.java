@@ -98,22 +98,22 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Register Bob's public encryption key
 
-        String encKey = client.register(addrBob.getAddress());
+        String encKey = client.registerAddress(addrBob.getAddress());
         Assert.assertNotNull(encKey);
 
         // Find Bob's pubKey registration
 
-        String wasKey = client.findRegistation(addrBob.getAddress());
+        String wasKey = client.findAddressRegistation(addrBob.getAddress());
         Assert.assertEquals(encKey, wasKey);
 
         // Register Mary's public encryption key
 
-        encKey = client.register(addrMary.getAddress());
+        encKey = client.registerAddress(addrMary.getAddress());
         Assert.assertNotNull(encKey);
 
         // Find Mary's pubKey registration
 
-        wasKey = client.findRegistation(addrMary.getAddress());
+        wasKey = client.findAddressRegistation(addrMary.getAddress());
         Assert.assertEquals(encKey, wasKey);
 
         // Add content to IPFS

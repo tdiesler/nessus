@@ -40,11 +40,11 @@ public class IPFSAddTest extends AbstractWorkflowTest {
         super.before();
         
         Address addrBob = wallet.getAddress(LABEL_BOB);
-        PublicKey pubKey = cntmgr.findRegistation(addrBob);
+        PublicKey pubKey = cntmgr.findAddressRegistation(addrBob);
         
         if (pubKey == null) {
-            cntmgr.register(addrBob);
-            pubKey = cntmgr.findRegistation(addrBob);
+            cntmgr.registerAddress(addrBob);
+            pubKey = cntmgr.findAddressRegistation(addrBob);
         }
     }
     
