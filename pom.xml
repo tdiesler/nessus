@@ -31,7 +31,7 @@
         <version.junit>4.11</version.junit>
         <version.mockito>1.10.19</version.mockito>
         <version.slf4j>1.8.0-beta2</version.slf4j>
-        <version.wf.bitcoin>0.17.0.Alpha2</version.wf.bitcoin>
+        <version.wf.bitcoin>1.0.0.CR1</version.wf.bitcoin>
         <version.xchange>4.3.5</version.xchange>
         
         <!-- Plugin versions -->

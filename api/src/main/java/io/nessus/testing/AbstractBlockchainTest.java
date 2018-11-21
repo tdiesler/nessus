@@ -68,19 +68,6 @@ public abstract class AbstractBlockchainTest {
         return AbstractWallet.getUTXOAmount(utxos);
     }
     
-    protected BigDecimal estimateFee() {
-        Blockchain blockchain = BlockchainFactory.getBlockchain();
-        return blockchain.getNetwork().estimateFee();
-    }
-    
-    protected BigDecimal addFee(BigDecimal amount) {
-        return amount.add(estimateFee());
-    }
-    
-    protected BigDecimal subtractFee(BigDecimal amount) {
-        return amount.subtract(estimateFee());
-    }
-    
     protected void showAccountBalances() {
         Blockchain blockchain = BlockchainFactory.getBlockchain();
         Wallet wallet = blockchain.getWallet();

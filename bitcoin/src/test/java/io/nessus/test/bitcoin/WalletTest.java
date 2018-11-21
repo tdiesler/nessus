@@ -167,9 +167,9 @@ public class WalletTest extends AbstractBitcoinTest {
         // Show account balances
         showAccountBalances();
         
-        // Verify that Bob has received 10 BTC
+        // Verify that Bob has nearly 10 BTC
         btcBob = wallet.getBalance(LABEL_BOB);
-        Assert.assertEquals(subtractFee(new BigDecimal("10.0")).doubleValue(), btcBob.doubleValue(), 0);
+        Assert.assertTrue(new BigDecimal("9.9999").doubleValue() < btcBob.doubleValue());
     }
     
     @Test

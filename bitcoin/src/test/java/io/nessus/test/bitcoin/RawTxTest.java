@@ -92,12 +92,13 @@ public class RawTxTest extends AbstractBitcoinTest {
         
         // Select UTXOs that amount to >= 4.0 BTC
         BigDecimal btcSend = new BigDecimal("4.0");
-        List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, addFee(btcSend));
+        List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, btcSend);
         BigDecimal utxosAmount = getUTXOAmount(utxos);
-        Assert.assertTrue("Cannot find sufficient funds", addFee(btcSend).compareTo(utxosAmount) <= 0);
+        Assert.assertTrue("Cannot find sufficient funds", btcSend.compareTo(utxosAmount) <= 0);
         
         String changeAddr = wallet.getChangeAddress(LABEL_BOB).getAddress();
-        BigDecimal changeAmount = utxosAmount.subtract(addFee(btcSend));
+        BigDecimal changeAmount = utxosAmount.subtract(btcSend);
+        changeAmount = changeAmount.subtract(network.getMinTxFee());
         
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)

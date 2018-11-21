@@ -208,15 +208,16 @@ public class DefaultContentManager implements ContentManager {
         // Send a Tx to record the OP_RETURN data
 
         BigDecimal dustAmount = network.getDustThreshold();
+        BigDecimal feePerKB = network.estimateSmartFee(null);
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
         String label = addr.getLabels().get(0);
-        List<UTXO> utxos = wallet.selectUnspent(label, addFee(spendAmount));
+        List<UTXO> utxos = wallet.selectUnspent(label, spendAmount.add(feePerKB));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
         Address changeAddr = wallet.getChangeAddress(label);
-        BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
+        BigDecimal changeAmount = utxosAmount.subtract(spendAmount.add(feePerKB));
 
         List<TxOutput> outputs = new ArrayList<>();
         if (dustAmount.compareTo(changeAmount) < 0) {
@@ -740,15 +741,16 @@ public class DefaultContentManager implements ContentManager {
         // Send a Tx to record the OP_TOKEN data
 
         BigDecimal dustAmount = network.getDustThreshold();
+        BigDecimal feePerKB = network.estimateSmartFee(null);
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
         String label = fromAddr.getLabels().get(0);
-        List<UTXO> utxos = wallet.selectUnspent(label, addFee(spendAmount));
+        List<UTXO> utxos = wallet.selectUnspent(label, spendAmount.add(feePerKB));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
         Address changeAddr = wallet.getChangeAddress(label);
-        BigDecimal changeAmount = utxosAmount.subtract(addFee(spendAmount));
+        BigDecimal changeAmount = utxosAmount.subtract(spendAmount.add(feePerKB));
 
         List<TxOutput> outputs = new ArrayList<>();
         if (dustAmount.compareTo(changeAmount) < 0) {
@@ -815,10 +817,6 @@ public class DefaultContentManager implements ContentManager {
         KeyPair keyPair = cipher.generateKeyPair(seed);
 
         return keyPair;
-    }
-
-    private BigDecimal addFee(BigDecimal amount) {
-        return amount.add(network.estimateFee());
     }
 
     private BigDecimal getUTXOAmount(List<UTXO> utxos) {

@@ -22,7 +22,6 @@ package io.nessus.test.ipfs.jaxrs;
 
 import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -33,8 +32,8 @@ import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Network;
-import io.nessus.Tx.TxBuilder;
 import io.nessus.UTXO;
+import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.core.ipfs.ContentManager;
@@ -79,17 +78,12 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
     protected void redeemLockedUtxos(String label, Address addr) {
 
         // Unlock all UTXOs
-        wallet.listLockUnspent(Arrays.asList(addr)).stream().forEach(utxo -> wallet.lockUnspent(utxo, true));
+        wallet.listLockUnspent(Arrays.asList(addr))
+            .forEach(utxo -> wallet.lockUnspent(utxo, true));
 
         // Redeem all locked UTXOs
         List<UTXO> utxos = wallet.listUnspent(label);
-        BigDecimal utxoAmount = getUTXOAmount(utxos);
-        if (BigDecimal.ZERO.compareTo(utxoAmount) < 0) {
-            BigDecimal amount = subtractFee(utxoAmount);
-            wallet.sendTx(new TxBuilder()
-                    .unspentInputs(utxos)
-                    .output(addr.getAddress(), amount)
-                    .build());
-        }
+        String changeAddr = wallet.getChangeAddress(label).getAddress();
+        wallet.sendToAddress(addr.getAddress(), changeAddr, Wallet.ALL_FUNDS, utxos);
     }
 }

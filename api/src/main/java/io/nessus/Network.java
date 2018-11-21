@@ -29,10 +29,16 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.NetworkInfo;
 public interface Network {
 
     /**
-     * Estimate the network fee
+     * Estimates the transaction fee per kilobyte that needs to be paid 
+     * for a transaction to be included within a certain number of blocks.
      */
-    BigDecimal estimateFee();
+    BigDecimal estimateSmartFee(Integer blocks);
 
+    /**
+     * Get the minimum transaction fee
+     */
+    BigDecimal getMinTxFee();
+    
     /**
      * "Dust" is defined in terms of dustRelayFee, which has units satoshis-per-kilobyte.
      * If you'd pay more in fees than the value of the output, then it is considered dust.

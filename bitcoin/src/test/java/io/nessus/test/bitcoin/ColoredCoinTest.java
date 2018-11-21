@@ -86,11 +86,12 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         Assert.assertEquals(0.1, btcBob.doubleValue(), 0);
 
         BigDecimal btcSend = new BigDecimal("0.01");
-        List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, addFee(btcSend));
+        List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, btcSend);
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
         String changeAddr = wallet.getChangeAddress(LABEL_BOB).getAddress();
-        BigDecimal changeAmount = utxosAmount.subtract(addFee(btcSend));
+        BigDecimal changeAmount = utxosAmount.subtract(btcSend);
+        changeAmount = changeAmount.subtract(network.getMinTxFee());
 
         byte[] dataIn = "IPFS".getBytes();
 
@@ -136,11 +137,12 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         Assert.assertTrue(btcBob.doubleValue() > 0);
 
         BigDecimal btcSend = network.getDustThreshold().multiply(BigDecimal.TEN);
-        List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, addFee(btcSend));
+        List<UTXO> utxos = wallet.selectUnspent(LABEL_BOB, btcSend);
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
         String changeAddr = wallet.getChangeAddress(LABEL_BOB).getAddress();
-        BigDecimal changeAmount = utxosAmount.subtract(addFee(btcSend));
+        BigDecimal changeAmount = utxosAmount.subtract(btcSend);
+        changeAmount = changeAmount.subtract(network.getMinTxFee());
 
         byte[] dataIn = "IPFS".getBytes();
 

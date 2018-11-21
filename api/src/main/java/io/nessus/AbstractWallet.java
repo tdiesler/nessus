@@ -238,17 +238,20 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public String sendToAddress(String toAddress, String changeAddr, BigDecimal amount, List<UTXO> utxos) {
 
-        BigDecimal dustAmount = blockchain.getNetwork().getDustThreshold();
-        BigDecimal feeAmount = estimateFee();
+        // Nothing to do
+        if (utxos.isEmpty()) return null;
+        
+        Network network = blockchain.getNetwork();
+        BigDecimal dustAmount = network.getDustThreshold();
+        BigDecimal feePerKB = network.estimateSmartFee(null);
         
         BigDecimal utxosAmount = getUTXOAmount(utxos);
         BigDecimal sendAmount = amount;
         BigDecimal changeAmount;
         
-        /*
         if (amount != ALL_FUNDS) {
-            sendAmount = amount.add(feePerKB);
             changeAmount = utxosAmount.subtract(sendAmount);
+            changeAmount = changeAmount.subtract(feePerKB);
         } else {
             sendAmount = utxosAmount.subtract(feePerKB);
             changeAmount = BigDecimal.ZERO;
@@ -272,8 +275,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         
         // Estimate the fees based on Tx size
         byte[] bytes = HexCoder.decode(createRawTx(tmpTx));
-        BigDecimal feeAmount = new BigDecimal(String.format("%.6f", feePerKB.doubleValue() * bytes.length / 1024));
-        */
+        double kbytes = new Double(bytes.length) / 1024;
+        BigDecimal feeAmount = new BigDecimal(String.format("%.6f", feePerKB.doubleValue() * kbytes));
+        feeAmount = feeAmount.max(network.getMinTxFee());
         
         LOG.debug("Sending using fee: {}", feeAmount);
         
@@ -283,13 +287,6 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         } else {
             sendAmount = utxosAmount.subtract(feeAmount);
             changeAmount = BigDecimal.ZERO;
-        }
-        
-        AssertState.assertTrue(sendAmount.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
-        if (sendAmount.doubleValue() <= dustAmount.doubleValue()) {
-            if (0 < sendAmount.doubleValue()) 
-                LOG.warn("Cannot send less than dust amount: {}", sendAmount);
-            return null;
         }
         
         TxBuilder builder = new TxBuilder()
@@ -468,29 +465,14 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return findAddress(rawAddr);
     }
     
-    public void redeemChange(String label, Address toAddr) {
-        
-        if (label == null || toAddr == null) return;
-        
+    public String redeemChange(String label, Address toAddr) {
+        AssertArgument.assertNotNull(label, "Null label");
+        AssertArgument.assertNotNull(toAddr, "Null toAddr");
+
         List<Address> addrs = getChangeAddresses(label);
         List<UTXO> utxos = listUnspent(addrs);
         
-        if (!utxos.isEmpty()) {
-            
-            BigDecimal amount = getUTXOAmount(utxos);
-            amount = amount.subtract(estimateFee());
-            
-            BigDecimal dustAmount = blockchain.getNetwork().getDustThreshold();
-            if (dustAmount.compareTo(amount) < 0) {
-                
-                Tx tx = new TxBuilder()
-                        .unspentInputs(utxos)
-                        .output(toAddr.getAddress(), amount)
-                        .build();
-                
-                sendTx(tx);
-            }
-        }
+        return sendToAddress(toAddr.getAddress(), toAddr.getAddress(), Wallet.ALL_FUNDS, utxos);
     }
     
     protected abstract Address createAdddressFromRaw(String rawAddr, List<String> labels);
@@ -521,11 +503,6 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return result;
     }
     
-    private BigDecimal estimateFee() {
-        Network network = blockchain.getNetwork();
-        return network.estimateFee();
-    }
-
     private List<String> getRawAddresses(List<Address> addrs) {
         return addrs.stream().map(a -> a.getAddress()).collect(Collectors.toList());
     }
