@@ -160,15 +160,15 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public List<SFHandle> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
+    public List<String> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
 
         WebTarget target = client.target(generateURL("/unregipfs"))
                 .queryParam("addr", rawAddr)
-                .queryParam("cids", cids);
+                .queryParam("cids", cids.toArray());
 
         Response res = processResponse(target.request().get(Response.class));
 
-        List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
+        List<String> result = Arrays.asList(res.readEntity(String[].class));
         LOG.info("/unregipfs => {}", result);
 
         return result;
@@ -204,7 +204,7 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public boolean deleteLocalContent(String rawAddr, String path) throws IOException {
+    public boolean removeLocalContent(String rawAddr, String path) throws IOException {
 
         WebTarget target = client.target(generateURL("/dellocal"))
                 .queryParam("addr", rawAddr)

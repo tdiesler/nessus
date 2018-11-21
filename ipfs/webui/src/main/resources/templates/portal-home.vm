@@ -47,8 +47,12 @@
         #end
 
         #if ( $addr.label != "" )
-            #if ( ! $addr.registered && ! $addr.watchOnly && $addr.balance > 0 )
-                <td><a href="/portal/regaddr?addr=$addr.address">register</a></td>
+            #if ( ! $addr.watchOnly && $addr.balance > 0 )
+                #if ( ! $addr.registered )
+                    <td><a href="/portal/regaddr?addr=$addr.address">register</a></td>
+                #else
+                    <td><a href="/portal/unregaddr?addr=$addr.address">unregister</a></td>
+                #end
             #end
         #else
             <td><a href="#" onclick="document.getElementById('form-assign-label-$velocityCount').submit();">assign</a></td>

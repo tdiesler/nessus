@@ -73,7 +73,7 @@ public interface JAXRSEndpoint {
     @GET
     @Path("/unregipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    List<SFHandle> unregisterIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
+    List<String> unregisterIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
     
     @GET
     @Path("/findlocal")
@@ -88,5 +88,5 @@ public interface JAXRSEndpoint {
     @GET
     @Path("/dellocal")
     @Produces(MediaType.TEXT_PLAIN)
-    boolean deleteLocalContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path) throws IOException;
+    boolean removeLocalContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path) throws IOException;
 }

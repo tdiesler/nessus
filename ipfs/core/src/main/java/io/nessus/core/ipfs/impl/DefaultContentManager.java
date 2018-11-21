@@ -279,19 +279,22 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public List<FHandle> unregisterIPFSContent(Address owner, List<String> cids) throws IOException {
+    public List<String> unregisterIPFSContent(Address owner, List<String> cids) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
         
         assertArgumentHasLabel(owner);
-        
-        List<FHandle> fhandles = findIPFSContent(owner, null).stream()
-            .filter(fh -> cids == null || cids.contains(fh.getCid()))
-            .collect(Collectors.toList());
+
+        List<String> results = new ArrayList<>();
         
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(owner)).stream()
                 .filter(utxo -> {
                     FHandle fh = getFHandleFromTx(utxo, owner);
-                    return fh != null && cids.contains(fh.getCid());
+                    if (fh == null) return false;
+                    if (cids == null || cids.contains(fh.getCid())) {
+                        results.add(fh.getCid());
+                        return true;
+                    }
+                    return false;
                 })
                 .peek(utxo -> wallet.lockUnspent(utxo, true))
                 .collect(Collectors.toList());
@@ -299,16 +302,16 @@ public class DefaultContentManager implements ContentManager {
         String changeAddr = wallet.getChangeAddress(owner.getLabels().get(0)).getAddress();
         String txId = wallet.sendToAddress(changeAddr, changeAddr, Wallet.ALL_FUNDS, utxos);
         if (txId == null) {
-            LOG.warn("Cannot unregister IPFS: {} => {}", owner, fhandles);
-            return null;
+            LOG.warn("Cannot unregister IPFS: {} => {}", owner, results);
+            return results;
         }
         
-        fhandles.forEach(fh -> {
-            LOG.info("Unregister IPFS: {} => {}", fh, txId);
-            filecache.remove(fh.getCid());
+        results.forEach(cid -> {
+            LOG.info("Unregister IPFS: {} => {}", cid, txId);
+            filecache.remove(cid);
         });
         
-        return fhandles;
+        return results;
     }
 
     @Override

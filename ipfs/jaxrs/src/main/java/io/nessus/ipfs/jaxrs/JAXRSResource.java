@@ -53,29 +53,6 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public String registerAddress(String rawAddr) throws GeneralSecurityException {
-
-        Address addr = assertWalletAddress(rawAddr);
-
-        PublicKey pubKey = cntmgr.registerAddress(addr);
-        LOG.info("/register => {}", pubKey);
-
-        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-        return encKey;
-    }
-
-    @Override
-    public String unregisterAddress(String rawAddr) {
-
-        Address addr = assertWalletAddress(rawAddr);
-        PublicKey pubKey = cntmgr.unregisterAddress(addr);
-        LOG.info("/unregaddr => {}", pubKey);
-
-        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-        return encKey;
-    }
-
-    @Override
     public SFHandle add(String rawAddr, String path, InputStream input) throws IOException, GeneralSecurityException {
 
         Address owner = assertWalletAddress(rawAddr);
@@ -86,36 +63,6 @@ public class JAXRSResource implements JAXRSEndpoint {
 
         SFHandle shandle = new SFHandle(fhandle);
         LOG.info("/add => {}", shandle);
-
-        return shandle;
-    }
-
-    @Override
-    public SFHandle get(String rawAddr, String cid, String path, Long timeout) throws IOException, GeneralSecurityException {
-
-        Address owner = assertWalletAddress(rawAddr);
-        FHandle fhandle = cntmgr.get(owner, cid, Paths.get(path), timeout);
-
-        AssertState.assertTrue(new File(fhandle.getURL().getPath()).exists());
-        AssertState.assertNull(fhandle.getCid());
-
-        SFHandle shandle = new SFHandle(fhandle);
-        LOG.info("/get => {}", shandle);
-
-        return shandle;
-    }
-
-    @Override
-    public SFHandle send(String rawAddr, String cid, @QueryParam("target") String rawTarget, Long timeout) throws IOException, GeneralSecurityException {
-
-        Address owner = assertWalletAddress(rawAddr);
-        Address target = assertWalletAddress(rawTarget);
-
-        FHandle fhandle = cntmgr.send(owner, cid, target, timeout);
-        AssertState.assertNotNull(fhandle.getCid());
-
-        SFHandle shandle = new SFHandle(fhandle);
-        LOG.info("/send => {}", shandle);
 
         return shandle;
     }
@@ -147,20 +94,6 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public List<SFHandle> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
-        
-        List<SFHandle> result = new ArrayList<>();
-
-        Address owner = assertWalletAddress(rawAddr);
-        for (FHandle fhandle : cntmgr.unregisterIPFSContent(owner, cids)) {
-            result.add(new SFHandle(fhandle));
-        }
-        LOG.info("/unregipfs => {}", result);
-
-        return result;
-    }
-
-    @Override
     public List<SFHandle> findLocalContent(String rawAddr) throws IOException {
 
         List<SFHandle> result = new ArrayList<>();
@@ -175,6 +108,21 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
+    public SFHandle get(String rawAddr, String cid, String path, Long timeout) throws IOException, GeneralSecurityException {
+
+        Address owner = assertWalletAddress(rawAddr);
+        FHandle fhandle = cntmgr.get(owner, cid, Paths.get(path), timeout);
+
+        AssertState.assertTrue(new File(fhandle.getURL().getPath()).exists());
+        AssertState.assertNull(fhandle.getCid());
+
+        SFHandle shandle = new SFHandle(fhandle);
+        LOG.info("/get => {}", shandle);
+
+        return shandle;
+    }
+
+    @Override
     public InputStream getLocalContent(String rawAddr, String path) throws IOException {
 
         Address owner = assertWalletAddress(rawAddr);
@@ -185,13 +133,62 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public boolean deleteLocalContent(String rawAddr, String path) throws IOException {
+    public String registerAddress(String rawAddr) throws GeneralSecurityException {
+
+        Address addr = assertWalletAddress(rawAddr);
+
+        PublicKey pubKey = cntmgr.registerAddress(addr);
+        LOG.info("/register => {}", pubKey);
+
+        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+        return encKey;
+    }
+
+    @Override
+    public boolean removeLocalContent(String rawAddr, String path) throws IOException {
 
         Address owner = assertWalletAddress(rawAddr);
         boolean deleted = cntmgr.removeLocalContent(owner, Paths.get(path));
         LOG.info("/dellocal => {}", deleted);
 
         return deleted;
+    }
+
+    @Override
+    public SFHandle send(String rawAddr, String cid, @QueryParam("target") String rawTarget, Long timeout) throws IOException, GeneralSecurityException {
+
+        Address owner = assertWalletAddress(rawAddr);
+        Address target = assertWalletAddress(rawTarget);
+
+        FHandle fhandle = cntmgr.send(owner, cid, target, timeout);
+        AssertState.assertNotNull(fhandle.getCid());
+
+        SFHandle shandle = new SFHandle(fhandle);
+        LOG.info("/send => {}", shandle);
+
+        return shandle;
+    }
+
+    @Override
+    public String unregisterAddress(String rawAddr) {
+
+        Address addr = assertWalletAddress(rawAddr);
+        PublicKey pubKey = cntmgr.unregisterAddress(addr);
+        LOG.info("/unregaddr => {}", pubKey);
+
+        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+        return encKey;
+    }
+
+    @Override
+    public List<String> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
+        
+        Address owner = assertWalletAddress(rawAddr);
+        
+        List<String> result = cntmgr.unregisterIPFSContent(owner, cids);
+        LOG.info("/unregipfs => {}", result);
+
+        return result;
     }
 
     private Address assertWalletAddress(String rawAddr) {

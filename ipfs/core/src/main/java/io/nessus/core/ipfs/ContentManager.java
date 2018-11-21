@@ -84,7 +84,7 @@ public interface ContentManager {
     /**
      * Unregister a IPFS content.
      */
-    List<FHandle> unregisterIPFSContent(Address owner, List<String> cids) throws IOException;
+    List<String> unregisterIPFSContent(Address owner, List<String> cids) throws IOException;
     
     /**
      * Find local content for a given address.

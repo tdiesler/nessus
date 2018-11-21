@@ -142,7 +142,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         BufferedReader br = new BufferedReader(new InputStreamReader(reader));
         Assert.assertEquals("The quick brown fox jumps over the lazy dog.", br.readLine());
 
-        Assert.assertTrue(client.deleteLocalContent(addrBob.getAddress(), relPath.toString()));
+        Assert.assertTrue(client.removeLocalContent(addrBob.getAddress(), relPath.toString()));
         Assert.assertTrue(client.findLocalContent(addrBob.getAddress()).isEmpty());
 
         // Find IPFS content on blockchain

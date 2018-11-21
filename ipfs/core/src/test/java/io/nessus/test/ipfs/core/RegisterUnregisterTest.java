@@ -73,9 +73,9 @@ public class RegisterUnregisterTest extends AbstractWorkflowTest {
         Assert.assertEquals(1, fhandles.size());
         Assert.assertEquals(fhandle, fhandles.get(0));
         
-        List<FHandle> fhress = cntmgr.unregisterIPFSContent(addrBob, Arrays.asList(fhandle.getCid()));
-        Assert.assertEquals(1, fhress.size());
-        Assert.assertEquals(fhandle, fhress.get(0));
+        List<String> cids = cntmgr.unregisterIPFSContent(addrBob, Arrays.asList(fhandle.getCid()));
+        Assert.assertEquals(1, cids.size());
+        Assert.assertEquals(fhandle.getCid(), cids.get(0));
         
         fhandles = cntmgr.findIPFSContent(addrBob, null);
         Assert.assertEquals(0, fhandles.size());
