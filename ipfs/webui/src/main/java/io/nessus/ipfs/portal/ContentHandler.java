@@ -121,7 +121,7 @@ public class ContentHandler implements HttpHandler {
 
         else if (relPath.startsWith("/portal/fdel")) {
 
-            actRemoveLocalContent(exchange, context);
+            actRemoveLocalFile(exchange, context);
         }
 
         // Action file get
@@ -198,7 +198,7 @@ public class ContentHandler implements HttpHandler {
 
         else if (relPath.startsWith("/portal/unregipfs")) {
 
-            actUnregisterIPFS(exchange, context);
+            actRemoveIPFSContent(exchange, context);
         }
 
         // Home page
@@ -267,7 +267,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        client.get(rawAddr, cid, relPath, 10000L);
+        client.get(rawAddr, cid, relPath, null);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -329,7 +329,19 @@ public class ContentHandler implements HttpHandler {
         redirectHomePage(exchange);
     }
 
-    private void actRemoveLocalContent(HttpServerExchange exchange, VelocityContext context) throws Exception {
+    private void actRemoveIPFSContent(HttpServerExchange exchange, VelocityContext context) throws Exception {
+        
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        Deque<String> deque = qparams.get("cids");
+        String[] cids = deque.toArray(new String[deque.size()]);
+
+        client.removeIPFSContent(rawAddr, Arrays.asList(cids));
+        
+        redirectFileList(exchange, rawAddr);
+    }
+
+    private void actRemoveLocalFile(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
@@ -347,7 +359,7 @@ public class ContentHandler implements HttpHandler {
         String rawToAddr = qparams.get("toaddr").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        client.send(rawFromAddr, cid, rawToAddr, 10000L);
+        client.send(rawFromAddr, cid, rawToAddr, null);
 
         redirectFileList(exchange, rawFromAddr);
     }
@@ -360,18 +372,6 @@ public class ContentHandler implements HttpHandler {
         client.unregisterAddress(rawAddr);
         
         redirectHomePage(exchange);
-    }
-
-    private void actUnregisterIPFS(HttpServerExchange exchange, VelocityContext context) throws Exception {
-        
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
-        Deque<String> deque = qparams.get("cids");
-        String[] cids = deque.toArray(new String[deque.size()]);
-
-        client.unregisterIPFSContent(rawAddr, Arrays.asList(cids));
-        
-        redirectFileList(exchange, rawAddr);
     }
 
     private String pageFileAdd(HttpServerExchange exchange, VelocityContext context) throws Exception {
@@ -396,7 +396,7 @@ public class ContentHandler implements HttpHandler {
         AddressDTO paddr = portalAddress(addr, pubKey != null);
         context.put("addr", paddr);
 
-        List<SFHandle> fhandles = new ArrayList<>(client.findIPFSContent(rawAddr, 10000L));
+        List<SFHandle> fhandles = new ArrayList<>(client.findIPFSContent(rawAddr, null));
         fhandles.addAll(client.findLocalContent(rawAddr));
 
         context.put("files", fhandles);

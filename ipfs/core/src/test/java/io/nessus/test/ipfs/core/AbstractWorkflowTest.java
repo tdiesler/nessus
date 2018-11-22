@@ -54,15 +54,16 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.core.ipfs.FHandle;
-import io.nessus.core.ipfs.IPFSClient;
 import io.nessus.core.ipfs.FHandle.FHBuilder;
+import io.nessus.core.ipfs.IPFSClient;
 import io.nessus.core.ipfs.impl.DefaultContentManager;
 import io.nessus.core.ipfs.impl.DefaultIPFSClient;
+import io.nessus.core.ipfs.impl.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public class AbstractWorkflowTest extends AbstractBlockchainTest {
 
-    static DefaultContentManager cntmgr;
+    static ExtendedContentManager cntmgr;
     static Blockchain blockchain;
     static Network network;
     static Wallet wallet;
@@ -79,7 +80,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         wallet = blockchain.getWallet();
         
         ipfs = new DefaultIPFSClient();
-        cntmgr = new DefaultContentManager(ipfs, blockchain);
+        cntmgr = new ExtendedContentManager(ipfs, blockchain);
         
         importAddresses(wallet, AbstractWorkflowTest.class);
         
@@ -125,7 +126,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     DefaultContentManager createContentManager(long timeout, int attempts) {
         LOG.info("");
         ipfs = new DefaultIPFSClient();
-        return cntmgr = new DefaultContentManager(ipfs, blockchain, timeout, attempts, null);
+        return cntmgr = new ExtendedContentManager(ipfs, blockchain, timeout, attempts, null);
     }
     
     void unlockAddressRegistrations(Address addr) {

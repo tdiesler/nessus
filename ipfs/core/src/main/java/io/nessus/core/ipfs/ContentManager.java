@@ -50,16 +50,21 @@ public interface ContentManager {
     PublicKey registerAddress(Address addr) throws GeneralSecurityException;
 
     /**
-     * Unregister a public address.
-     */
-    PublicKey unregisterAddress(Address addr);
-    
-    /**
      * Find the registered key for a given address.
      * 
      * @return An Eliptic Curve public key
      */
     PublicKey findAddressRegistation(Address addr);
+    
+    /**
+     * Unregister a public address.
+     */
+    PublicKey unregisterAddress(Address addr);
+    
+    /**
+     * Unregister a IPFS content.
+     */
+    List<String> removeIPFSContent(Address owner, List<String> cids) throws IOException;
     
     /**
      * Add content to IPFS.
@@ -82,14 +87,14 @@ public interface ContentManager {
     List<FHandle> findIPFSContent(Address owner, Long timeout) throws IOException;
     
     /**
-     * Unregister a IPFS content.
-     */
-    List<String> unregisterIPFSContent(Address owner, List<String> cids) throws IOException;
-    
-    /**
      * Find local content for a given address.
      */
     List<FHandle> findLocalContent(Address owner) throws IOException;
+    
+    /**
+     * Find local content for a given address and path.
+     */
+    FHandle findLocalContent(Address owner, Path path) throws IOException;
     
     /**
      * Show content of a plain file from local storage.  

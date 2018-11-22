@@ -73,7 +73,7 @@ public interface JAXRSEndpoint {
     @GET
     @Path("/unregipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    List<String> unregisterIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
+    List<String> removeIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
     
     @GET
     @Path("/findlocal")

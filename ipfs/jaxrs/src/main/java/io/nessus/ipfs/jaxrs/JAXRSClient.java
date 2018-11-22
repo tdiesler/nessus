@@ -160,7 +160,7 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public List<String> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
+    public List<String> removeIPFSContent(String rawAddr, List<String> cids) throws IOException {
 
         WebTarget target = client.target(generateURL("/unregipfs"))
                 .queryParam("addr", rawAddr)

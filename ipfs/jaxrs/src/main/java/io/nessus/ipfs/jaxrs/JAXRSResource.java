@@ -181,11 +181,11 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public List<String> unregisterIPFSContent(String rawAddr, List<String> cids) throws IOException {
+    public List<String> removeIPFSContent(String rawAddr, List<String> cids) throws IOException {
         
         Address owner = assertWalletAddress(rawAddr);
         
-        List<String> result = cntmgr.unregisterIPFSContent(owner, cids);
+        List<String> result = cntmgr.removeIPFSContent(owner, cids);
         LOG.info("/unregipfs => {}", result);
 
         return result;

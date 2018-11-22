@@ -245,7 +245,7 @@ public class DefaultContentManager implements ContentManager {
         BitcoindRpcClient client = getRpcClient();
         client.lockUnspent(false, txId, vout);
         
-        LOG.info("Redeem change: {}", changeAmount);
+        LOG.debug("Redeem change: {}", changeAmount);
         ((AbstractWallet) wallet).redeemChange(label, addr);
         
         return pubKey;
@@ -279,7 +279,7 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public List<String> unregisterIPFSContent(Address owner, List<String> cids) throws IOException {
+    public List<String> removeIPFSContent(Address owner, List<String> cids) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
         
         assertArgumentHasLabel(owner);
@@ -306,14 +306,20 @@ public class DefaultContentManager implements ContentManager {
             return results;
         }
         
-        results.forEach(cid -> {
-            LOG.info("Unregister IPFS: {} => {}", cid, txId);
-            filecache.remove(cid);
-        });
+        synchronized (filecache) {
+            results.forEach(cid -> {
+                LOG.info("Unregister IPFS: {} => {}", cid, txId);
+                filecache.remove(cid);
+            });
+        }
         
         return results;
     }
 
+    protected void clearFileCache() {
+        filecache.clear();
+    }
+    
     @Override
     public FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
@@ -551,7 +557,23 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public List<FHandle> findLocalContent(Address owner) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
-        return findLocalContent(owner, getPlainPath(owner), new ArrayList<>());
+        Path fullPath = getPlainPath(owner);
+        return findLocalContent(owner, fullPath, new ArrayList<>());
+    }
+
+    @Override
+    public FHandle findLocalContent(Address owner, Path path) throws IOException {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(path, "Null path");
+        
+        Path fullPath = getPlainPath(owner).resolve(path);
+        URL furl = fullPath.toUri().toURL();
+        
+        FHandle fhandle = new FHBuilder(owner, path, furl)
+                .available(fullPath.toFile().exists())
+                .build();
+        
+        return fhandle;
     }
 
     private List<FHandle> findLocalContent(Address owner, Path fullPath, List<FHandle> fhandles) throws IOException {
@@ -565,12 +587,7 @@ public class DefaultContentManager implements ContentManager {
         if (fullPath.toFile().isFile()) {
             
             Path relPath = getPlainPath(owner).relativize(fullPath);
-            URL furl = fullPath.toUri().toURL();
-            
-            FHandle fhandle = new FHBuilder(owner, relPath, furl)
-                    .available(true)
-                    .build();
-            
+            FHandle fhandle = findLocalContent(owner, relPath);
             fhandles.add(fhandle);
         }
         
@@ -839,7 +856,7 @@ public class DefaultContentManager implements ContentManager {
             client.lockUnspent(false, txId, vout);
         }
 
-        LOG.info("Redeem change: {}", changeAmount);
+        LOG.debug("Redeem change: {}", changeAmount);
         ((AbstractWallet) wallet).redeemChange(label, fromAddr);
         
         fhandle = new FHBuilder(fhandle)
@@ -929,7 +946,7 @@ public class DefaultContentManager implements ContentManager {
                 .build();
     }
     
-    public FHandle decrypt(FHandle fhandle, Address owner, Path destPath, boolean storePlain) throws IOException, GeneralSecurityException {
+    protected FHandle decrypt(FHandle fhandle, Address owner, Path destPath, boolean storePlain) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(fhandle, "Null fhandle");
         AssertArgument.assertNotNull(owner, "Null owner");
 
@@ -991,14 +1008,15 @@ public class DefaultContentManager implements ContentManager {
             Files.move(tmpPath, plainPath, StandardCopyOption.REPLACE_EXISTING);
             
             URL furl = plainPath.toFile().toURI().toURL();
-            fhres = new FHBuilder(owner, destPath, furl).build();
+            fhres = new FHBuilder(owner, destPath, furl)
+                    .available(true)
+                    .build();
         }
         
         return fhres;
     }
     
-    // public for testing
-    public PublicKey getPubKeyFromTx(UTXO utxo, Address owner) {
+    protected PublicKey getPubKeyFromTx(UTXO utxo, Address owner) {
         AssertArgument.assertNotNull(utxo, "Null utxo");
 
         Tx tx = wallet.getTransaction(utxo.getTxId());
@@ -1027,8 +1045,7 @@ public class DefaultContentManager implements ContentManager {
         return pubKey;
     }
 
-    // public for testing
-    public FHandle getFHandleFromTx(UTXO utxo, Address owner) {
+    protected FHandle getFHandleFromTx(UTXO utxo, Address owner) {
         AssertArgument.assertNotNull(utxo, "Null utxo");
 
         Tx tx = wallet.getTransaction(utxo.getTxId());
@@ -1107,7 +1124,7 @@ public class DefaultContentManager implements ContentManager {
         return bcdata.isOurs(txdata);
     }
 
-    public FHeader readFHeader(Reader rd) throws IOException {
+    protected FHeader readFHeader(Reader rd) throws IOException {
         return FHeader.create(fhid, rd);
     }
 
@@ -1285,6 +1302,10 @@ public class DefaultContentManager implements ContentManager {
             return filecache.keySet();
         }
         
+        void clear() {
+            filecache.clear();
+        }
+
         FHandle get(String cid) {
             return filecache.get(cid);
         }
@@ -1313,7 +1334,7 @@ public class DefaultContentManager implements ContentManager {
             this.PREFIX = prefix;
             this.VERSION = version;
             this.VERSION_STRING = PREFIX + "-Version: " + VERSION;
-            this.FILE_HEADER_END = PREFIX + "_HEADER_END";
+            this.FILE_HEADER_END = PREFIX.toUpperCase() + "_HEADER_END";
         }
     }
     

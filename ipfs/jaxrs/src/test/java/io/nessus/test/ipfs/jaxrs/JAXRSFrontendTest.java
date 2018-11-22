@@ -38,11 +38,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.nessus.Wallet.Address;
-import io.nessus.bitcoin.AbstractBitcoinTest;
-import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.JAXRSApplication;
-import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.ipfs.jaxrs.JAXRSApplication.JAXRSServer;
+import io.nessus.ipfs.jaxrs.JAXRSClient;
+import io.nessus.ipfs.jaxrs.SFHandle;
 
 public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
@@ -52,7 +51,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
 
-        AbstractBitcoinTest.beforeClass();
+        AbstractJAXRSTest.beforeClass();
 
         server = JAXRSApplication.serverStart();
 
@@ -130,9 +129,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Verify local file content
 
-        List<SFHandle> fhandles = client.findLocalContent(addrBob.getAddress());
-        Assert.assertEquals(1, fhandles.size());
-        SFHandle fhLocal = fhandles.get(0);
+        SFHandle fhLocal = findLocalContent(addrBob, relPath);
         Assert.assertEquals(relPath.toString(), fhLocal.getPath());
         Assert.assertTrue(fhLocal.isAvailable());
         Assert.assertFalse(fhLocal.isExpired());
@@ -143,7 +140,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertEquals("The quick brown fox jumps over the lazy dog.", br.readLine());
 
         Assert.assertTrue(client.removeLocalContent(addrBob.getAddress(), relPath.toString()));
-        Assert.assertTrue(client.findLocalContent(addrBob.getAddress()).isEmpty());
+        Assert.assertNull(findLocalContent(addrBob, relPath));
 
         // Find IPFS content on blockchain
 
@@ -196,6 +193,13 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertFalse(fhandle.isEncrypted());
         Assert.assertNull(fhandle.getCid());
+    }
+
+    private SFHandle findLocalContent(Address addr, Path path) throws IOException {
+        SFHandle fhLocal = client.findLocalContent(addr.getAddress()).stream()
+                .filter(fh -> Paths.get(fh.getPath()).equals(path))
+                .findFirst().orElse(null);
+        return fhLocal;
     }
 
     private SFHandle findIPFSContent(Address addr, String cid, Long timeout) throws IOException, InterruptedException {
