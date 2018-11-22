@@ -332,6 +332,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
         Path plainPath = assertPlainPath(owner, path);
+        AssertState.assertFalse(plainPath.toFile().exists(), "Local content already exists: " + plainPath);
         
         LOG.info("Start IPFS Add: {} {}", owner, path);
         
@@ -1002,6 +1003,8 @@ public class DefaultContentManager implements ContentManager {
         if (storePlain) {
             
             Path plainPath = assertPlainPath(owner, destPath);
+            AssertState.assertFalse(plainPath.toFile().exists(), "Local content already exists: " + plainPath);
+            
             plainPath.getParent().toFile().mkdirs();
             
             Path tmpPath = Paths.get(fhres.getURL().getPath());

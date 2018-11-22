@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.FileReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -105,8 +106,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         FHandle fhres = cntmgr.findLocalContent(addrBob, path);
         Assert.assertFalse(fhres.isAvailable());
         
-        String content = "some text";
-        InputStream input = new ByteArrayInputStream(content.getBytes());
+        InputStream input = new ByteArrayInputStream("some text".getBytes());
         fhres = cntmgr.add(addrBob, input, path);
         
         String cid = fhres.getCid();
@@ -123,12 +123,17 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         fhres = findIPFSContent(addrBob, cid, 10L);
         Assert.assertTrue(fhres.isAvailable());
         
-        // Clear the file cache
+        // Clear the file cache & local file
         cntmgr.clearFileCache();
+        cntmgr.removeLocalContent(addrBob, path);
         
         // Get the file from IPFS
         fhres = cntmgr.get(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
+
+        // Verify local content
+        Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
+        Assert.assertEquals("some text", new BufferedReader(rd).readLine());
     }
 
     @Test
@@ -257,6 +262,46 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         fhandles.forEach(fh -> LOG.info("{}", fh));
         
         awaitFileAvailability(fhandles, 3, true);
+    }
+
+    @Test
+    public void preventSilentOverwrite() throws Exception {
+
+        Path path = Paths.get("override");
+        cntmgr.removeLocalContent(addrBob, path);
+        
+        InputStream input = new ByteArrayInputStream("some text".getBytes());
+        String cid = cntmgr.add(addrBob, input, path).getCid();
+
+        // Verify that we cannot add to an existing path
+        try {
+            input = new ByteArrayInputStream("some other".getBytes());
+            cntmgr.add(addrBob, input, path).getCid();
+            Assert.fail("IllegalStateException expected");
+        } catch (IllegalStateException ex) {
+            Assert.assertTrue(ex.getMessage().contains("already exists"));
+        }
+
+        // Clear the file cache & local file
+        cntmgr.clearFileCache();
+        cntmgr.removeLocalContent(addrBob, path);
+        
+        // Get the file from IPFS
+        FHandle fhres = cntmgr.get(addrBob, cid, path, null);
+        Assert.assertTrue(fhres.isAvailable());
+
+        // Verify local content
+        Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
+        Assert.assertEquals("some text", new BufferedReader(rd).readLine());
+
+        // Verify that we cannot get to an existing path
+        try {
+            cntmgr.get(addrBob, cid, path, null);
+            Assert.fail("IllegalStateException expected");
+        } catch (IllegalStateException ex) {
+            Assert.assertTrue(ex.getMessage().contains("already exists"));
+        }
+
     }
 }
 
