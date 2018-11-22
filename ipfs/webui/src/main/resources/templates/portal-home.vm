@@ -68,8 +68,6 @@
             
                 #if ( ! $addr.registered )
                     <td><a href="/portal/regaddr?addr=$addr.address">register</a></td>
-                #else
-                    <!--td><a href="/portal/unregaddr?addr=$addr.address">unregister</a></td-->
                 #end
                 
             #end

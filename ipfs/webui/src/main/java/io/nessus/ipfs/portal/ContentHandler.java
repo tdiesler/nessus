@@ -36,6 +36,12 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.apache.velocity.VelocityContext;
@@ -51,6 +57,7 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.SFHandle;
+import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
 import io.nessus.utils.SystemUtils;
 import io.undertow.server.HttpHandler;
@@ -70,6 +77,12 @@ public class ContentHandler implements HttpHandler {
     final VelocityEngine ve;
     final URI gatewayURI;
 
+    // Executor service for async operations
+    final ExecutorService executorService;
+    
+    // The last executable job
+    private Future<Address> lastJob;
+    
     ContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
         this.blockchain = blockchain;
         this.gatewayURI = gatewayURI;
@@ -82,6 +95,13 @@ public class ContentHandler implements HttpHandler {
         ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
         ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
         ve.init();
+        
+        executorService = Executors.newFixedThreadPool(1, new ThreadFactory() {
+            AtomicInteger count = new AtomicInteger();
+            public Thread newThread(Runnable run) {
+                return new Thread(run, "webui-pool-" + count.incrementAndGet());
+            }
+        });
     }
 
     @Override
@@ -112,6 +132,20 @@ public class ContentHandler implements HttpHandler {
 
         String relPath = exchange.getRelativePath();
 
+        // Check the status of our last asynch job
+        if (lastJob != null) {
+            if (lastJob.isDone()) {
+                try {
+                    Address addr = lastJob.get();
+                    LOG.info("Successfully imported: " + addr);
+                } finally {
+                    lastJob = null;
+                }
+            } else {
+                LOG.info("Last import job still running ...");
+            }
+        }
+        
         String tmplPath = null;
         VelocityContext context = new VelocityContext();
 
@@ -319,18 +353,21 @@ public class ContentHandler implements HttpHandler {
         String key = qparams.get("impkey").getFirst();
         String label = qparams.get("label").getFirst();
 
-        if (wallet.isP2PKH(key)) {
-            LOG.info("Importing watch only address: {}", key);
-            wallet.importAddress(key, Arrays.asList(label));
-        } else {
-            // Import key asynch with rescan
-            new Thread(new Runnable() {
-                public void run() {
+        AssertState.assertTrue(lastJob == null || lastJob.isDone(), "Last import job is not yet done");
+            
+        lastJob = executorService.submit(new Callable<Address>() {
+
+            @Override
+            public Address call() throws Exception {
+                if (wallet.isP2PKH(key)) {
+                    LOG.info("Importing watch only address: {}", key);
+                    return wallet.importAddress(key, Arrays.asList(label));
+                } else {
                     LOG.info("Importing private key: P**************");
-                    wallet.importPrivateKey(key, Arrays.asList(label));
+                    return wallet.importPrivateKey(key, Arrays.asList(label));
                 }
-            }).start();
-        }
+            }
+        });
 
         redirectHomePage(exchange);
     }

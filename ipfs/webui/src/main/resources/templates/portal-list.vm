@@ -19,6 +19,7 @@
     <td style=".owner">$addr.label</td>
     <td>$addr.address</td>
     <td>$addr.balance</td>
+    <td><a href="/portal/rmaddr?addr=$addr.address">unregister</a></td>
 </tr>
 </table>
 

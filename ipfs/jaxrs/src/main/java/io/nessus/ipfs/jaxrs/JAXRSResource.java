@@ -174,7 +174,7 @@ public class JAXRSResource implements JAXRSEndpoint {
 
         Address addr = assertWalletAddress(rawAddr);
         PublicKey pubKey = cntmgr.unregisterAddress(addr);
-        LOG.info("/unregaddr => {}", pubKey);
+        LOG.info("/rmaddr => {}", pubKey);
 
         String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
         return encKey;

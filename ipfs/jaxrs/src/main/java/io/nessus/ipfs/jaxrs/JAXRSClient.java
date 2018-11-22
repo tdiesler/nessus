@@ -70,12 +70,12 @@ public class JAXRSClient implements JAXRSEndpoint {
     @Override
     public String unregisterAddress(String rawAddr) throws IOException {
 
-        WebTarget target = client.target(generateURL("/unregaddr"))
+        WebTarget target = client.target(generateURL("/rmaddr"))
                 .queryParam("addr", rawAddr);
 
         Response res = processResponse(target.request().get(Response.class));
         String encKey = res.readEntity(String.class);
-        LOG.info("/unregaddr => {}", encKey);
+        LOG.info("/rmaddr => {}", encKey);
 
         return encKey;
     }

@@ -41,7 +41,7 @@ public interface JAXRSEndpoint {
     String registerAddress(@QueryParam("addr") String rawAddr) throws GeneralSecurityException, IOException;
 
     @GET
-    @Path("/unregaddr")
+    @Path("/rmaddr")
     @Produces(MediaType.TEXT_PLAIN)
     String unregisterAddress(@QueryParam("addr") String rawAddr) throws IOException;
     
