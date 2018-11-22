@@ -10,7 +10,7 @@ tar xzf nessus-ipfs-dist-$NVERSION-deps.tgz -C docker
 tar xzf nessus-ipfs-dist-$NVERSION-proj.tgz -C docker
 
 cat << EOF > docker/Dockerfile
-FROM nessusio/fedoraj:1.8.0
+FROM nessusio/fedoraj:29
 
 # Install the binaries
 COPY nessus-ipfs-dist-$NVERSION nessus-ipfs-webui
@@ -43,12 +43,32 @@ docker run --detach \
     --name $CNAME \
     nessusio/ipfs-webui
 
-# Follow the info log
 docker logs -f webui
 
-# Follow the info log on the journal
-journalctl CONTAINER_NAME=webui -f
-
-# Follow the debug log
 docker exec -it webui tail -f -n 100 debug.log
+```
+
+### Run the WebUI in mixed mode
+
+This assumes you have the Blockchain and IPFS instances already running on your host
+
+```
+export LOCALIP=192.168.178.20
+export LABEL=Mary
+
+docker run --detach \
+    -p 8082:8082 \
+    --link jaxrs:jaxrs \
+    --env IPFS_GATEWAY_ADDR=$LOCALIP \
+    --env IPFS_GATEWAY_PORT=8080 \
+    --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \
+    --env BLOCKCHAIN_JSONRPC_PORT=18332 \
+    --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
+    --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
+    --env NESSUS_WEBUI_LABEL=$LABEL \
+    --memory=100m --memory-swap=2g \
+    --name webui \
+    nessusio/ipfs-webui
+
+docker logs -f webui
 ```

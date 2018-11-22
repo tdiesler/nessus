@@ -10,7 +10,7 @@ tar xzf nessus-ipfs-dist-$NVERSION-deps.tgz -C docker
 tar xzf nessus-ipfs-dist-$NVERSION-proj.tgz -C docker
 
 cat << EOF > docker/Dockerfile
-FROM nessusio/fedoraj:1.8.0
+FROM nessusio/fedoraj:29
 
 # Install the binaries
 COPY nessus-ipfs-dist-$NVERSION nessus-ipfs-jaxrs
@@ -52,4 +52,25 @@ journalctl CONTAINER_NAME=jaxrs -f
 
 # Follow the debug log
 docker exec -it jaxrs tail -f -n 100 debug.log
+```
+
+### Run the JAXRS in mixed mode
+
+This assumes you have the Blockchain and IPFS instances already running on your host
+
+```
+export LOCALIP=192.168.178.20
+
+docker run --detach \
+    --env IPFS_JSONRPC_ADDR=$LOCALIP \
+    --env IPFS_JSONRPC_PORT=5001 \
+    --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \
+    --env BLOCKCHAIN_JSONRPC_PORT=18332 \
+    --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
+    --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
+    --memory=100m --memory-swap=2g \
+    --name jaxrs \
+    nessusio/ipfs-jaxrs
+    
+docker logs jaxrs
 ```

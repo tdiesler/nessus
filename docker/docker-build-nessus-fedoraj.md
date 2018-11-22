@@ -4,8 +4,10 @@
 rm -rf docker
 mkdir -p docker
 
+export NVERSION=29
+
 cat << EOF > docker/Dockerfile
-FROM fedora:29
+FROM fedora:$NVERSION
 
 RUN dnf -y install java-1.8.0-openjdk
 
@@ -17,7 +19,7 @@ docker push nessusio/fedoraj
 
 docker run --rm nessusio/fedoraj -version
 
-docker tag nessusio/fedoraj nessusio/fedoraj:1.8.0
-docker push nessusio/fedoraj:1.8.0
+docker tag nessusio/fedoraj nessusio/fedoraj:$NVERSION
+docker push nessusio/fedoraj:$NVERSION
 ```
 

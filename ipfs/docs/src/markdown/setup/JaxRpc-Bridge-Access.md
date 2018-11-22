@@ -30,7 +30,7 @@ Then run a bash in a docker container like this
     
 Note, we could also run the various commands below from the host's command line, if the bridge has published (and not just exposed) its main http port.
 
-### Register Bob's Address 
+### Running various JSON-RPC calls on the JAXRPC bridge
  
 Lets register Bob's address with the system by making a JSON-RPC call to the bridge.
 

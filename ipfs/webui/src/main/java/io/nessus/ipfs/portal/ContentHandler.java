@@ -392,7 +392,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
 
         Address addr = wallet.findAddress(rawAddr);
-        String pubKey = client.findAddressRegistation(rawAddr);
+        String pubKey = findAddressRegistation(rawAddr);
         AddressDTO paddr = portalAddress(addr, pubKey != null);
         context.put("addr", paddr);
 
@@ -416,7 +416,7 @@ public class ContentHandler implements HttpHandler {
         AddressDTO paddr = portalAddress(addr, true);
 
         List<AddressDTO> toaddrs = new ArrayList<>();
-        for (Address aux : getAddressWithLabel()) {
+        for (Address aux : getAddressWithLabel(true, true)) {
             if (!addr.equals(aux)) {
                 toaddrs.add(portalAddress(aux, true));
             }
@@ -434,9 +434,9 @@ public class ContentHandler implements HttpHandler {
 
         List<AddressDTO> addrs = new ArrayList<>();
 
-        for (Address addr : getAddressWithLabel()) {
+        for (Address addr : getAddressWithLabel(false, false)) {
             BigDecimal balance = wallet.getBalance(addr);
-            String pubKey = client.findAddressRegistation(addr.getAddress());
+            String pubKey = findAddressRegistation(addr.getAddress());
             addrs.add(new AddressDTO(addr, balance, pubKey != null));
         }
 
@@ -448,21 +448,21 @@ public class ContentHandler implements HttpHandler {
         return "templates/portal-home.vm";
     }
 
-    // [TODO #12] Wallet generates unwanted addresses for default account
-    // Here we filter addresses for the default acount, if we already have labeled addresses
-    private List<Address> getAddressWithLabel() {
+    private List<Address> getAddressWithLabel(boolean requireLabel, boolean requireRegistered) {
 
         // Get the list of non-change addresses
         List<Address> addrs = wallet.getAddresses().stream()
                 .filter(a -> !a.getLabels().contains(Wallet.LABEL_CHANGE))
+                .filter(a -> !requireLabel || !a.getLabels().isEmpty())
                 .collect(Collectors.toList());
 
-        // Remove addrs that have no label
-        List<Address> filtered = addrs.stream()
-                .filter(a -> !a.getLabels().contains(""))
+        if (requireRegistered) {
+            addrs = addrs.stream()
+                .filter(a -> findAddressRegistation(a.getAddress()) != null)
                 .collect(Collectors.toList());
-
-        return filtered.isEmpty() ? addrs : filtered;
+        }
+        
+        return addrs;
     }
 
     private void redirectHomePage(HttpServerExchange exchange) throws Exception {
@@ -482,6 +482,15 @@ public class ContentHandler implements HttpHandler {
     private ByteBuffer staticContent(HttpServerExchange exchange) throws IOException {
         String path = exchange.getRelativePath();
         return getResource(path);
+    }
+
+    private String findAddressRegistation(String rawAddr) {
+        try {
+            return client.findAddressRegistation(rawAddr);
+        } catch (IOException ex) {
+            LOG.error("Error finding address registration", ex);
+            return null;
+        }
     }
 
     private ByteBuffer getResource(String resname) throws IOException {
