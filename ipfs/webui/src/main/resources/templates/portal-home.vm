@@ -26,37 +26,54 @@
             <tr>
         #end
 
-        #if ( $addr.label != "" )
-            <td>$addr.label</td>
-        #else
+        #if ( $addr.label == "" )
             <form id="form-assign-label-$velocityCount" action="/portal/assign">
             <input name="addr" type="hidden" value="$addr.address">
             <td><input name="label" type="text" value="$envLabel"></td>
+        #else
+            <td>$addr.label</td>
         #end
 
         #if ( $addr.watchOnly )
+        
             <td>$addr.address</td>
             <td>&nbsp;</td>
+            
         #else
+        
             #if ( $addr.balance == 0 || ! $addr.registered )
                 <td>$addr.address</td>
             #else
                 <td><a href="/portal/plist?addr=$addr.address">$addr.address</a></td>
             #end
+            
             <td>$addr.balance</td>
+            
         #end
 
-        #if ( $addr.label != "" )
+        #if ( $addr.label == "" )
+        
+            <td><a href="#" onclick="document.getElementById('form-assign-label-$velocityCount').submit();">assign</a></td>
+            </form>
+            
+        #else
+        
+            #if ( ! $addr.watchOnly && $addr.balance == 0 )
+            
+                <td><a href="/portal/pqr?addr=$addr.address">receive</a></td>
+                
+            #end
+            
             #if ( ! $addr.watchOnly && $addr.balance > 0 )
+            
                 #if ( ! $addr.registered )
                     <td><a href="/portal/regaddr?addr=$addr.address">register</a></td>
                 #else
                     <!--td><a href="/portal/unregaddr?addr=$addr.address">unregister</a></td-->
                 #end
+                
             #end
-        #else
-            <td><a href="#" onclick="document.getElementById('form-assign-label-$velocityCount').submit();">assign</a></td>
-            </form>
+            
         #end
 
         </tr>

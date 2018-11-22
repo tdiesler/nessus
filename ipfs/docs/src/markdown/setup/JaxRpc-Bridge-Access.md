@@ -49,11 +49,11 @@ Lets see, if we can also retrieve it from the blockchain.
 Now, lets add this document to the system.
 
     echo "Hello World" > test.txt
-    curl --request POST --data @test.txt http://172.17.0.4:8081/nessus/add?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	\&path=test.txt
+    curl --request POST --data @test.txt http://172.17.0.4:8081/nessus/add?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=test.txt
 
     {
         "cid": "QmaKutjDrA2nZ9KMaXJRxuy5GftKgKAgA8sG7eeDVewfTZ",
-        "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	",
+        "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf",
         "path": "test.txt",
         "txId": "19624717beb6d804b758a2505aedf2f6f42012d699c16354d03528166d84fc28",
         "encrypted": true,
@@ -80,7 +80,7 @@ Like above with the public encryption key, we should be able to find this IPFS c
 
     {
         "cid": "QmaKutjDrA2nZ9KMaXJRxuy5GftKgKAgA8sG7eeDVewfTZ",
-        "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	",
+        "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf",
         "path": "test.txt",
         "txId": "19624717beb6d804b758a2505aedf2f6f42012d699c16354d03528166d84fc28",
         "encrypted": true,
@@ -94,7 +94,7 @@ The local unencrypted content is also available after the IPFS add.
 
     {
         "cid": null,
-        "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	",
+        "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf",
         "path": "test.txt",
         "txId": null,
         "encrypted": false,
@@ -102,20 +102,20 @@ The local unencrypted content is also available after the IPFS add.
         "expired": false
     }
 
-Lets delete that local file.
+Lets remove that local file.
 
-    curl http://172.17.0.4:8081/nessus/dellocal?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	\&path=test.txt
+    curl http://172.17.0.4:8081/nessus/rmlocal?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=test.txt
     curl http://172.17.0.4:8081/nessus/findlocal?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	
 
     []
 
 Lets assume at a later time, we would like to get that file from IPFS
 
-    curl http://172.17.0.4:8081/nessus/get?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	\&path=other.txt\&cid=QmaKutjDrA2nZ9KMaXJRxuy5GftKgKAgA8sG7eeDVewfTZ
+    curl http://172.17.0.4:8081/nessus/get?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=other.txt\&cid=QmaKutjDrA2nZ9KMaXJRxuy5GftKgKAgA8sG7eeDVewfTZ
 
     {
     "cid": null,
-    "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	",
+    "owner": "mjaktrgwfTteDUtotiAmT1QULd75c1gHmf",
     "path": "other.txt",
     "txId": null,
     "encrypted": false,
@@ -125,7 +125,7 @@ Lets assume at a later time, we would like to get that file from IPFS
 
 Finally, lets get the unencrypted content back
 
-    curl http://172.17.0.4:8081/nessus/getlocal?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	\&path=other.txt
+    curl http://172.17.0.4:8081/nessus/getlocal?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=other.txt
 
     Hello World
     

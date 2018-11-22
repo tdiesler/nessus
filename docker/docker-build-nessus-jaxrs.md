@@ -59,8 +59,10 @@ docker exec -it jaxrs tail -f -n 100 debug.log
 This assumes you have the Blockchain and IPFS instances already running on your host
 
 ```
+export CNAME=jaxrs
 export LOCALIP=192.168.178.20
 
+docker rm -f $CNAME
 docker run --detach \
     --env IPFS_JSONRPC_ADDR=$LOCALIP \
     --env IPFS_JSONRPC_PORT=5001 \

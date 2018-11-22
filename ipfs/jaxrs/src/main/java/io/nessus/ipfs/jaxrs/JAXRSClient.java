@@ -162,14 +162,14 @@ public class JAXRSClient implements JAXRSEndpoint {
     @Override
     public List<String> removeIPFSContent(String rawAddr, List<String> cids) throws IOException {
 
-        WebTarget target = client.target(generateURL("/unregipfs"))
+        WebTarget target = client.target(generateURL("/rmipfs"))
                 .queryParam("addr", rawAddr)
                 .queryParam("cids", cids.toArray());
 
         Response res = processResponse(target.request().get(Response.class));
 
         List<String> result = Arrays.asList(res.readEntity(String[].class));
-        LOG.info("/unregipfs => {}", result);
+        LOG.info("/rmipfs => {}", result);
 
         return result;
     }
@@ -206,14 +206,14 @@ public class JAXRSClient implements JAXRSEndpoint {
     @Override
     public boolean removeLocalContent(String rawAddr, String path) throws IOException {
 
-        WebTarget target = client.target(generateURL("/dellocal"))
+        WebTarget target = client.target(generateURL("/rmlocal"))
                 .queryParam("addr", rawAddr)
                 .queryParam("path", path);
 
         Response res = processResponse(target.request().get(Response.class));
 
         Boolean deleted = res.readEntity(Boolean.class);
-        LOG.info("/dellocal => {}", deleted);
+        LOG.info("/rmlocal => {}", deleted);
 
         return deleted;
     }
@@ -227,14 +227,20 @@ public class JAXRSClient implements JAXRSEndpoint {
             LOG.error(stackTrace);
 
             String line = new BufferedReader(new StringReader(stackTrace)).readLine();
+            
+            String message, errorType;
             int colIdx = line.indexOf(':');
-            String errorType = line.substring(0, colIdx);
-            String message = line.substring(colIdx + 2);
+            if (colIdx > 0) {
+                errorType = line.substring(0, colIdx);
+                message = line.substring(colIdx + 2);
+            } else {
+                errorType = line;
+                message = "";
+            } 
 
             Exception ex;
             try {
-                ClassLoader loader = JAXRSClient.class.getClassLoader();
-                Class<?> clazz = loader.loadClass(errorType);
+                Class<?> clazz = JAXRSClient.class.getClassLoader().loadClass(errorType);
                 ex = (Exception) clazz.getConstructor(String.class).newInstance(message);
             } catch (Exception refex) {
                 throw new InternalServerErrorException(line);

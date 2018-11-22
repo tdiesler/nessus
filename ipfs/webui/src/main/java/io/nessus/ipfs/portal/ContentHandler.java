@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
@@ -117,11 +116,11 @@ public class ContentHandler implements HttpHandler {
             actAssignLabel(exchange, context);
         }
 
-        // Action file delete
+        // Action remove local
 
-        else if (relPath.startsWith("/portal/fdel")) {
+        else if (relPath.startsWith("/portal/rmlocal")) {
 
-            actRemoveLocalFile(exchange, context);
+            actRemoveLocalContent(exchange, context);
         }
 
         // Action file get
@@ -168,6 +167,13 @@ public class ContentHandler implements HttpHandler {
 
         // Page file send
 
+        else if (relPath.startsWith("/portal/pqr")) {
+
+            tmplPath = pageQRCode(exchange, context);
+        }
+
+        // Page file send
+
         else if (relPath.startsWith("/portal/psend")) {
 
             tmplPath = pageSend(exchange, context);
@@ -196,7 +202,7 @@ public class ContentHandler implements HttpHandler {
 
         // Unregister IPFS content
 
-        else if (relPath.startsWith("/portal/unregipfs")) {
+        else if (relPath.startsWith("/portal/rmipfs")) {
 
             actRemoveIPFSContent(exchange, context);
         }
@@ -341,7 +347,7 @@ public class ContentHandler implements HttpHandler {
         redirectFileList(exchange, rawAddr);
     }
 
-    private void actRemoveLocalFile(HttpServerExchange exchange, VelocityContext context) throws Exception {
+    private void actRemoveLocalContent(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
@@ -403,6 +409,18 @@ public class ContentHandler implements HttpHandler {
         context.put("gatewayUrl", gatewayURI);
 
         return "templates/portal-list.vm";
+    }
+
+    private String pageQRCode(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+
+        Address addr = wallet.findAddress(rawAddr);
+        AddressDTO paddr = portalAddress(addr, false);
+        context.put("addr", paddr);
+
+        return "templates/portal-qr.vm";
     }
 
     private String pageSend(HttpServerExchange exchange, VelocityContext context) throws Exception {
@@ -474,7 +492,7 @@ public class ContentHandler implements HttpHandler {
         handler.handleRequest(exchange);
     }
 
-    private AddressDTO portalAddress(Address addr, boolean registered) throws GeneralSecurityException {
+    private AddressDTO portalAddress(Address addr, boolean registered) {
         BigDecimal balance = wallet.getBalance(addr);
         return new AddressDTO(addr, balance, registered);
     }

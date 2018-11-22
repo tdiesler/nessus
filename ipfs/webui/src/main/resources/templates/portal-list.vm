@@ -42,7 +42,7 @@
             <td><a href="$gatewayUrl/$file.cid" target="_blank">$file.cid</a></td>
             <td><a href="javascript:{}" onclick="document.getElementById('form-$file.cid').submit()">get</a></td>
             <td><a href="/portal/psend?addr=$addr.address&path=$file.path&cid=$file.cid">send</a></td>
-            <td><a href="/portal/unregipfs?addr=$addr.address&cids=$file.cid">remove</a></td>
+            <td><a href="/portal/rmipfs?addr=$addr.address&cids=$file.cid">remove</a></td>
             </form>
             </tr>
         #end
@@ -58,7 +58,7 @@
             <td>$file.path</td>
             <td>&nbsp;</td>
             <td><a href="/portal/fshow?addr=$addr.address&path=$file.path">show</a></td>
-            <td><a href="/portal/fdel?addr=$addr.address&path=$file.path">delete</a></td>
+            <td><a href="/portal/rmlocal?addr=$addr.address&path=$file.path">delete</a></td>
             </tr>
         #end
     #end

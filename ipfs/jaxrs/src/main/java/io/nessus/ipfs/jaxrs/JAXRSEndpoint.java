@@ -71,7 +71,7 @@ public interface JAXRSEndpoint {
     List<SFHandle> findIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("timeout") Long timeout) throws IOException;
 
     @GET
-    @Path("/unregipfs")
+    @Path("/rmipfs")
     @Produces(MediaType.APPLICATION_JSON)
     List<String> removeIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
     
@@ -86,7 +86,7 @@ public interface JAXRSEndpoint {
     InputStream getLocalContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path) throws IOException;
 
     @GET
-    @Path("/dellocal")
+    @Path("/rmlocal")
     @Produces(MediaType.TEXT_PLAIN)
     boolean removeLocalContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path) throws IOException;
 }

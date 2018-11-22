@@ -53,9 +53,11 @@ docker exec -it webui tail -f -n 100 debug.log
 This assumes you have the Blockchain and IPFS instances already running on your host
 
 ```
+export CNAME=webui
 export LOCALIP=192.168.178.20
 export LABEL=Mary
 
+docker rm -f $CNAME
 docker run --detach \
     -p 8082:8082 \
     --link jaxrs:jaxrs \

@@ -149,7 +149,7 @@ public class JAXRSResource implements JAXRSEndpoint {
 
         Address owner = assertWalletAddress(rawAddr);
         boolean deleted = cntmgr.removeLocalContent(owner, Paths.get(path));
-        LOG.info("/dellocal => {}", deleted);
+        LOG.info("/rmlocal => {}", deleted);
 
         return deleted;
     }
@@ -186,7 +186,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         Address owner = assertWalletAddress(rawAddr);
         
         List<String> result = cntmgr.removeIPFSContent(owner, cids);
-        LOG.info("/unregipfs => {}", result);
+        LOG.info("/rmipfs => {}", result);
 
         return result;
     }
