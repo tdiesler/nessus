@@ -25,5 +25,6 @@ public interface Blockchain {
     Wallet getWallet();
     
     Network getNetwork();
-    
+ 
+    boolean isPruned();
 }

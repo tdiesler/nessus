@@ -74,9 +74,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             String pubKey = addr.getPubKey();
             try {
                 if (privKey != null && pubKey == null) {
-                    importPrivateKey(privKey, addr.getLabels(), true);
+                    importPrivateKey(privKey, addr.getLabels());
                 } else {
-                    importAddress(pubKey, addr.getLabels(), true);
+                    importAddress(pubKey, addr.getLabels());
                 }
             } catch (BitcoinRPCException ex) {
                 String message = ex.getMessage();
@@ -86,7 +86,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     @Override
-    public Address importPrivateKey(String privKey, List<String> labels, boolean rescan) {
+    public Address importPrivateKey(String privKey, List<String> labels) {
         AssertArgument.assertNotNull(privKey, "Null privKey");
 
         // Check if we already have this privKey
@@ -99,7 +99,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         // Note, the bitcoin-core account system will be removed in 0.18.0
         String lstr = concatLabels(labels);
         LOG.info("Import privKey {} {}", privKey.substring(0, 2) + "************", lstr);
-        client.importPrivKey(privKey, lstr, true);
+
+        boolean rescan = !blockchain.isPruned();
+        client.importPrivKey(privKey, lstr, rescan);
 
         // bitcoin-core -regtest v0.16.0 generates three public addresses for
         // every private key that gets imported. These are
@@ -120,7 +122,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     @Override
-    public Address importAddress(String rawAddr, List<String> labels, boolean rescan) {
+    public Address importAddress(String rawAddr, List<String> labels) {
         AssertArgument.assertNotNull(rawAddr, "Null privKey");
 
         // Check if we already have this privKey
@@ -133,6 +135,8 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         // Note, the bitcoin-core account system will be removed in 0.18.0
         String lstr = concatLabels(labels);
         LOG.info("Import address {} {}", rawAddr, lstr);
+        
+        boolean rescan = !blockchain.isPruned();
         client.importAddress(rawAddr, lstr, rescan);
 
         return createAdddressFromRaw(rawAddr, labels);

@@ -52,6 +52,11 @@ public abstract class AbstractBlockchain extends RpcClientSupport implements Blo
         return network;
     }
     
+    @Override
+    public boolean isPruned() {
+        return false;
+    }
+
     protected abstract AbstractWallet createWallet();
 
     protected abstract AbstractNetwork createNetwork();

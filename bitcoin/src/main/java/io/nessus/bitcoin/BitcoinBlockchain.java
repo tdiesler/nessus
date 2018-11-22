@@ -20,14 +20,19 @@ package io.nessus.bitcoin;
  * #L%
  */
 
+import java.util.Map;
+
 import io.nessus.AbstractBlockchain;
 import io.nessus.AbstractNetwork;
 import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class BitcoinBlockchain extends AbstractBlockchain implements Blockchain {
 
+    private Boolean pruned;
+    
     public BitcoinBlockchain(BitcoindRpcClient client) {
         super(client);
     }
@@ -40,5 +45,16 @@ public class BitcoinBlockchain extends AbstractBlockchain implements Blockchain 
     @Override
     protected AbstractNetwork createNetwork() {
         return new BitcoinNetwork(this, getRpcClient());
+    }
+
+    @Override
+    public boolean isPruned() {
+        if (pruned == null) {
+            @SuppressWarnings("unchecked")
+            Map<String, ?> resmap = (Map<String, ?>) ((BitcoinJSONRPCClient) client).query("getblockchaininfo");
+            Object value = resmap.get("pruned");
+            pruned = value != null ? Boolean.parseBoolean(value.toString()) : false;
+        }
+        return pruned;
     }
 }

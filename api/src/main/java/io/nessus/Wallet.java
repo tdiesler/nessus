@@ -40,15 +40,13 @@ public interface Wallet {
     
     /**
      * Add an address deriven from a private key to this wallet
-     * @param rescan TODO
      */
-    Address importPrivateKey(String privKey, List<String> labels, boolean rescan);
+    Address importPrivateKey(String privKey, List<String> labels);
     
     /**
      * Add a watch only address to this wallet
-     * @param rescan TODO
      */
-    Address importAddress(String key, List<String> labels, boolean rescan);
+    Address importAddress(String key, List<String> labels);
     
     /**
      * Generate new address.
