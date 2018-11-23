@@ -1,7 +1,7 @@
 ## Build the JAXRS image
 
 ```
-export NVERSION=1.0.0-SNAPSHOT
+export NVERSION=1.0.0.Beta2
 
 rm -rf docker
 mkdir -p docker
@@ -71,7 +71,7 @@ docker run --detach \
     --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
     --memory=100m --memory-swap=2g \
-    --name jaxrs \
+    --name $CNAME \
     nessusio/ipfs-jaxrs
     
 docker logs jaxrs

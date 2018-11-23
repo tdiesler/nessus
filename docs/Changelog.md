@@ -1,5 +1,59 @@
 ### Changelog
 
+#### Nessus 1.0.0 Beta2
+
+**Features**
+
+* [#15][15] Provide nessus as a camel component 
+* [#34][34] Add support for smart network fees
+* [#54][54] Add JSON RPC API for IPFS content manager
+* [#55][55] Add demo webapp as user interface
+* [#56][56] Provide docker image for the bitcoin testnet
+* [#59][59] Add a payment QR code for new addresses
+* [#64][64] Allow to unregister address and IPFS content
+* [#66][66] Allow to unregister address/IPFS through GUI
+* [#67][67] Make rescan parameter dependent on blockchain config
+* [#71][71] Allow better abstraction and branding of WebUI
+
+For details see [1.0.0 Beta2 features](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Afeature)
+
+**Tasks**
+
+* [#57][57] Setup and document VPS instance on BTC testnet
+* [#61][61] Document a simple IPFS demo workflow
+* [#68][68] Hide sendTo addresses that are not registered
+* [#70][70] Prevent silent overwrite of plain content
+
+For details see [1.0.0 Beta2 tasks](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Atask)
+
+**Bugs**
+
+* [#60][60] IPFS get sets file handle to available=false
+* [#62][62] Import of watch-only address silently ignored
+* [#63][63] Address registration not seen on pruned instance
+* [#65][65] Cannot spend single address registration UTXO
+
+For details see [1.0.0 Beta2 bugs](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Abug)
+
+[15]: https://github.com/tdiesler/nessus/issues/15
+[34]: https://github.com/tdiesler/nessus/issues/34
+[54]: https://github.com/tdiesler/nessus/issues/54
+[55]: https://github.com/tdiesler/nessus/issues/55
+[56]: https://github.com/tdiesler/nessus/issues/56
+[59]: https://github.com/tdiesler/nessus/issues/59
+[64]: https://github.com/tdiesler/nessus/issues/64
+[66]: https://github.com/tdiesler/nessus/issues/66
+[67]: https://github.com/tdiesler/nessus/issues/67
+[71]: https://github.com/tdiesler/nessus/issues/71
+[57]: https://github.com/tdiesler/nessus/issues/57
+[61]: https://github.com/tdiesler/nessus/issues/61
+[68]: https://github.com/tdiesler/nessus/issues/68
+[70]: https://github.com/tdiesler/nessus/issues/70
+[60]: https://github.com/tdiesler/nessus/issues/60
+[62]: https://github.com/tdiesler/nessus/issues/62
+[63]: https://github.com/tdiesler/nessus/issues/63
+[65]: https://github.com/tdiesler/nessus/issues/65
+
 #### Nessus 1.0.0 Beta1
 
 **Tasks**

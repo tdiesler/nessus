@@ -1,7 +1,7 @@
 ## Build the Nessus WebUI image
 
 ```
-export NVERSION=1.0.0-SNAPSHOT
+export NVERSION=1.0.0.Beta2
 
 rm -rf docker
 mkdir -p docker
@@ -69,7 +69,7 @@ docker run --detach \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
     --env NESSUS_WEBUI_LABEL=$LABEL \
     --memory=100m --memory-swap=2g \
-    --name webui \
+    --name $CNAME \
     nessusio/ipfs-webui
 
 docker logs -f webui
