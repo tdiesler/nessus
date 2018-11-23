@@ -19,6 +19,7 @@
         <module>webui</module>
         <module>docs</module>
         <module>dist</module>
+        <module>docker</module>
     </modules>
     
 </project>

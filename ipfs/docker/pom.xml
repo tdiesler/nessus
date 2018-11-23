@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.nessus</groupId>
+        <artifactId>nessus-ipfs</artifactId>
+        <version>1.0.0.Beta3-SNAPSHOT</version>
+    </parent>
+    
+    <artifactId>nessus-docker</artifactId>
+    <packaging>pom</packaging>
+    
+    <name>Nessus :: IPFS :: Docker</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.nessus</groupId>
+            <artifactId>nessus-ipfs-dist</artifactId>
+            <classifier>deps</classifier>
+            <version>${project.version}</version>
+            <type>tgz</type>
+        </dependency>
+        <dependency>
+            <groupId>io.nessus</groupId>
+            <artifactId>nessus-ipfs-dist</artifactId>
+            <classifier>proj</classifier>
+            <version>${project.version}</version>
+            <type>tgz</type>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ipfs-jaxrs</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <name>nessusio/ipfs-jaxrs</name>
+                                    <build>
+                                        <dockerFileDir>${basedir}/ipfs-jaxrs</dockerFileDir>
+                                        <tags>
+                                            <tag>latest</tag>
+                                            <tag>${project.version}</tag>
+                                        </tags>
+                                        <assembly>
+                                            <inline>
+                                                <dependencySets>
+                                                  <dependencySet>
+                                                    <includes>
+                                                      <include>io.nessus:nessus-ipfs-dist:tgz:deps</include>
+                                                      <include>io.nessus:nessus-ipfs-dist:tgz:proj</include>
+                                                    </includes>
+                                                    <outputFileNameMapping>${artifact.artifactId}</outputFileNameMapping>
+                                                    <unpack>true</unpack>
+                                                  </dependencySet>
+                                                </dependencySets>
+                                            </inline>
+                                        </assembly>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>ipfs-webui</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <name>nessusio/ipfs-webui</name>
+                                    <build>
+                                        <dockerFileDir>${basedir}/ipfs-webui</dockerFileDir>
+                                        <tags>
+                                            <tag>latest</tag>
+                                            <tag>${project.version}</tag>
+                                        </tags>
+                                        <assembly>
+                                            <inline>
+                                                <dependencySets>
+                                                  <dependencySet>
+                                                    <includes>
+                                                      <include>io.nessus:nessus-ipfs-dist:tgz:deps</include>
+                                                      <include>io.nessus:nessus-ipfs-dist:tgz:proj</include>
+                                                    </includes>
+                                                    <outputFileNameMapping>${artifact.artifactId}</outputFileNameMapping>
+                                                    <unpack>true</unpack>
+                                                  </dependencySet>
+                                                </dependencySets>
+                                            </inline>
+                                        </assembly>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    
+</project>
