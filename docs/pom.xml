@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.nessus</groupId>
         <artifactId>nessus</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0.Beta2</version>
     </parent>
     
     <artifactId>nessus-docs</artifactId>
