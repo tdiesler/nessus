@@ -20,7 +20,7 @@ package io.nessus.ipfs.portal;
  * #L%
  */
 
-public class WebUIConstants {
+public class NessusWebUIConstants {
 
     public static final String ENV_NESSUS_WEBUI_ADDR = "NESSUS_WEBUI_ADDR";
     public static final String ENV_NESSUS_WEBUI_PORT = "NESSUS_WEBUI_PORT";

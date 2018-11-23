@@ -65,9 +65,9 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.RedirectHandler;
 import io.undertow.util.Headers;
 
-public class ContentHandler implements HttpHandler {
+public class NessusContentHandler implements HttpHandler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ContentHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(NessusContentHandler.class);
 
     final Blockchain blockchain;
     final Network network;
@@ -83,7 +83,7 @@ public class ContentHandler implements HttpHandler {
     // The last executable job
     private Future<Address> lastJob;
     
-    ContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
+    NessusContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
         this.blockchain = blockchain;
         this.gatewayURI = gatewayURI;
         this.client = client;
@@ -515,7 +515,7 @@ public class ContentHandler implements HttpHandler {
             addrs.add(new AddressDTO(addr, balance, pubKey != null));
         }
 
-        String envLabel = SystemUtils.getenv(WebUIConstants.ENV_NESSUS_WEBUI_LABEL, "Bob");
+        String envLabel = SystemUtils.getenv(NessusWebUIConstants.ENV_NESSUS_WEBUI_LABEL, "Bob");
 
         context.put("envLabel", envLabel);
         context.put("addrs", addrs);

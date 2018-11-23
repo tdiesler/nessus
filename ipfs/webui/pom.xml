@@ -43,7 +43,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>io.nessus.ipfs.portal.WebUI</mainClass>
+                            <mainClass>io.nessus.ipfs.portal.NessusWebUI</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
