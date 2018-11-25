@@ -1,7 +1,7 @@
 ## Build the Nessus WebUI image
 
 ```
-export NVERSION=1.0.0.Beta2
+export NVERSION=1.0.0.Beta2-SP1
 
 rm -rf docker
 mkdir -p docker
@@ -16,9 +16,9 @@ FROM nessusio/fedoraj:29
 COPY nessus-ipfs-dist-$NVERSION nessus-ipfs-webui
 
 # Make the entrypoint executable
-RUN ln -s /nessus-ipfs-webui/bin/run-nessus-webui.sh /usr/local/bin/nessus-webui
+RUN ln -s /nessus-ipfs-webui/bin/run-nessus-webui.sh /usr/local/bin/run-webui.sh
 
-ENTRYPOINT ["nessus-webui"]
+ENTRYPOINT ["run-webui.sh"]
 EOF
 
 docker build -t nessusio/ipfs-webui docker/

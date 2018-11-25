@@ -64,6 +64,7 @@ import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.RedirectHandler;
 import io.undertow.util.Headers;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 public class NessusContentHandler implements HttpHandler {
 
@@ -79,9 +80,11 @@ public class NessusContentHandler implements HttpHandler {
 
     // Executor service for async operations
     final ExecutorService executorService;
-    
+
     // The last executable job
     private Future<Address> lastJob;
+    
+    private Long blockchainVersion;
     
     NessusContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
         this.blockchain = blockchain;
@@ -109,12 +112,14 @@ public class NessusContentHandler implements HttpHandler {
 
         ByteBuffer content = null;
         try {
+            
             String path = exchange.getRelativePath();
             if (path.startsWith("/portal")) {
-                content = pageContent(exchange);
+                content = dynamicContent(exchange);
             } else {
                 content = staticContent(exchange);
             }
+            
         } catch (Exception ex) {
             StringWriter sw = new StringWriter();
             ex.printStackTrace(new PrintWriter(sw));
@@ -128,7 +133,7 @@ public class NessusContentHandler implements HttpHandler {
         }
     }
 
-    private ByteBuffer pageContent(HttpServerExchange exchange) throws Exception {
+    private ByteBuffer dynamicContent(HttpServerExchange exchange) throws Exception {
 
         String relPath = exchange.getRelativePath();
 
@@ -149,122 +154,79 @@ public class NessusContentHandler implements HttpHandler {
         String tmplPath = null;
         VelocityContext context = new VelocityContext();
 
-        // Action add text
-
+        // Assert Blockchain availability
+        
+        try {
+            assertBlockchainAvailable();
+        } catch (RuntimeException rte) {
+            tmplPath = pageError(context, rte);
+        }
+        
         if (relPath.startsWith("/portal/addtxt")) {
-
             actAddText(exchange, context);
         }
 
-        // Action add URL
-
         else if (relPath.startsWith("/portal/addurl")) {
-
             actAddURL(exchange, context);
         }
 
-        // Action assign Label
-
         else if (relPath.startsWith("/portal/assign")) {
-
             actAssignLabel(exchange, context);
         }
 
-        // Action remove local
-
         else if (relPath.startsWith("/portal/rmlocal")) {
-
             actRemoveLocalContent(exchange, context);
         }
 
-        // Action file get
-
         else if (relPath.startsWith("/portal/fget")) {
-
             actFileGet(exchange, context);
         }
 
-        // Action file show
-
         else if (relPath.startsWith("/portal/fshow")) {
-
             return actFileShow(exchange, context);
         }
 
-        // Action import privkey
-
         else if (relPath.startsWith("/portal/impkey")) {
-
             actImportKey(exchange, context);
         }
 
-        // Action new address
-
         else if (relPath.startsWith("/portal/newaddr")) {
-
             actNewAddress(exchange, context);
         }
 
-        // Page file add
-
         else if (relPath.startsWith("/portal/padd")) {
-
             tmplPath = pageFileAdd(exchange, context);
         }
 
-        // Page file list
-
         else if (relPath.startsWith("/portal/plist")) {
-
             tmplPath = pageFileList(exchange, context);
         }
 
-        // Page file send
-
         else if (relPath.startsWith("/portal/pqr")) {
-
             tmplPath = pageQRCode(exchange, context);
         }
 
-        // Page file send
-
         else if (relPath.startsWith("/portal/psend")) {
-
             tmplPath = pageSend(exchange, context);
         }
 
-        // Action register address
-
         else if (relPath.startsWith("/portal/regaddr")) {
-
             actRegisterAddress(exchange, context);
         }
 
-        // Action send IPFS file
-
         else if (relPath.startsWith("/portal/sendcid")) {
-
             actSend(exchange, context);
         }
 
-        // Unregister Address
-
         else if (relPath.startsWith("/portal/unregaddr")) {
-
             actUnregisterAddress(exchange, context);
         }
 
-        // Unregister IPFS content
-
         else if (relPath.startsWith("/portal/rmipfs")) {
-
             actRemoveIPFSContent(exchange, context);
         }
 
-        // Home page
-
-        else {
-
+        else if (tmplPath == null) {
             tmplPath = pageHome(context);
         }
 
@@ -437,6 +399,19 @@ public class NessusContentHandler implements HttpHandler {
         redirectHomePage(exchange);
     }
 
+    private String pageError(VelocityContext context, RuntimeException rte) {
+        
+        String errmsg = rte.getMessage();
+        if (rte instanceof BitcoinRPCException) {
+            errmsg = ((BitcoinRPCException) rte).getRPCError().getMessage();
+            errmsg = "Blockchain not available: " + errmsg;
+        }
+        
+        context.put("errmsg", errmsg);
+        
+        return "templates/portal-error.vm";
+    }
+
     private String pageFileAdd(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
@@ -565,6 +540,23 @@ public class NessusContentHandler implements HttpHandler {
         } catch (IOException ex) {
             LOG.error("Error finding address registration", ex);
             return null;
+        }
+    }
+
+    private void assertBlockchainAvailable() {
+        if (blockchainVersion == null) {
+            try {
+                String networkName = network.getClass().getSimpleName();
+                blockchainVersion = network.getNetworkInfo().version();
+                LOG.info("{} Version: {}",  networkName, blockchainVersion);
+            } catch (BitcoinRPCException rte) {
+                String errmsg = rte.getRPCError().getMessage();
+                LOG.error("Blockchain not available: {}", errmsg);
+                throw rte;
+            } catch (RuntimeException rte) {
+                LOG.error("Blockchain error", rte);
+                throw rte;
+            }
         }
     }
 

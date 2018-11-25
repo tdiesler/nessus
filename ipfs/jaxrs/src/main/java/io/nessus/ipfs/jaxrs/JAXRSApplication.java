@@ -48,7 +48,6 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
-import io.nessus.RpcClientSupport;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.core.ipfs.ContentManager;
 import io.nessus.core.ipfs.IPFSClient;
@@ -58,7 +57,6 @@ import io.nessus.utils.SystemUtils;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 @ApplicationPath("/nessus")
 public class JAXRSApplication extends Application {
@@ -97,10 +95,7 @@ public class JAXRSApplication extends Application {
 
         URL blockchinURL = blockchainURL();
         Class<Blockchain> bcclass = blockchainClass();
-        Blockchain blockchain = BlockchainFactory.getBlockchain(blockchinURL, bcclass);
-        String networkName = blockchain.getNetwork().getClass().getSimpleName();
-        BitcoindRpcClient rpcclient = ((RpcClientSupport) blockchain).getRpcClient();
-        LOG.info("{} Version: {}",  networkName, rpcclient.getNetworkInfo().version());
+        BlockchainFactory.getBlockchain(blockchinURL, bcclass);
 
         Builder builder = Undertow.builder().addHttpListener(config.port, config.host);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);

@@ -94,6 +94,7 @@ docker rm -f $CNAME
 docker run --detach \
     -p 4001:4001 \
     -p $GATEWAYIP:8080:8080 \
+    --memory=300m --memory-swap=2g \
     --name $CNAME \
     nessusio/ipfs
 

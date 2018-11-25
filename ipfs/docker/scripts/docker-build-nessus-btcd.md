@@ -1,4 +1,36 @@
-## Build the Bitcoin image
+## Build the Bitcoin blockstore image 
+
+```
+rm -rf docker
+mkdir docker
+
+# https://live.blockcypher.com/btc-testnet
+
+docker exec btcd bitcoin-cli -testnet=1 getblockcount
+docker exec btcd bitcoin-cli -testnet=1 stop
+
+docker cp btcd:/var/lib/bitcoind/testnet3 docker/testnet3
+rm -f docker/testnet3/*.log docker/testnet3/wallet.dat
+
+cat << EOF > docker/Dockerfile
+# Based in Ubuntu 16.04
+FROM ubuntu:16.04
+
+# Copy the blockstate
+RUN mkdir /var/lib/bitcoind
+COPY testnet3 /var/lib/bitcoind/testnet3
+EOF
+
+docker build -t nessusio/bitcoin-tnblocks docker/
+
+docker rm btcd
+docker volume rm -f tnblocks
+docker run --rm -v tnblocks:/var/lib/bitcoind nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
+
+docker push nessusio/bitcoin-tnblocks
+```
+
+## Build the Bitcoin daemon image
 
 ```
 export NVERSION=0.17.0.1
@@ -67,12 +99,12 @@ docker push nessusio/bitcoind:$NVERSION
 ### Populate the blockstore volume
 
 ```
-docker volume rm blockstore
+docker volume rm tnblocks
 docker run -it --rm \
-    -v blockstore:/var/lib/bitcoind \
-    nessusio/bitcoin-testnet-blockstore ls -l /var/lib/bitcoind
+    -v tnblocks:/var/lib/bitcoind \
+    nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
 
-docker volume inspect blockstore
+docker volume inspect tnblocks
 ```
 
 ### Run the Bitcoin daemon 
@@ -84,37 +116,13 @@ docker rm -f $CNAME
 docker run --detach \
     -p 18333:18333 \
     --expose=18332 \
-    -v blockstore:/var/lib/bitcoind \
+    -v tnblocks:/var/lib/bitcoind \
     --name $CNAME \
-    nessusio/bitcoind -testnet=1 -prune=1024
+    nessusio/bitcoind -testnet=1 -prune=720
 
 watch docker exec btcd bitcoin-cli -testnet=1 getblockcount
 
 docker logs -f btcd
 ```
 
-## Build the blockstore image 
-
-```
-rm -rf docker
-mkdir docker
-
-export BLOCKSTORE_ARCHIVE=`ls testnet3-*.tgz`
-
-# Copy bitcoin binary to the build dir
-tar -C docker -xzf $BLOCKSTORE_ARCHIVE
-
-cat << EOF > docker/Dockerfile
-# Based in Ubuntu 16.04
-FROM ubuntu:16.04
-
-# Copy the blockstate
-RUN mkdir /var/lib/bitcoind
-COPY testnet3 /var/lib/bitcoind/testnet3
-
-EOF
-
-docker build -t nessusio/bitcoin-testnet-blockstore docker/
-docker push nessusio/bitcoin-testnet-blockstore
-```
 

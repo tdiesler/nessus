@@ -145,4 +145,4 @@ Marr can now click __show__ on the decrypted file to view the content.
 
 Thanks for watching this demo, perhaps you liked it.
 
-If you like to install this on your side, have a look at this [setup guide](../setup/Setup-Guide-Bob.md)
+If you like to install this on your side, have a look at this [setup guide](Setup-Guide-Bob.md)

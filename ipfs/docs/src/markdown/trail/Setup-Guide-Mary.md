@@ -1,4 +1,4 @@
-## Setup Guide for Bob
+## Setup Guide for Mary
 
 The steps to get the demo running on your box are trivial. It assumes that you already have [Docker](https://www.docker.com/community-edition) running.
 If not, there is guide on how to setup a VPS that has Docker support [here](../setup/Setup-VPS-Docker.md). These steps would however equally work on your Mac or Windows box.
@@ -9,18 +9,18 @@ In case you know what you're doing already. Here is the quickstart to get the wh
 
     export GATEWAYIP=192.168.178.20
 
-    docker run --rm -v blockstore:/var/lib/bitcoind nessusio/bitcoin-testnet-blockstore du -h /var/lib/bitcoind
-    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v blockstore:/var/lib/bitcoind --memory=300m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=1024
+    docker run --rm -v tnblocks:/var/lib/bitcoind nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
+    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v tnblocks:/var/lib/bitcoind --memory=300m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=720
     docker run --detach --name ipfs -p 4001:4001 -p 8080:8080 -e GATEWAYIP=$GATEWAYIP --memory=300m --memory-swap=2g nessusio/ipfs
     docker run --detach --name jaxrs --link btcd:blockchain --link ipfs:ipfs --memory=100m --memory-swap=2g nessusio/ipfs-jaxrs
-    docker run --detach --name webui -p 8082:8082 --link btcd:blockchain --link ipfs:ipfs --link jaxrs:jaxrs -e NESSUS_WEBUI_LABEL=Bob --memory=100m --memory-swap=2g nessusio/ipfs-webui
+    docker run --detach --name webui -p 8082:8082 --link btcd:blockchain --link ipfs:ipfs --link jaxrs:jaxrs -e NESSUS_WEBUI_LABEL=Mary --memory=100m --memory-swap=2g nessusio/ipfs-webui
 
 It'll take a little while for the network to sync. You can watch progress like this ...
 
     docker logs -f btcd
     docker exec btcd bitcoin-cli -testnet=1 getblockcount
 
-Bob then needs some coin, for example from [this](http://bitcoinfaucet.uo1.net/send.php) faucet.
+Mary then needs some coin, for example from [this](http://bitcoinfaucet.uo1.net/send.php) faucet.
 
 ### Examine the various container logs 
 
@@ -65,9 +65,5 @@ The WebUI also reports some connection properties.
     BitcoinNetwork Version: 170001
     Nessus JAXRS: http://172.17.0.4:8081/nessus
     Nessus WebUI: http://0.0.0.0:8082/portal
-
-### Setup for Mary (optional)
-
-For the more advanced __send__ functionality you may want to also follow the [setup for Mary](Setup-Guide-Mary.md).
 
 That's it - Enjoy!

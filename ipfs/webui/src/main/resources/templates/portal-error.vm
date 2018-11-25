@@ -1,0 +1,17 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="/css/demo.css">
+</head>
+
+<body>
+<table>
+<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
+</table>
+
+<h1>Error</h1>
+
+$errmsg
+
+</body>
+</html>
