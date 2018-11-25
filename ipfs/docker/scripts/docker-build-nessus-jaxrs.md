@@ -1,7 +1,7 @@
 ## Build the JAXRS image
 
 ```
-export NVERSION=1.0.0.Beta2-SP1
+export NVERSION=1.0.0.Beta3-SNAPSHOT
 
 rm -rf docker
 mkdir -p docker
@@ -16,12 +16,12 @@ FROM nessusio/fedoraj:29
 COPY nessus-ipfs-dist-$NVERSION nessus-ipfs-jaxrs
 
 # Make the entrypoint executable
-RUN ln -s /nessus-ipfs-jaxrs/bin/run-nessus-jaxrs.sh /usr/local/bin/run-jaxrs.sh
+RUN ln -s /nessus-ipfs-jaxrs/bin/run-nessus-jaxrs.sh /usr/local/bin/nessus-jaxrs
 
 # Expose the JAXRS port
 EXPOSE 8081
 
-ENTRYPOINT ["run-jaxrs.sh"]
+ENTRYPOINT ["nessus-jaxrs"]
 EOF
 
 docker build -t nessusio/ipfs-jaxrs docker/

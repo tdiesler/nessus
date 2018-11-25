@@ -10,7 +10,7 @@
 </table>
 
 <table>
-<tr><td><img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=$addr.address"></td></tr>
+<tr><td><img src="http://api.qrserver.com/v1/create-qr-code?size=150x150&data=$addr.address"></td></tr>
 <tr><td>&nbsp;</td></tr>
 <tr><td>$addr.address</td></tr>
 </table>

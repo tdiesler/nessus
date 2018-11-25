@@ -21,14 +21,18 @@ Here is a quickstart to get the whole system running ...
     export GATEWAYIP=192.168.178.20
 
     docker run --rm -v tnblocks:/var/lib/bitcoind nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
-    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v tnblocks:/var/lib/bitcoind --memory=300m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=720
+    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v tnblocks:/var/lib/bitcoind --memory=500m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=1024
     docker run --detach --name ipfs -p 4001:4001 -p 8080:8080 -e GATEWAYIP=$GATEWAYIP --memory=300m --memory-swap=2g nessusio/ipfs
-    docker run --detach --name jaxrs --link btcd:blockchain --link ipfs:ipfs --memory=100m --memory-swap=2g nessusio/ipfs-jaxrs
-    docker run --detach --name webui -p 8082:8082 --link btcd:blockchain --link ipfs:ipfs --link jaxrs:jaxrs --memory=100m --memory-swap=2g nessusio/ipfs-webui
+    docker run --detach --name jaxrs --link btcd:blockchain --link ipfs:ipfs --memory=50m --memory-swap=2g nessusio/ipfs-jaxrs
+    docker run --detach --name webui -p 8082:8082 --link btcd:blockchain --link ipfs:ipfs --link jaxrs:jaxrs --memory=50m --memory-swap=2g nessusio/ipfs-webui
 
-Verify that the blockchain is synched. The output should be similar to what you see [here](https://live.blockcypher.com/btc-testnet)
+It may take a while for the blocks to get loaded from the volume. 
+You would want to see an up to date [blockcount](https://live.blockcypher.com/btc-testnet).
+
+You can watch progress like this
 
     watch docker exec btcd bitcoin-cli -testnet=1 getblockcount
+    docker logs -f btcd
     
 When everything is running, it should look like this
 
