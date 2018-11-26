@@ -37,19 +37,23 @@ import io.nessus.utils.SystemUtils;
 import io.undertow.Undertow;
 import io.undertow.server.HttpHandler;
 
-public class NessusWebUI {
+public class WebUI {
 
-    private static final Logger LOG = LoggerFactory.getLogger(NessusWebUI.class);
+    private static final Logger LOG = LoggerFactory.getLogger(WebUI.class);
 
+    public static final String ENV_NESSUS_WEBUI_ADDR = "NESSUS_WEBUI_ADDR";
+    public static final String ENV_NESSUS_WEBUI_PORT = "NESSUS_WEBUI_PORT";
+    public static final String ENV_NESSUS_WEBUI_LABEL = "NESSUS_WEBUI_LABEL";
+    
     public static void main(String[] args) throws Exception {
 
         JAXRSSanityCheck.verifyPlatform();
 
-        NessusWebUI webUI = new NessusWebUI (args);
+        WebUI webUI = new WebUI (args);
         webUI.start();
     }
 
-    public NessusWebUI(String[] args) {
+    public WebUI(String[] args) {
     }
 
     protected String getApplicationName() {
@@ -66,7 +70,8 @@ public class NessusWebUI {
         URL rpcUrl = JAXRSApplication.blockchainURL();
         Class<Blockchain> bcclass = JAXRSApplication.blockchainClass();
         Blockchain blockchain = BlockchainFactory.getBlockchain(rpcUrl, bcclass);
-
+        JAXRSApplication.logNetworkVersionFailsafe(blockchain.getNetwork());
+        
         envHost = SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_ADDR, "127.0.0.1");
         envPort = SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_PORT, "8081");
         URI jaxrsURI = new URI(String.format("http://%s:%s/nessus", envHost, envPort));
@@ -74,8 +79,8 @@ public class NessusWebUI {
 
         JAXRSClient jaxrsClient = new JAXRSClient(jaxrsURI);
 
-        envHost = SystemUtils.getenv(NessusWebUIConstants.ENV_NESSUS_WEBUI_ADDR, "0.0.0.0");
-        envPort = SystemUtils.getenv(NessusWebUIConstants.ENV_NESSUS_WEBUI_PORT, "8082");
+        envHost = SystemUtils.getenv(ENV_NESSUS_WEBUI_ADDR, "0.0.0.0");
+        envPort = SystemUtils.getenv(ENV_NESSUS_WEBUI_PORT, "8082");
         LOG.info("{} WebUI: http://" + envHost + ":" + envPort + "/portal", getApplicationName());
 
         HttpHandler contentHandler = createHttpHandler(gatewayURI, blockchain, jaxrsClient);
@@ -87,6 +92,6 @@ public class NessusWebUI {
     }
 
     protected HttpHandler createHttpHandler(URI gatewayURI, Blockchain blockchain, JAXRSClient jaxrsClient) {
-        return new NessusContentHandler(jaxrsClient, blockchain, gatewayURI);
+        return new ContentHandler(jaxrsClient, blockchain, gatewayURI);
     }
 }

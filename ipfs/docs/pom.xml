@@ -11,7 +11,7 @@
     <artifactId>nessus-ipfs-docs</artifactId>
     <packaging>pom</packaging>
 
-    <name>Nessus :: IPFS :: docs</name>
+    <name>Nessus :: IPFS :: Docs</name>
 
     <!-- Build -->
     <build>

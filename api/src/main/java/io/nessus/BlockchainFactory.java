@@ -43,7 +43,7 @@ public class BlockchainFactory {
     public static <T extends Blockchain> T getBlockchain(Properties props, Class<T> bcClass) throws Exception {
         String rpcuser = props.getProperty("rpcuser");
         String rpcpass = props.getProperty("rpcpassword");
-        String rpchost = props.getProperty("rpcconnect");
+        String rpchost = props.getProperty("rpcconnect", "127.0.0.1");
         String rpcport = props.getProperty("rpcport");
         return getBlockchain(new URL(String.format("http://%s:%s@%s:%s", rpcuser, rpcpass, rpchost, rpcport)), bcClass);
     }

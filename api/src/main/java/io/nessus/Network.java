@@ -29,6 +29,11 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.NetworkInfo;
 public interface Network {
 
     /**
+     * Get the network version
+     */
+    String getVersion();
+    
+    /**
      * Estimates the transaction fee per kilobyte that needs to be paid 
      * for a transaction to be included within a certain number of blocks.
      */

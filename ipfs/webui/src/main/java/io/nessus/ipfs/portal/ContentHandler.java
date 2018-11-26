@@ -31,9 +31,12 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -57,6 +60,7 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.SFHandle;
+import io.nessus.ipfs.portal.TreeData.TreeNode;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
 import io.nessus.utils.SystemUtils;
@@ -66,9 +70,9 @@ import io.undertow.server.handlers.RedirectHandler;
 import io.undertow.util.Headers;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
-public class NessusContentHandler implements HttpHandler {
+public class ContentHandler implements HttpHandler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(NessusContentHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ContentHandler.class);
 
     final Blockchain blockchain;
     final Network network;
@@ -76,7 +80,7 @@ public class NessusContentHandler implements HttpHandler {
 
     final JAXRSClient client;
     final VelocityEngine ve;
-    final URI gatewayURI;
+    final URI gatewayUrl;
 
     // Executor service for async operations
     final ExecutorService executorService;
@@ -86,9 +90,9 @@ public class NessusContentHandler implements HttpHandler {
     
     private Long blockchainVersion;
     
-    NessusContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
+    ContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
         this.blockchain = blockchain;
-        this.gatewayURI = gatewayURI;
+        this.gatewayUrl = gatewayURI;
         this.client = client;
 
         network = blockchain.getNetwork();
@@ -196,6 +200,10 @@ public class NessusContentHandler implements HttpHandler {
 
         else if (relPath.startsWith("/portal/padd")) {
             tmplPath = pageFileAdd(exchange, context);
+        }
+
+        else if (relPath.startsWith("/portal/pget")) {
+            tmplPath = pageFileGet(exchange, context);
         }
 
         else if (relPath.startsWith("/portal/plist")) {
@@ -424,6 +432,25 @@ public class NessusContentHandler implements HttpHandler {
         return "templates/portal-add.vm";
     }
 
+    private String pageFileGet(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        String path = qparams.get("path").getFirst();
+        String cid = qparams.get("cid").getFirst();
+
+        Address addr = wallet.findAddress(rawAddr);
+        AddressDTO paddr = portalAddress(addr, true);
+        SFHandle fhandle = new SFHandle(cid, rawAddr, path, true, true);
+        context.put("gatewayUrl", gatewayUrl);
+        context.put("addr", paddr);
+        context.put("file", fhandle);
+
+        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(addr.getAddress())));
+        
+        return "templates/portal-get.vm";
+    }
+
     private String pageFileList(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
@@ -433,16 +460,48 @@ public class NessusContentHandler implements HttpHandler {
         String pubKey = findAddressRegistation(rawAddr);
         AddressDTO paddr = portalAddress(addr, pubKey != null);
         context.put("addr", paddr);
+        context.put("gatewayUrl", gatewayUrl);
 
-        List<SFHandle> fhandles = new ArrayList<>(client.findIPFSContent(rawAddr, null));
-        fhandles.addAll(client.findLocalContent(rawAddr));
-
-        context.put("files", fhandles);
-        context.put("gatewayUrl", gatewayURI);
-
+        context.put("treeDataIpfs", getTreeData(addr, client.findIPFSContent(rawAddr, null)));
+        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(addr.getAddress())));
+        
         return "templates/portal-list.vm";
     }
 
+    private TreeData getTreeData(Address addr, List<SFHandle> fhandles) {
+        
+        TreeData tree = new TreeData();
+        Map<Path, TreeNode> nodes = new LinkedHashMap<>();
+        
+        for (SFHandle fh : fhandles) {
+            Path path = Paths.get(fh.getPath());
+            createTreeNode(tree, addr, path, fh.getCid(), nodes);
+        }
+        
+        return tree;
+    }
+
+    private TreeNode createTreeNode(TreeData tree, Address addr, Path path, String cid, Map<Path, TreeNode> nodes) {
+        
+        Path parent = path.getParent();
+        TreeNode parentNode = parent != null ? nodes.get(parent) : null;
+        
+        if (parent != null && parentNode == null) {
+            parentNode = createTreeNode(tree, addr, parent, null, nodes);
+        }
+        
+        TreeNode node = new TreeNode(addr, path, cid);
+        nodes.put(path, node);
+        
+        if (parentNode == null) {
+            tree.addNode(node);
+        } else {
+            parentNode.addChild(node);
+        }
+        
+        return node;
+    }
+    
     private String pageQRCode(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
@@ -472,7 +531,7 @@ public class NessusContentHandler implements HttpHandler {
             }
         }
 
-        context.put("gatewayUrl", gatewayURI);
+        context.put("gatewayUrl", gatewayUrl);
         context.put("toaddrs", toaddrs);
         context.put("addr", paddr);
         context.put("file", new SFHandle(cid, rawAddr, relPath, true, true));
@@ -490,7 +549,7 @@ public class NessusContentHandler implements HttpHandler {
             addrs.add(new AddressDTO(addr, balance, pubKey != null));
         }
 
-        String envLabel = SystemUtils.getenv(NessusWebUIConstants.ENV_NESSUS_WEBUI_LABEL, "Bob");
+        String envLabel = SystemUtils.getenv(WebUI.ENV_NESSUS_WEBUI_LABEL, "Bob");
 
         context.put("envLabel", envLabel);
         context.put("addrs", addrs);

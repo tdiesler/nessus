@@ -68,6 +68,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public void importAddresses(Config config) {
+        AssertArgument.assertNotNull(config, "Null config");
         
         for (Config.Address addr : config.getWallet().getAddresses()) {
             String privKey = addr.getPrivKey();
@@ -88,6 +89,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public Address importPrivateKey(String privKey, List<String> labels) {
         AssertArgument.assertNotNull(privKey, "Null privKey");
+        AssertArgument.assertNotNull(labels, "Null labels");
 
         // Check if we already have this privKey
         for (Address addr : getAddressMapping().values()) {
@@ -124,6 +126,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public Address importAddress(String rawAddr, List<String> labels) {
         AssertArgument.assertNotNull(rawAddr, "Null privKey");
+        AssertArgument.assertNotNull(labels, "Null labels");
 
         // Check if we already have this privKey
         for (Address addr : getAddressMapping().values()) {
@@ -144,11 +147,13 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public final Address newAddress(String label) {
+        AssertArgument.assertNotNull(label, "Null label");
         return createNewAddress(Arrays.asList(label));
     }
 
     @Override
     public final Address newChangeAddress(String label) {
+        AssertArgument.assertNotNull(label, "Null label");
         return createNewAddress(Arrays.asList(label, LABEL_CHANGE));
     }
 
@@ -161,6 +166,8 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public Address getAddress(String label) {
+        AssertArgument.assertNotNull(label, "Null label");
+
         List<Address> addrs = getAddresses(label);
         addrs = addrs.stream().filter(a -> !a.getLabels().contains(LABEL_CHANGE)).collect(Collectors.toList());
         return addrs != null && addrs.size() > 0 ? addrs.iterator().next() : null;
@@ -168,6 +175,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public Address findAddress(String rawAddr) {
+        AssertArgument.assertNotNull(rawAddr, "Null rawAddr");
         return getAddressMapping().values().stream().filter(a -> a.getAddress().equals(rawAddr)).findFirst().orElse(null);
     }
 
@@ -179,23 +187,29 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public List<Address> getAddresses(String label) {
         AssertArgument.assertNotNull(label, "Null label");
+        
         List<Address> filtered = getAddressMapping().values().stream()
                 .filter(a -> a.getLabels().contains(label))
                 .collect(Collectors.toList());
+        
         return filtered;
     }
 
     @Override
     public List<Address> getChangeAddresses(String label) {
         AssertArgument.assertNotNull(label, "Null label");
+        
         List<Address> filtered = getAddresses(label).stream()
                 .filter(a -> a.getLabels().contains(LABEL_CHANGE))
                 .collect(Collectors.toList());
+        
         return filtered;
     }
 
     @Override
     public Address getChangeAddress(String label) {
+        AssertArgument.assertNotNull(label, "Null label");
+        
         List<Address> addrs = getChangeAddresses(label);
         if (addrs.isEmpty()) {
             addrs.add(newChangeAddress(label));
@@ -215,10 +229,13 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public BigDecimal getBalance(Address addr) {
+        AssertArgument.assertNotNull(addr, "Null addr");
         return getUTXOAmount(listUnspent(Arrays.asList(addr)));
     }
 
     public static BigDecimal getUTXOAmount(List<UTXO> utxos) {
+        AssertArgument.assertNotNull(utxos, "Null utxos");
+        
         BigDecimal result = BigDecimal.ZERO;
         for (UTXO utxo : utxos) {
             result = result.add(utxo.getAmount());
@@ -227,20 +244,31 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
     
     @Override
-    public String sendToAddress(String toAddress, BigDecimal amount) {
-        return client.sendToAddress(toAddress, amount);
+    public String sendToAddress(String toAddr, BigDecimal amount) {
+        AssertArgument.assertNotNull(toAddr, "Null toAddr");
+        AssertArgument.assertNotNull(amount, "Null amount");
+        
+        return client.sendToAddress(toAddr, amount);
     }
 
     @Override
-    public String sendFromLabel(String label, String toAddress, BigDecimal amount) {
+    public String sendFromLabel(String label, String toAddr, BigDecimal amount) {
+        AssertArgument.assertNotNull(label, "Null label");
+        AssertArgument.assertNotNull(toAddr, "Null toAddr");
+        AssertArgument.assertNotNull(amount, "Null amount");
 
         List<UTXO> utxos = selectUnspent(label, amount);
         String changeAddr = getChangeAddress(label).getAddress();
-        return sendToAddress(toAddress, changeAddr, amount, utxos);
+        
+        return sendToAddress(toAddr, changeAddr, amount, utxos);
     }
 
     @Override
-    public String sendToAddress(String toAddress, String changeAddr, BigDecimal amount, List<UTXO> utxos) {
+    public String sendToAddress(String toAddr, String changeAddr, BigDecimal amount, List<UTXO> utxos) {
+        AssertArgument.assertNotNull(toAddr, "Null toAddr");
+        AssertArgument.assertNotNull(changeAddr, "Null changeAddr");
+        AssertArgument.assertNotNull(amount, "Null amount");
+        AssertArgument.assertNotNull(utxos, "Null utxos");
 
         // Nothing to do
         if (utxos.isEmpty()) return null;
@@ -271,55 +299,49 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         
         Network network = blockchain.getNetwork();
         BigDecimal dustAmount = network.getDustThreshold();
-        BigDecimal feePerKB = network.estimateSmartFee(null);
-        
         BigDecimal utxosAmount = getUTXOAmount(utxos);
-        BigDecimal sendAmount = amount;
-        BigDecimal changeAmount;
-        
-        if (amount != ALL_FUNDS) {
-            changeAmount = utxosAmount.subtract(sendAmount);
-            changeAmount = changeAmount.subtract(feePerKB);
-        } else {
-            sendAmount = utxosAmount.subtract(feePerKB);
-            changeAmount = BigDecimal.ZERO;
-        }
+        BigDecimal sendAmount = utxosAmount.subtract(network.getMinTxFee());
+        BigDecimal changeAmount = BigDecimal.ZERO;
         
         AssertState.assertTrue(sendAmount.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
         if (sendAmount.doubleValue() <= dustAmount.doubleValue()) {
+            LOG.info(String.format("UTXO Amount: %.6f", utxosAmount));
+            LOG.info(String.format("Send Amount: %.6f", sendAmount));
             LOG.warn("Cannot send less than dust amount: {}", sendAmount);
             return null;
         }
         
-        TxBuilder tmpBuilder = new TxBuilder()
+        Tx tmpTx = new TxBuilder()
                 .unspentInputs(utxos)
-                .output(toAddress, sendAmount);
-
-        if (dustAmount.compareTo(changeAmount) < 0) {
-            tmpBuilder.output(changeAddr, changeAmount);
-        }
-        
-        Tx tmpTx = tmpBuilder.build();
+                .output(toAddr, sendAmount)
+                .build();
         
         // Estimate the fees based on Tx size
         byte[] bytes = HexCoder.decode(createRawTx(tmpTx));
         double kbytes = new Double(bytes.length) / 1024;
-        BigDecimal feeAmount = new BigDecimal(String.format("%.6f", feePerKB.doubleValue() * kbytes));
-        feeAmount = feeAmount.max(network.getMinTxFee());
+        BigDecimal feePerKB = network.estimateSmartFee(null);
+        BigDecimal smartFee = new BigDecimal(String.format("%.6f", feePerKB.doubleValue() * kbytes));
+        BigDecimal feeAmount = smartFee.max(network.getMinTxFee());
         
-        LOG.debug("Sending using fee: {}", feeAmount);
+        LOG.info(String.format("Smart Fee: %.6f", smartFee));
+        LOG.info(String.format("MinTx Fee: %.6f", network.getMinTxFee()));
+        LOG.info(String.format("Final Fee: %d bytes => %.6f", bytes.length, feeAmount));
         
-        if (amount != ALL_FUNDS) {
-            changeAmount = utxosAmount.subtract(sendAmount);
-            changeAmount = changeAmount.subtract(feeAmount);
-        } else {
+        if (amount == ALL_FUNDS) {
             sendAmount = utxosAmount.subtract(feeAmount);
             changeAmount = BigDecimal.ZERO;
+        } else {
+            changeAmount = utxosAmount.subtract(sendAmount);
+            changeAmount = changeAmount.subtract(feeAmount);
         }
+        
+        LOG.info(String.format("UTXO Amount: %.6f", utxosAmount));
+        LOG.info(String.format("Send Amount: %.6f", sendAmount));
+        LOG.info(String.format("Change Amount: %.6f", changeAmount));
         
         TxBuilder builder = new TxBuilder()
                 .unspentInputs(utxos)
-                .output(toAddress, sendAmount);
+                .output(toAddr, sendAmount);
 
         if (dustAmount.compareTo(changeAmount) < 0) {
             builder.output(changeAddr, changeAmount);
@@ -336,18 +358,25 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public String sendTx(Tx tx) {
+        AssertArgument.assertNotNull(tx, "Null tx");
+        
         String rawTx = createRawTx(tx);
         String signedTx = signRawTx(rawTx, tx.inputs());
         return sendRawTransaction(signedTx);
     }
 
     public String createRawTx(Tx tx) {
+        AssertArgument.assertNotNull(tx, "Null tx");
+        
         List<BitcoindRpcClient.TxInput> auxIns = adaptInputs(tx.inputs());
         List<BitcoindRpcClient.TxOutput> auxOuts = adaptOutputs(tx.outputs());
         return client.createRawTransaction(auxIns, auxOuts);
     }
 
     public String signRawTx(String rawTx, List<TxInput> inputs) {
+        AssertArgument.assertNotNull(rawTx, "Null rawTx");
+        AssertArgument.assertNotNull(inputs, "Null inputs");
+        
         List<String> privKeys = new ArrayList<>();
         for (TxInput txin : inputs) {
             UTXO utxo = (UTXO) txin;
@@ -359,16 +388,20 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     public String sendRawTransaction(String signedTx) {
+        AssertArgument.assertNotNull(signedTx, "Null signedTx");
         return client.sendRawTransaction(signedTx);
     }
 
     @Override
     public List<UTXO> listUnspent(String label) {
+        AssertArgument.assertNotNull(label, "Null label");
         return listUnspent(getAddresses(label));
     }
 
     @Override
     public List<UTXO> listUnspent(List<Address> addrs) {
+        AssertArgument.assertNotNull(addrs, "Null addrs");
+        
         List<UTXO> result = new ArrayList<>();
         if (!addrs.isEmpty()) {
             List<String> rawAddrs = getRawAddresses(addrs);
@@ -386,6 +419,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public List<UTXO> listLockUnspent(List<Address> addrs) {
+        AssertArgument.assertNotNull(addrs, "Null addrs");
         
         List<UTXO> result = new ArrayList<>();
         List<String> rawAddrs = getRawAddresses(addrs);
@@ -413,11 +447,14 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     
     @Override
     public boolean lockUnspent(UTXO utxo, boolean unlock) {
+        AssertArgument.assertNotNull(utxo, "Null utxo");
         return client.lockUnspent(unlock, utxo.getTxId(), utxo.getVout());
     }
 
     @Override
     public List<UTXO> selectUnspent(String label, BigDecimal amount) {
+        AssertArgument.assertNotNull(label, "Null label");
+        AssertArgument.assertNotNull(amount, "Null amount");
 
         List<Address> addrs = getAddresses(label);
         return selectUnspent(addrs, amount);
@@ -425,6 +462,8 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public List<UTXO> selectUnspent(List<Address> addrs, BigDecimal amount) {
+        AssertArgument.assertNotNull(addrs, "Null addrs");
+        AssertArgument.assertNotNull(amount, "Null amount");
 
         BigDecimal total = BigDecimal.ZERO;
         List<UTXO> result = new ArrayList<>();
@@ -445,6 +484,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
 
     @Override
     public Tx getTransaction(String txId) {
+        AssertArgument.assertNotNull(txId, "Null txId");
         
         Transaction transaction = client.getTransaction(txId);
         
@@ -490,6 +530,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     public Address updateAddress(Address addr, List<String> labels) {
+        AssertArgument.assertNotNull(addr, "Null addr");
+        AssertArgument.assertNotNull(labels, "Null labels");
+        
         String rawAddr = addr.getAddress();
         String combined = concatLabels(labels);
         ((BitcoinJSONRPCClient) client).query("setaccount", rawAddr, combined);
@@ -499,7 +542,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     public String redeemChange(String label, Address toAddr) {
         AssertArgument.assertNotNull(label, "Null label");
         AssertArgument.assertNotNull(toAddr, "Null toAddr");
-
+        
         List<Address> addrs = getChangeAddresses(label);
         List<UTXO> utxos = listUnspent(addrs);
         
@@ -520,9 +563,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
     
     private Map<String, Address> getAddressMapping() {
-        
         Map<String, Address> result = new LinkedHashMap<>();
-        
         for (String acc : client.listAccounts(0, true).keySet()) {
             for (String rawAddr : client.getAddressesByAccount(acc)) {
                 if (isP2PKH(rawAddr)) {

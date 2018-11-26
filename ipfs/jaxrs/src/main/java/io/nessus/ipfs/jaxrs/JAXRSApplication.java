@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
+import io.nessus.Network;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.core.ipfs.ContentManager;
 import io.nessus.core.ipfs.IPFSClient;
@@ -57,6 +58,8 @@ import io.nessus.utils.SystemUtils;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCError;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 @ApplicationPath("/nessus")
 public class JAXRSApplication extends Application {
@@ -93,10 +96,11 @@ public class JAXRSApplication extends Application {
         LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
         LOG.info("IPFS Version: {}",  ipfsClient.version());
 
-        URL blockchinURL = blockchainURL();
+        URL rpcUrl = blockchainURL();
         Class<Blockchain> bcclass = blockchainClass();
-        BlockchainFactory.getBlockchain(blockchinURL, bcclass);
-
+        Blockchain blockchain = BlockchainFactory.getBlockchain(rpcUrl, bcclass);
+        logNetworkVersionFailsafe(blockchain.getNetwork());
+        
         Builder builder = Undertow.builder().addHttpListener(config.port, config.host);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
         undertowServer.deploy(JAXRSApplication.class);
@@ -105,6 +109,21 @@ public class JAXRSApplication extends Application {
         LOG.info("Nessus JAXRS: {}",  jaxrsServer.getRootURL());
 
         return jaxrsServer;
+    }
+
+    public static void logNetworkVersionFailsafe(Network network) {
+        
+        String networkName = network.getClass().getSimpleName();
+        try {
+            Long networkVersion = network.getNetworkInfo().version();
+            LOG.info("{} Version: {}",  networkName, networkVersion);
+        } catch (BitcoinRPCException rte) {
+            BitcoinRPCError rpcError = rte.getRPCError();
+            if (rpcError != null) {
+                String errmsg = rpcError.getMessage();
+                LOG.warn("{} Warning: {}",  networkName, errmsg);
+            }
+        }
     }
 
     public static void serverStop() {

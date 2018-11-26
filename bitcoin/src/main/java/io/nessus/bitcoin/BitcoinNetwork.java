@@ -35,6 +35,11 @@ public class BitcoinNetwork extends AbstractNetwork implements Network {
     }
 
     @Override
+    public String getVersion() {
+        return "" + client.getNetworkInfo().version();
+    }
+
+    @Override
     public BigDecimal estimateSmartFee(Integer blocks) {
         blocks = blocks != null ? blocks : 2;
         

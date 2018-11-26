@@ -48,7 +48,7 @@ public class JAXRSResource implements JAXRSEndpoint {
 
     final ContentManager cntmgr;
     
-    private Long blockchainVersion;
+    private static Long blockchainVersion;
 
     public JAXRSResource() throws IOException {
 
@@ -68,7 +68,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         AssertState.assertNotNull(fhandle.getCid());
 
         SFHandle shandle = new SFHandle(fhandle);
-        LOG.info("/add => {}", shandle);
+        LOG.info("/add {}", shandle);
 
         return shandle;
     }
@@ -82,7 +82,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         PublicKey pubKey = cntmgr.findAddressRegistation(addr);
 
         String encKey = pubKey != null ? Base64.getEncoder().encodeToString(pubKey.getEncoded()) : null;
-        LOG.info("/findkey => {}", encKey);
+        LOG.info("/findkey {} => {}", rawAddr, encKey);
 
         return encKey;
     }
@@ -98,7 +98,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         for (FHandle fhandle : cntmgr.findIPFSContent(owner, timeout)) {
             result.add(new SFHandle(fhandle));
         }
-        LOG.info("/findipfs => {}", result);
+        LOG.info("/findipfs {} => {} files", rawAddr, result.size());
 
         return result;
     }
@@ -114,7 +114,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         for (FHandle fhandle : cntmgr.findLocalContent(owner)) {
             result.add(new SFHandle(fhandle));
         }
-        LOG.info("/findlocal => {}", result);
+        LOG.info("/findlocal {} => {} files", rawAddr, result.size());
 
         return result;
     }
@@ -130,10 +130,10 @@ public class JAXRSResource implements JAXRSEndpoint {
         AssertState.assertTrue(new File(fhandle.getURL().getPath()).exists());
         AssertState.assertNull(fhandle.getCid());
 
-        SFHandle shandle = new SFHandle(fhandle);
-        LOG.info("/get => {}", shandle);
+        SFHandle result = new SFHandle(fhandle);
+        LOG.info("/get {} => {}", cid, result);
 
-        return shandle;
+        return result;
     }
 
     @Override
@@ -143,7 +143,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         
         Address owner = assertWalletAddress(rawAddr);
         InputStream content = cntmgr.getLocalContent(owner, Paths.get(path));
-        LOG.info("/getlocal => {}", content);
+        LOG.info("/getlocal {} {}", rawAddr, path);
 
         return content;
     }
@@ -156,7 +156,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         Address addr = assertWalletAddress(rawAddr);
 
         PublicKey pubKey = cntmgr.registerAddress(addr);
-        LOG.info("/register => {}", pubKey);
+        LOG.info("/register {} => {}", rawAddr, pubKey);
 
         String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
         return encKey;
@@ -168,10 +168,10 @@ public class JAXRSResource implements JAXRSEndpoint {
         assertBlockchainAvailable();
         
         Address owner = assertWalletAddress(rawAddr);
-        boolean deleted = cntmgr.removeLocalContent(owner, Paths.get(path));
-        LOG.info("/rmlocal => {}", deleted);
+        boolean removed = cntmgr.removeLocalContent(owner, Paths.get(path));
+        LOG.info("/rmlocal  {} {} => {}", rawAddr, path, removed);
 
-        return deleted;
+        return removed;
     }
 
     @Override
@@ -186,7 +186,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         AssertState.assertNotNull(fhandle.getCid());
 
         SFHandle shandle = new SFHandle(fhandle);
-        LOG.info("/send => {}", shandle);
+        LOG.info("/send {} => {}", cid, shandle);
 
         return shandle;
     }
@@ -198,7 +198,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         
         Address addr = assertWalletAddress(rawAddr);
         PublicKey pubKey = cntmgr.unregisterAddress(addr);
-        LOG.info("/rmaddr => {}", pubKey);
+        LOG.info("/rmaddr {} => {}", rawAddr, pubKey);
 
         String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
         return encKey;
@@ -212,7 +212,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         Address owner = assertWalletAddress(rawAddr);
         
         List<String> result = cntmgr.removeIPFSContent(owner, cids);
-        LOG.info("/rmipfs => {}", result);
+        LOG.info("/rmipfs {} {} => {}", rawAddr, cids, result);
 
         return result;
     }

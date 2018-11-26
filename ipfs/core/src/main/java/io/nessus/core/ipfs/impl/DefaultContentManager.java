@@ -82,11 +82,11 @@ import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.ECIESCipher;
 import io.nessus.core.ipfs.ContentManager;
 import io.nessus.core.ipfs.FHandle;
+import io.nessus.core.ipfs.FHandle.FHBuilder;
 import io.nessus.core.ipfs.IPFSClient;
 import io.nessus.core.ipfs.IPFSException;
 import io.nessus.core.ipfs.IPFSTimeoutException;
 import io.nessus.core.ipfs.MerkleNotFoundException;
-import io.nessus.core.ipfs.FHandle.FHBuilder;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
@@ -172,10 +172,6 @@ public class DefaultContentManager implements ContentManager {
 
     public Path getRootPath() {
         return rootPath;
-    }
-    
-    public Path getUploadPath() {
-        return rootPath.resolve("upload");
     }
     
     @Override
@@ -270,8 +266,11 @@ public class DefaultContentManager implements ContentManager {
                 .peek(utxo -> wallet.lockUnspent(utxo, true))
                 .collect(Collectors.toList());
 
+        utxos = addMoreUtxoIfRequired(addr, utxos);
+        
         String changeAddr = wallet.getChangeAddress(addr.getLabels().get(0)).getAddress();
         String txId = wallet.sendToAddress(changeAddr, changeAddr, Wallet.ALL_FUNDS, utxos);
+        
         if (txId == null) {
             LOG.warn("Cannot unregister PubKey: {} => {}", addr, pubKey);
             return null;
@@ -281,7 +280,7 @@ public class DefaultContentManager implements ContentManager {
         
         return pubKey;
     }
-    
+
     @Override
     public List<String> removeIPFSContent(Address owner, List<String> cids) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
@@ -303,8 +302,11 @@ public class DefaultContentManager implements ContentManager {
                 .peek(utxo -> wallet.lockUnspent(utxo, true))
                 .collect(Collectors.toList());
                 
+        utxos = addMoreUtxoIfRequired(owner, utxos);
+        
         String changeAddr = wallet.getChangeAddress(owner.getLabels().get(0)).getAddress();
         String txId = wallet.sendToAddress(changeAddr, changeAddr, Wallet.ALL_FUNDS, utxos);
+        
         if (txId == null) {
             LOG.warn("Cannot unregister IPFS: {} => {}", owner, results);
             return results;
@@ -335,13 +337,13 @@ public class DefaultContentManager implements ContentManager {
         PublicKey pubKey = findAddressRegistation(owner);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
-        Path plainPath = assertPlainPath(owner, path);
+        Path plainPath = assertValidPlainPath(owner, path);
         AssertState.assertFalse(plainPath.toFile().exists(), "Local content already exists: " + plainPath);
         
         LOG.info("Start IPFS Add: {} {}", owner, path);
         
         plainPath.getParent().toFile().mkdirs();
-        Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(input, plainPath);
         
         URL furl = plainPath.toFile().toURI().toURL();
         FHandle fhandle = new FHBuilder(owner, path, furl).build();
@@ -359,7 +361,7 @@ public class DefaultContentManager implements ContentManager {
         
         Path cryptPath = getCryptPath(owner).resolve(cid);
         Path tmpPath = Paths.get(fhandle.getURL().getPath());
-        Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
+        Files.move(tmpPath, cryptPath);
         
         furl = cryptPath.toUri().toURL();
         fhandle = new FHBuilder(fhandle)
@@ -441,7 +443,7 @@ public class DefaultContentManager implements ContentManager {
         cid = ipfs.addSingle(tmpPath);
         
         Path cryptPath = getCryptPath(target).resolve(cid);
-        Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
+        Files.move(tmpPath, cryptPath);
 
         URL furl = cryptPath.toUri().toURL();
         fhandle = new FHBuilder(fhandle)
@@ -604,7 +606,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(path, "Null path");
         
-        Path plainPath = assertPlainPath(owner, path);
+        Path plainPath = assertValidPlainPath(owner, path);
         if (!plainPath.toFile().isFile())
             return null;
 
@@ -616,7 +618,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(path, "Null path");
         
-        Path plainPath = assertPlainPath(owner, path);
+        Path plainPath = assertValidPlainPath(owner, path);
         if (plainPath.toFile().isDirectory()) {
             for (String child : plainPath.toFile().list()) {
                 removeLocalContent(owner, path.resolve(child));
@@ -731,6 +733,7 @@ public class DefaultContentManager implements ContentManager {
                     .build();
         }
         
+        // [TODO] Instead of replace, this file op can likely be optimized
         Path cryptPath = getCryptPath(fhandle.getOwner()).resolve(cid);
         Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
 
@@ -994,8 +997,9 @@ public class DefaultContentManager implements ContentManager {
             // Decrypt the file content
             InputStream decrypted = new AESCipher().decrypt(secKey, ins);
             
+            // [TODO] How is it possible that the tmp file already exists?
             Path tmpFile = createTempFile();
-            Files.copy(decrypted, tmpFile, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(decrypted, tmpFile, StandardCopyOption.REPLACE_EXISTING); 
             
             fhres = new FHBuilder(fhandle)
                     .url(tmpFile.toUri().toURL())
@@ -1006,13 +1010,13 @@ public class DefaultContentManager implements ContentManager {
         
         if (storePlain) {
             
-            Path plainPath = assertPlainPath(owner, destPath);
+            Path plainPath = assertValidPlainPath(owner, destPath);
             AssertState.assertFalse(plainPath.toFile().exists(), "Local content already exists: " + plainPath);
             
             plainPath.getParent().toFile().mkdirs();
             
             Path tmpPath = Paths.get(fhres.getURL().getPath());
-            Files.move(tmpPath, plainPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(tmpPath, plainPath);
             
             URL furl = plainPath.toFile().toURI().toURL();
             fhres = new FHBuilder(owner, destPath, furl)
@@ -1046,7 +1050,7 @@ public class DefaultContentManager implements ContentManager {
             if (owner != null && !owner.equals(outAddr)) return null;
             
             pubKey = new PublicECKey(keyBytes); 
-            LOG.info("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), outAddr, pubKey });
+            LOG.debug("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), outAddr, pubKey });
         }
 
         return pubKey;
@@ -1148,6 +1152,32 @@ public class DefaultContentManager implements ContentManager {
         return header;
     }
     
+    // Make sure the total amount in the utxos is > required fees
+    private List<UTXO> addMoreUtxoIfRequired(Address addr, List<UTXO> utxos) {
+        
+        // Nothing to do if amount > min fees 
+        BigDecimal amount = AbstractWallet.getUTXOAmount(utxos);
+        if (amount.compareTo(network.getMinTxFee()) > 0) return utxos;
+        
+        List<UTXO> result = new ArrayList<>(utxos);
+        LOG.info("Utxos amount: {}", amount);
+        
+        List<UTXO> unspent = wallet.listUnspent(Arrays.asList(addr));
+        LOG.info("All unspent: {}", unspent);
+        
+        for (UTXO aux : unspent) {
+            if (!result.contains(aux)) {
+                result.add(aux);
+                amount = AbstractWallet.getUTXOAmount(result);
+                LOG.info("Utxos amount: {}", amount);
+                if (amount.compareTo(network.getMinTxFee()) > 0) 
+                    break;
+            } 
+        }
+        
+        return result;
+    }
+    
     private void assertArgumentHasPrivateKey(Address addr) {
         AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
     }
@@ -1160,7 +1190,8 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(!addr.getLabels().contains(Wallet.LABEL_CHANGE), "Cannot use change address: " + addr);
     }
     
-    private Path assertPlainPath(Address owner, Path path) {
+    private Path assertValidPlainPath(Address owner, Path path) {
+        
         AssertArgument.assertNotNull(path, "Null path");
         AssertArgument.assertTrue(!path.isAbsolute(), "Not a relative path: " + path);
         

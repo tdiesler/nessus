@@ -1,0 +1,88 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="/css/demo.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/themes/default/style.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/jstree.min.js"></script>
+</head>
+
+<body>
+<table>
+<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
+</table>
+
+<h1>Get File</h1>
+
+<table>
+<tr class="gray">
+    <td>$addr.label</td>
+    <td><a href="/portal/plist?addr=$addr.address">$addr.address</a></td>
+    <td>$addr.balance</td>
+</tr>
+</table>
+
+<p>
+
+<table>
+<form action="/portal/fget">
+<input type="hidden" name="addr" value="$file.owner">
+<input type="hidden" name="cid" value="$file.cid">
+<tr>
+<td><input type="text" name="path" value="$file.path"></td><td>&nbsp;</td>
+<td><a href="$gatewayUrl/$file.cid" target="_blank">$file.cid</a></td>
+<td><input type="submit"></td>
+</tr>
+</form>
+</table>
+
+<h2>Local files</h2>
+<div id="treeLocal"></div>
+
+<script>
+
+$(function() {
+  $('#treeLocal').jstree({
+    'core' : $treeDataLocal,
+    'plugins': ["contextmenu"],
+    "contextmenu": {         
+        "show_at_node": false,       
+        "items": treeMenuLocal
+    }
+  });
+});
+
+function treeMenuLocal(node) {
+
+    // Directory items have no context menu
+    if (node.children.length > 0) {
+        return "";
+    }
+    
+    var jstree = $('#treeLocal').jstree(true);
+    var data = jstree.get_selected(true)[0].data;
+    console.log("treeLocal: " + data);
+    
+    var items = {
+        "show": {
+            "label": "show",
+            "action": function (obj) { 
+                var href = "/portal/fshow?addr=" + data.addr + "&path=" + data.path;
+                window.open(href); 
+                }
+        },
+        "remove": {
+            "label": "remove",
+            "action": function (obj) { 
+                var href = "/portal/rmlocal?addr=" + data.addr + "&path=" + data.path;
+                window.open(href, "_self"); 
+            }
+        }
+    }
+
+    return items;
+}
+</script>
+
+</body>
+</html>

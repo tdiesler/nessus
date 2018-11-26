@@ -2,6 +2,9 @@
 
 <head>
 <link rel="stylesheet" href="/css/demo.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/themes/default/style.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/jstree.min.js"></script>
 </head>
 
 <body>
@@ -10,7 +13,7 @@
 </table>
 
 
-<h1>Files</h1>
+<h1>List Files</h1>
 
 <p/>
 
@@ -28,44 +31,111 @@
 <input type="submit" value="Add Content">
 </form>
 
-#if ( ! $files.empty )
+<h2>IPFS files</h2>
+<div id="treeIpfs"></div>
 
-    <h2>List of IPFS files</h2>
+<h2>Local files</h2>
+<div id="treeLocal"></div>
 
-    <table>
-    #foreach( $file in $files )
-        #if ( $file.cid && $file.available )
-            <tr>
-            <form id="form-$file.cid" action="/portal/fget">
-            <input type="hidden" name="addr" value="$addr.address">
-            <input type="hidden" name="cid" value="$file.cid">
-            <td><input type="text" name="path" value="$file.path"></td>
-            <td><a href="$gatewayUrl/$file.cid" target="_blank">$file.cid</a></td>
-            <td><a href="javascript:{}" onclick="document.getElementById('form-$file.cid').submit()">get</a></td>
-            <td><a href="/portal/psend?addr=$addr.address&path=$file.path&cid=$file.cid">send</a></td>
-            <td><a href="/portal/rmipfs?addr=$addr.address&cids=$file.cid">remove</a></td>
-            </form>
-            </tr>
-        #end
-    #end
-    </table>
+<script>
 
-    <h2>List of local files</h2>
+$(function() {
 
-    <table>
-    #foreach( $file in $files )
-        #if ( ! $file.cid && $file.available )
-            <tr>
-            <td>$file.path</td>
-            <td>&nbsp;</td>
-            <td><a href="/portal/fshow?addr=$addr.address&path=$file.path">show</a></td>
-            <td><a href="/portal/rmlocal?addr=$addr.address&path=$file.path">delete</a></td>
-            </tr>
-        #end
-    #end
-    </table>
-#end
+  $('#treeIpfs').jstree({
+    'core' : $treeDataIpfs,
+    'plugins': ["contextmenu"],
+    "contextmenu": {         
+        "show_at_node": false,       
+        "items": treeMenuIpfs
+    }
+  });
 
+  $('#treeLocal').jstree({
+    'core' : $treeDataLocal,
+    'plugins': ["contextmenu"],
+    "contextmenu": {  
+        "show_at_node": false,       
+        "items": treeMenuLocal
+    }
+  });
+});
+
+function treeMenuIpfs(node) {
+
+    // Directory items have no context menu
+    if (node.children.length > 0) {
+        return "";
+    }
+    
+    var jstree = $('#treeIpfs').jstree(true);
+    var data = jstree.get_selected(true)[0].data;
+    console.log("treeIpfs: " + data);
+        
+    var items = {
+        "show": {
+            "label": "show",
+            "action": function (obj) { 
+                var href = "$gatewayUrl/" + data.cid;
+                window.open(href); 
+                }
+        },
+        "get": {
+            "label": "get",
+            "action": function (obj) { 
+                var href = "/portal/pget?addr=" + data.addr + "&path=" + data.path + "&cid=" + data.cid;
+                window.open(href, "_self"); 
+                }
+        },
+        "send": {
+            "label": "send",
+            "action": function (obj) { 
+                var href = "/portal/psend?addr=" + data.addr + "&path=" + data.path + "&cid=" + data.cid;
+                window.open(href, "_self"); 
+                }
+        },
+        "remove": {
+            "label": "remove",
+            "action": function (obj) { 
+                var href = "/portal/rmipfs?addr=" + data.addr + "&cids=" + data.cid;
+                window.open(href, "_self"); 
+            }
+        }
+    }
+
+    return items;
+}
+
+function treeMenuLocal(node) {
+
+    // Directory items have no context menu
+    if (node.children.length > 0) {
+        return "";
+    }
+    
+    var jstree = $('#treeLocal').jstree(true);
+    var data = jstree.get_selected(true)[0].data;
+    console.log("treeLocal: " + data);
+    
+    var items = {
+        "show": {
+            "label": "show",
+            "action": function (obj) { 
+                var href = "/portal/fshow?addr=" + data.addr + "&path=" + data.path;
+                window.open(href); 
+                }
+        },
+        "remove": {
+            "label": "remove",
+            "action": function (obj) { 
+                var href = "/portal/rmlocal?addr=" + data.addr + "&path=" + data.path;
+                window.open(href, "_self"); 
+            }
+        }
+    }
+
+    return items;
+}
+</script>
 
 </body>
 </html>

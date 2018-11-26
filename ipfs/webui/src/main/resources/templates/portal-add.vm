@@ -49,7 +49,7 @@
     <td>
         <form action="/portal/addurl">
         <input name="addr" type="hidden" value="$addr.address">
-        <input name="path" type="text" size="80" value="$addr.label/README.md">
+        <input name="path" type="text" size="80" value="$addr.label/userfile.txt">
     </td>
 </tr>
 <tr>

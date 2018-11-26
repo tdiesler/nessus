@@ -84,6 +84,7 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
         // Redeem all locked UTXOs
         List<UTXO> utxos = wallet.listUnspent(label);
         String changeAddr = wallet.getChangeAddress(label).getAddress();
+        
         wallet.sendToAddress(addr.getAddress(), changeAddr, Wallet.ALL_FUNDS, utxos);
     }
 }
