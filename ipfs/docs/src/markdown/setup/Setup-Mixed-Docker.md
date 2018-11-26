@@ -68,7 +68,7 @@ To start the Nessus bridge in Docker, you can run ...
         --env BLOCKCHAIN_JSONRPC_PORT=18332 \
         --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
         --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
-        --memory=100m --memory-swap=2g \
+        --memory=50m --memory-swap=2g \
         --name jaxrs \
         nessusio/ipfs-jaxrs
 
@@ -99,7 +99,7 @@ In this setup the Nessus UI is optional as well. Still, lets try to connect it t
         --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
         --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
         --env NESSUS_WEBUI_LABEL=$LABEL \
-        --memory=100m --memory-swap=2g \
+        --memory=50m --memory-swap=2g \
         --name webui \
         nessusio/ipfs-webui
 

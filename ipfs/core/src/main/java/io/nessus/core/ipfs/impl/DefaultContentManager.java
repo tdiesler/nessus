@@ -138,7 +138,7 @@ public class DefaultContentManager implements ContentManager {
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
         
-        rootPath = Paths.get(System.getProperty("user.home"), ".fman");
+        rootPath = Paths.get(System.getProperty("user.home"), ".nessus");
         rootPath.toFile().mkdirs();
         
         fhid = getFHeaderId();
@@ -172,6 +172,10 @@ public class DefaultContentManager implements ContentManager {
 
     public Path getRootPath() {
         return rootPath;
+    }
+    
+    public Path getUploadPath() {
+        return rootPath.resolve("upload");
     }
     
     @Override

@@ -5,7 +5,7 @@ In its initial state we looked at the combination of Blockchain and IPFS.
 
 ![preview](ipfs/docs/src/markdown/trail/img/bob-list-02-small.png)
 
-A full walk through of the Blockchain + IPFS demo is here: [QmVMzF1RUFUyFtQfJNLCP6nsnb96fBTJEzA6DGHMMEBF7h](https://ipfs.io/ipfs/QmVMzF1RUFUyFtQfJNLCP6nsnb96fBTJEzA6DGHMMEBF7h)
+A full walk through of the Blockchain + IPFS demo is here: [Qme7cqntW7Wq8V1hiaokDW62xZHh1G4EQkseXQtaj2NeXU](https://ipfs.io/ipfs/Qme7cqntW7Wq8V1hiaokDW62xZHh1G4EQkseXQtaj2NeXU)
 
 ### The Nessus Docker images
 
@@ -27,10 +27,10 @@ Here is a quickstart to get the whole system running ...
     
     docker volume rm -f tnblocks
     docker run --rm -v tnblocks:/var/lib/bitcoind nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
-    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v tnblocks:/var/lib/bitcoind --memory=300m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=720
+    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v tnblocks:/var/lib/bitcoind --memory=500m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=1024
     docker run --detach --name ipfs -p 4001:4001 -p 8080:8080 -e GATEWAYIP=$GATEWAYIP --memory=300m --memory-swap=2g nessusio/ipfs
-    docker run --detach --name jaxrs --link btcd:blockchain --link ipfs:ipfs --memory=100m --memory-swap=2g nessusio/ipfs-jaxrs
-    docker run --detach --name webui -p 8082:8082 --link btcd:blockchain --link ipfs:ipfs --link jaxrs:jaxrs --memory=100m --memory-swap=2g nessusio/ipfs-webui
+    docker run --detach --name jaxrs --link btcd:blockchain --link ipfs:ipfs --privileged -v ~/.nessus/plain:/root/.nessus/plain --memory=50m --memory-swap=2g nessusio/ipfs-jaxrs
+    docker run --detach --name webui -p 8082:8082 --link btcd:blockchain --link ipfs:ipfs --link jaxrs:jaxrs --memory=50m --memory-swap=2g nessusio/ipfs-webui
 
 It may take a while for the blocks to get loaded from the volume. You would want to see an up to date [blockcount](https://live.blockcypher.com/btc-testnet).
 

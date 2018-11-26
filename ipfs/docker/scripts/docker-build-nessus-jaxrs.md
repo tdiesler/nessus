@@ -40,7 +40,8 @@ docker rm -f $CNAME
 docker run --detach \
     --link ipfs:ipfs \
     --link btcd:blockchain \
-    --memory=100m --memory-swap=2g \
+    --privileged  -v ~/.nessus/plain:/root/.nessus/plain \
+    --memory=50m --memory-swap=2g \
     --name $CNAME \
     nessusio/ipfs-jaxrs
 
@@ -64,13 +65,15 @@ export LOCALIP=192.168.178.20
 
 docker rm -f $CNAME
 docker run --detach \
+    -p 8081:8081 \
+    --privileged  -v ~/.nessus/plain:/root/.nessus/plain \
     --env IPFS_JSONRPC_ADDR=$LOCALIP \
     --env IPFS_JSONRPC_PORT=5001 \
     --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \
     --env BLOCKCHAIN_JSONRPC_PORT=18332 \
     --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
-    --memory=100m --memory-swap=2g \
+    --memory=50m --memory-swap=2g \
     --name $CNAME \
     nessusio/ipfs-jaxrs
     

@@ -47,7 +47,7 @@
                                 <image>
                                     <name>nessusio/ipfs-jaxrs</name>
                                     <build>
-                                        <dockerFileDir>${basedir}/ipfs-jaxrs</dockerFileDir>
+                                        <dockerFileDir>${basedir}/scripts/ipfs-jaxrs</dockerFileDir>
                                         <tags>
                                             <tag>latest</tag>
                                             <tag>${project.version}</tag>
@@ -82,7 +82,7 @@
                                 <image>
                                     <name>nessusio/ipfs-webui</name>
                                     <build>
-                                        <dockerFileDir>${basedir}/ipfs-webui</dockerFileDir>
+                                        <dockerFileDir>${basedir}/scripts/ipfs-webui</dockerFileDir>
                                         <tags>
                                             <tag>latest</tag>
                                             <tag>${project.version}</tag>
