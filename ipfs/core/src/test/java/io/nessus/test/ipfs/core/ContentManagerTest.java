@@ -301,7 +301,29 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         } catch (IllegalStateException ex) {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
         }
+    }
 
+
+    @Test
+    public void recursiveRemove() throws Exception {
+
+        Path path = Paths.get("remove", "file01.txt");
+        cntmgr.removeLocalContent(addrBob, path);
+        
+        InputStream input = new ByteArrayInputStream("some text".getBytes());
+        cntmgr.add(addrBob, input, path).getCid();
+
+        // Verify local content
+        Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
+        Assert.assertEquals("some text", new BufferedReader(rd).readLine());
+        
+        Path fullPath = cntmgr.getPlainPath(addrBob).resolve(path);
+        Assert.assertTrue(fullPath.toFile().isFile());
+        
+        Assert.assertTrue(cntmgr.removeLocalContent(addrBob, path));
+        
+        Assert.assertFalse(fullPath.toFile().exists());
+        Assert.assertFalse(fullPath.getParent().toFile().exists());
     }
 }
 

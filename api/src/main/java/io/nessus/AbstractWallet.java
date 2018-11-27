@@ -305,8 +305,8 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         
         AssertState.assertTrue(sendAmount.doubleValue() <= utxosAmount.doubleValue(), "Cannot find sufficient funds");
         if (sendAmount.doubleValue() <= dustAmount.doubleValue()) {
-            LOG.info(String.format("UTXO Amount: %.6f", utxosAmount));
-            LOG.info(String.format("Send Amount: %.6f", sendAmount));
+            LOG.debug(String.format("UTXO Amount: %.6f", utxosAmount));
+            LOG.debug(String.format("Send Amount: %.6f", sendAmount));
             LOG.warn("Cannot send less than dust amount: {}", sendAmount);
             return null;
         }
@@ -323,9 +323,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         BigDecimal smartFee = new BigDecimal(String.format("%.6f", feePerKB.doubleValue() * kbytes));
         BigDecimal feeAmount = smartFee.max(network.getMinTxFee());
         
-        LOG.info(String.format("Smart Fee: %.6f", smartFee));
-        LOG.info(String.format("MinTx Fee: %.6f", network.getMinTxFee()));
-        LOG.info(String.format("Final Fee: %d bytes => %.6f", bytes.length, feeAmount));
+        LOG.debug(String.format("Smart Fee: %.6f", smartFee));
+        LOG.debug(String.format("MinTx Fee: %.6f", network.getMinTxFee()));
+        LOG.debug(String.format("Final Fee: %d bytes => %.6f", bytes.length, feeAmount));
         
         if (amount == ALL_FUNDS) {
             sendAmount = utxosAmount.subtract(feeAmount);
@@ -335,9 +335,9 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             changeAmount = changeAmount.subtract(feeAmount);
         }
         
-        LOG.info(String.format("UTXO Amount: %.6f", utxosAmount));
-        LOG.info(String.format("Send Amount: %.6f", sendAmount));
-        LOG.info(String.format("Change Amount: %.6f", changeAmount));
+        LOG.debug(String.format("UTXO Amount: %.6f", utxosAmount));
+        LOG.debug(String.format("Send Amount: %.6f", sendAmount));
+        LOG.debug(String.format("Change Amount: %.6f", changeAmount));
         
         TxBuilder builder = new TxBuilder()
                 .unspentInputs(utxos)

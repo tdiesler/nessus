@@ -35,10 +35,13 @@ import java.io.Writer;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
@@ -619,17 +622,42 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(path, "Null path");
         
         Path plainPath = assertValidPlainPath(owner, path);
-        if (plainPath.toFile().isDirectory()) {
-            for (String child : plainPath.toFile().list()) {
-                removeLocalContent(owner, path.resolve(child));
+        if (!plainPath.toFile().exists()) return true;
+        
+        return removeLocalContentInternal(owner, path);
+    }
+
+    private boolean removeLocalContentInternal(Address owner, Path path) throws IOException {
+        
+        Path plainPath = assertValidPlainPath(owner, path);
+        Files.walkFileTree(plainPath, new SimpleFileVisitor<Path>() {
+            
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                String[] list = dir.toFile().list();
+                if (list != null && list.length == 0) { 
+                    Files.delete(dir);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+        
+        Path relParent = path.getParent();
+        if (relParent != null) {
+            Path plainParent = assertValidPlainPath(owner, relParent);
+            String[] list = plainParent.toFile().list();
+            if (list != null && list.length == 0) { 
+                removeLocalContentInternal(owner, relParent);
             }
         }
         
-        if (plainPath.toFile().isFile()) {
-            return plainPath.toFile().delete();
-        }
-        
-        return false;
+        return !path.toFile().exists();
     }
 
     protected BitcoindRpcClient getRpcClient() {

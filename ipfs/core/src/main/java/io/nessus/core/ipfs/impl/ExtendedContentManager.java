@@ -43,6 +43,14 @@ public class ExtendedContentManager extends DefaultContentManager {
         super(ipfs, blockchain, timeout, attepts, threads);
     }
 
+    public Path getPlainPath(Address owner) {
+        return super.getPlainPath(owner);
+    }
+
+    public Path getCryptPath(Address owner) {
+        return super.getCryptPath(owner);
+    }
+
     @Override
     public void clearFileCache() {
         super.clearFileCache();

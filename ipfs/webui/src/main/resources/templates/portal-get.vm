@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/themes/default/style.min.css">
 <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/jstree.min.js"></script>
+<script src="/js/demo.js"></script>
 </head>
 
 <body>
@@ -40,7 +41,6 @@
 <div id="treeLocal"></div>
 
 <script>
-
 $(function() {
   $('#treeLocal').jstree({
     'core' : $treeDataLocal,
@@ -51,37 +51,6 @@ $(function() {
     }
   });
 });
-
-function treeMenuLocal(node) {
-
-    // Directory items have no context menu
-    if (node.children.length > 0) {
-        return "";
-    }
-    
-    var jstree = $('#treeLocal').jstree(true);
-    var data = jstree.get_selected(true)[0].data;
-    console.log("treeLocal: " + data);
-    
-    var items = {
-        "show": {
-            "label": "show",
-            "action": function (obj) { 
-                var href = "/portal/fshow?addr=" + data.addr + "&path=" + data.path;
-                window.open(href); 
-                }
-        },
-        "remove": {
-            "label": "remove",
-            "action": function (obj) { 
-                var href = "/portal/rmlocal?addr=" + data.addr + "&path=" + data.path;
-                window.open(href, "_self"); 
-            }
-        }
-    }
-
-    return items;
-}
 </script>
 
 </body>

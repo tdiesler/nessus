@@ -178,10 +178,6 @@ public class ContentHandler implements HttpHandler {
             actAssignLabel(exchange, context);
         }
 
-        else if (relPath.startsWith("/portal/rmlocal")) {
-            actRemoveLocalContent(exchange, context);
-        }
-
         else if (relPath.startsWith("/portal/fget")) {
             actFileGet(exchange, context);
         }
@@ -222,16 +218,20 @@ public class ContentHandler implements HttpHandler {
             actRegisterAddress(exchange, context);
         }
 
-        else if (relPath.startsWith("/portal/sendcid")) {
-            actSend(exchange, context);
+        else if (relPath.startsWith("/portal/rmaddr")) {
+            actUnregisterAddress(exchange, context);
         }
 
-        else if (relPath.startsWith("/portal/unregaddr")) {
-            actUnregisterAddress(exchange, context);
+        else if (relPath.startsWith("/portal/rmlocal")) {
+            actRemoveLocalContent(exchange, context);
         }
 
         else if (relPath.startsWith("/portal/rmipfs")) {
             actRemoveIPFSContent(exchange, context);
+        }
+
+        else if (relPath.startsWith("/portal/sendcid")) {
+            actSend(exchange, context);
         }
 
         else if (tmplPath == null) {
