@@ -52,7 +52,7 @@ public class TreeData {
     public static class TreeNode {
         
         final String text;
-        final Map<String, String> data = new LinkedHashMap<>();
+        final Map<String, Object> data = new LinkedHashMap<>();
         final List<TreeNode> children = new ArrayList<>();
 
         public TreeNode(String text) {
@@ -93,7 +93,7 @@ public class TreeData {
         }
 
         @JsonInclude(Include.NON_EMPTY)
-        public Map<String, String> getData() {
+        public Map<String, Object> getData() {
             return data;
         }
     }

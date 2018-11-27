@@ -33,7 +33,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedHashMap;
@@ -426,7 +425,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
 
         Address addr = wallet.findAddress(rawAddr);
-        AddressDTO paddr = portalAddress(addr, true);
+        AddressDTO paddr = addressDTO(addr, true);
         context.put("addr", paddr);
 
         return "templates/portal-add.vm";
@@ -440,13 +439,13 @@ public class ContentHandler implements HttpHandler {
         String cid = qparams.get("cid").getFirst();
 
         Address addr = wallet.findAddress(rawAddr);
-        AddressDTO paddr = portalAddress(addr, true);
+        AddressDTO paddr = addressDTO(addr, true);
         SFHandle fhandle = new SFHandle(cid, rawAddr, path, true, true);
         context.put("gatewayUrl", gatewayUrl);
         context.put("addr", paddr);
         context.put("file", fhandle);
 
-        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(addr.getAddress())));
+        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(addr.getAddress()), null));
         
         return "templates/portal-get.vm";
     }
@@ -458,39 +457,49 @@ public class ContentHandler implements HttpHandler {
 
         Address addr = wallet.findAddress(rawAddr);
         String pubKey = findAddressRegistation(rawAddr);
-        AddressDTO paddr = portalAddress(addr, pubKey != null);
+        AddressDTO paddr = addressDTO(addr, pubKey != null);
+        
         context.put("addr", paddr);
         context.put("gatewayUrl", gatewayUrl);
 
-        context.put("treeDataIpfs", getTreeData(addr, client.findIPFSContent(rawAddr, null)));
-        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(addr.getAddress())));
+        List<AddressDTO> toaddrs = findAddresses(true, true).stream()
+                .filter(a -> !addr.equals(a.addr))
+                .collect(Collectors.toList());
+
+        Boolean nosend = toaddrs.isEmpty();
+        
+        context.put("treeDataIpfs", getTreeData(addr, client.findIPFSContent(rawAddr, null), nosend));
+        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(rawAddr), nosend));
         
         return "templates/portal-list.vm";
     }
 
-    private TreeData getTreeData(Address addr, List<SFHandle> fhandles) {
+    private TreeData getTreeData(Address addr, List<SFHandle> fhandles, Boolean nosend) {
         
         TreeData tree = new TreeData();
         Map<Path, TreeNode> nodes = new LinkedHashMap<>();
         
         for (SFHandle fh : fhandles) {
             Path path = Paths.get(fh.getPath());
-            createTreeNode(tree, addr, path, fh.getCid(), nodes);
+            createTreeNode(tree, addr, path, fh.getCid(), nosend, nodes);
         }
         
         return tree;
     }
 
-    private TreeNode createTreeNode(TreeData tree, Address addr, Path path, String cid, Map<Path, TreeNode> nodes) {
+    private TreeNode createTreeNode(TreeData tree, Address addr, Path path, String cid, Boolean nosend, Map<Path, TreeNode> nodes) {
         
         Path parent = path.getParent();
         TreeNode parentNode = parent != null ? nodes.get(parent) : null;
         
+        // Recursively create the parent node 
         if (parent != null && parentNode == null) {
-            parentNode = createTreeNode(tree, addr, parent, null, nodes);
+            parentNode = createTreeNode(tree, addr, parent, null, nosend, nodes);
         }
         
         TreeNode node = new TreeNode(addr, path, cid);
+        if (nosend != null) node.getData().put("nosend", nosend);
+        if (cid != null) node.getData().put("gatewayUrl", gatewayUrl);
         nodes.put(path, node);
         
         if (parentNode == null) {
@@ -508,7 +517,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
 
         Address addr = wallet.findAddress(rawAddr);
-        AddressDTO paddr = portalAddress(addr, false);
+        AddressDTO paddr = addressDTO(addr, false);
         context.put("addr", paddr);
 
         return "templates/portal-qr.vm";
@@ -522,18 +531,14 @@ public class ContentHandler implements HttpHandler {
         String cid = qparams.get("cid").getFirst();
 
         Address addr = wallet.findAddress(rawAddr);
-        AddressDTO paddr = portalAddress(addr, true);
 
-        List<AddressDTO> toaddrs = new ArrayList<>();
-        for (Address aux : getAddressWithLabel(true, true)) {
-            if (!addr.equals(aux)) {
-                toaddrs.add(portalAddress(aux, true));
-            }
-        }
+        List<AddressDTO> toaddrs = findAddresses(true, true).stream()
+                .filter(a -> !addr.equals(a.addr))
+                .collect(Collectors.toList());
 
         context.put("gatewayUrl", gatewayUrl);
         context.put("toaddrs", toaddrs);
-        context.put("addr", paddr);
+        context.put("addr", addressDTO(addr, true));
         context.put("file", new SFHandle(cid, rawAddr, relPath, true, true));
 
         return "templates/portal-send.vm";
@@ -541,36 +546,24 @@ public class ContentHandler implements HttpHandler {
 
     private String pageHome(VelocityContext context) throws Exception {
 
-        List<AddressDTO> addrs = new ArrayList<>();
-
-        for (Address addr : getAddressWithLabel(false, false)) {
-            BigDecimal balance = wallet.getBalance(addr);
-            String pubKey = findAddressRegistation(addr.getAddress());
-            addrs.add(new AddressDTO(addr, balance, pubKey != null));
-        }
+        List<AddressDTO> addrs = findAddresses(false, false);
 
         String envLabel = SystemUtils.getenv(WebUI.ENV_NESSUS_WEBUI_LABEL, "Bob");
-
         context.put("envLabel", envLabel);
         context.put("addrs", addrs);
 
         return "templates/portal-home.vm";
     }
 
-    private List<Address> getAddressWithLabel(boolean requireLabel, boolean requireRegistered) {
+    private List<AddressDTO> findAddresses(boolean requireLabel, boolean requireRegistered) {
 
-        // Get the list of non-change addresses
-        List<Address> addrs = wallet.getAddresses().stream()
+        List<AddressDTO> addrs = wallet.getAddresses().stream()
                 .filter(a -> !a.getLabels().contains(Wallet.LABEL_CHANGE))
                 .filter(a -> !requireLabel || !a.getLabels().isEmpty())
+                .map(a -> addressDTO(a, findAddressRegistation(a.getAddress()) != null))
+                .filter(a -> !requireRegistered || a.registered)
                 .collect(Collectors.toList());
 
-        if (requireRegistered) {
-            addrs = addrs.stream()
-                .filter(a -> findAddressRegistation(a.getAddress()) != null)
-                .collect(Collectors.toList());
-        }
-        
         return addrs;
     }
 
@@ -583,7 +576,7 @@ public class ContentHandler implements HttpHandler {
         handler.handleRequest(exchange);
     }
 
-    private AddressDTO portalAddress(Address addr, boolean registered) {
+    private AddressDTO addressDTO(Address addr, boolean registered) {
         BigDecimal balance = wallet.getBalance(addr);
         return new AddressDTO(addr, balance, registered);
     }

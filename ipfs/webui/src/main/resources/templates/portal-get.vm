@@ -46,7 +46,6 @@ $(function() {
     'core' : $treeDataLocal,
     'plugins': ["contextmenu"],
     "contextmenu": {         
-        "show_at_node": false,       
         "items": treeMenuLocal
     }
   });

@@ -45,7 +45,6 @@ $(function() {
     'core' : $treeDataIpfs,
     'plugins': ["contextmenu"],
     "contextmenu": {         
-        "show_at_node": false,       
         "items": treeMenuIpfs
     }
   });
@@ -54,7 +53,6 @@ $(function() {
     'core' : $treeDataLocal,
     'plugins': ["contextmenu"],
     "contextmenu": {  
-        "show_at_node": false,       
         "items": treeMenuLocal
     }
   });

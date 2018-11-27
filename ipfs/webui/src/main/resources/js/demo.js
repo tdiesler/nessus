@@ -16,7 +16,7 @@ function treeMenuIpfs(node) {
         "show": {
             "label": "show",
             "action": function (obj) { 
-                var href = "$gatewayUrl/" + data.cid;
+                var href = data.gatewayUrl + "/" + data.cid;
                 window.open(href); 
                 }
         },
@@ -29,6 +29,7 @@ function treeMenuIpfs(node) {
         },
         "send": {
             "label": "send",
+            "_disabled": data.nosend,
             "action": function (obj) { 
                 var href = "/portal/psend?addr=" + data.addr + "&path=" + data.path + "&cid=" + data.cid;
                 window.open(href, "_self"); 
