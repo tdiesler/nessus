@@ -126,7 +126,7 @@ public class DefaultContentManager implements ContentManager {
     private final IPFSFileCache filecache = new IPFSFileCache();
     
     public DefaultContentManager(Config config) {
-        this.config = config.makeImutable();
+        this.config = config.makeImmutable();
 
         ipfsClient = config.getIpfsClient();
         blockchain = config.getBlockchain();
@@ -136,7 +136,7 @@ public class DefaultContentManager implements ContentManager {
         fhid = getFHeaderId();
         bcdata = new BCData(fhid);
         
-        LOG.info("{}", config);
+        LOG.info("{}{}", getClass().getSimpleName(), config);
         
         int ipfsThreads = config.getIpfsThreads();
         executorService = Executors.newFixedThreadPool(ipfsThreads, new ThreadFactory() {
@@ -318,13 +318,14 @@ public class DefaultContentManager implements ContentManager {
         PublicKey pubKey = findAddressRegistation(owner);
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
+        boolean replaceExisting = config.isReplaceExisting();
         Path plainPath = assertValidPlainPath(owner, path);
-        AssertState.assertFalse(plainPath.toFile().exists(), "Local content already exists: " + plainPath);
+        AssertState.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + plainPath);
         
         LOG.info("Start IPFS Add: {} {}", owner, path);
         
         plainPath.getParent().toFile().mkdirs();
-        Files.copy(input, plainPath);
+        Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
         
         URL furl = plainPath.toFile().toURI().toURL();
         FHandle fhandle = new FHBuilder(owner, path, furl).build();
@@ -1022,13 +1023,14 @@ public class DefaultContentManager implements ContentManager {
         
         if (storePlain) {
             
+            boolean replaceExisting = config.isReplaceExisting();
             Path plainPath = assertValidPlainPath(owner, destPath);
-            AssertState.assertFalse(plainPath.toFile().exists(), "Local content already exists: " + plainPath);
+            AssertState.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + plainPath);
             
             plainPath.getParent().toFile().mkdirs();
             
             Path tmpPath = Paths.get(fhres.getURL().getPath());
-            Files.move(tmpPath, plainPath);
+            Files.move(tmpPath, plainPath, StandardCopyOption.REPLACE_EXISTING);
             
             URL furl = plainPath.toFile().toURI().toURL();
             fhres = new FHBuilder(owner, destPath, furl)

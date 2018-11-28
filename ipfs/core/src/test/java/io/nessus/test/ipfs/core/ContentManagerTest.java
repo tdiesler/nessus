@@ -41,6 +41,7 @@ import org.junit.Test;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.core.ipfs.FHandle;
+import io.nessus.core.ipfs.ContentManager.Config;
 import io.nessus.core.ipfs.impl.DefaultContentManager.FHeader;
 import io.nessus.utils.TimeUtils;
 
@@ -186,7 +187,9 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void findTiming() throws Exception {
 
-        createContentManager(timeout, attempts);
+        createContentManager(new Config(blockchain, ipfsClient)
+                .ipfsTimeout(timeout)
+                .ipfsAttempts(attempts));
         
         Date start = new Date();
         addContent(addrBob, getTestPath(100), "test100_" + start.getTime());
@@ -201,7 +204,9 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void spendFileRegs() throws Exception {
 
-        createContentManager(timeout, attempts);
+        createContentManager(new Config(blockchain, ipfsClient)
+                .ipfsTimeout(timeout)
+                .ipfsAttempts(attempts));
         
         List<FHandle> fhandles = cntmgr.findIPFSContent(addrBob, null);
         if (fhandles.isEmpty()) {
@@ -228,7 +233,9 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void findNonExisting() throws Exception {
 
-        createContentManager(timeout, attempts);
+        createContentManager(new Config(blockchain, ipfsClient)
+                .ipfsTimeout(timeout)
+                .ipfsAttempts(attempts));
         
         List<FHandle> fhandles = cntmgr.findIPFSContent(addrBob, null);
         if (fhandles.isEmpty()) {
@@ -243,7 +250,9 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         
         // SET A BREAKPOINT HERE AND CONTINUE WITH A NEW IPFS INSTANCE
         
-        createContentManager(timeout, attempts);
+        createContentManager(new Config(blockchain, ipfsClient)
+                .ipfsTimeout(timeout)
+                .ipfsAttempts(attempts));
         
         fhandles = cntmgr.findIPFSContent(addrBob, null);
         fhandles.forEach(fh -> LOG.info("{}", fh));
@@ -301,6 +310,16 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         } catch (IllegalStateException ex) {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
         }
+        
+        createContentManager(new Config(blockchain, ipfsClient).replaceExisting());
+
+        // Verify that we now can get to an existing path
+        fhres = cntmgr.get(addrBob, cid, path, null);
+        Assert.assertTrue(fhres.isAvailable());
+        
+        // Verify local content
+        rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
+        Assert.assertEquals("some text", new BufferedReader(rd).readLine());
     }
 
 

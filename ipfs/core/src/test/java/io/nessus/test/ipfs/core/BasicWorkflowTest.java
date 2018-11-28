@@ -36,6 +36,7 @@ import org.junit.Test;
 
 import io.nessus.Wallet.Address;
 import io.nessus.core.ipfs.FHandle;
+import io.nessus.core.ipfs.ContentManager.Config;
 
 public class BasicWorkflowTest extends AbstractWorkflowTest {
 
@@ -45,7 +46,9 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
     @Test
     public void basicWorkflow() throws Exception {
         
-        createContentManager(timeout, attempts);
+        createContentManager(new Config(blockchain, ipfsClient)
+                .ipfsTimeout(timeout)
+                .ipfsAttempts(attempts));
         
         // Register the public encryption keys
         

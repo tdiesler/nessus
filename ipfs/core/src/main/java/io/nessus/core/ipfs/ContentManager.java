@@ -118,6 +118,7 @@ public interface ContentManager {
         private int ipfsAttempts = DefaultContentManager.DEFAULT_IPFS_ATTEMPTS;
         private int ipfsThreads = DefaultContentManager.DEFAULT_IPFS_THREADS;
         private Path rootPath = Paths.get(System.getProperty("user.home"), ".nessus");
+        private boolean replaceExisting;
         
         private boolean mutable = true;
         
@@ -138,14 +139,26 @@ public interface ContentManager {
             return ipfsTimeout;
         }
 
+        public int getIpfsAttempts() {
+            return ipfsAttempts;
+        }
+
+        public int getIpfsThreads() {
+            return ipfsThreads;
+        }
+
+        public Path getRootPath() {
+            return rootPath;
+        }
+
+        public boolean isReplaceExisting() {
+            return replaceExisting;
+        }
+
         public Config ipfsTimeout(long ipfsTimeout) {
             assertMutable();
             this.ipfsTimeout = ipfsTimeout;
             return this;
-        }
-
-        public int getIpfsAttempts() {
-            return ipfsAttempts;
         }
 
         public Config ipfsAttempts(int ipfsAttempts) {
@@ -154,18 +167,10 @@ public interface ContentManager {
             return this;
         }
 
-        public int getIpfsThreads() {
-            return ipfsThreads;
-        }
-
         public Config ipfsThreads(int ipfsThreads) {
             assertMutable();
             this.ipfsThreads = ipfsThreads;
             return this;
-        }
-
-        public Path getRootPath() {
-            return rootPath;
         }
 
         public Config rootPath(Path rootPath) {
@@ -174,13 +179,24 @@ public interface ContentManager {
             return this;
         }
 
-        public Config makeImutable() {
+        public Config replaceExisting() {
+            assertMutable();
+            this.replaceExisting = true;
+            return this;
+        }
+
+        public Config makeImmutable() {
             mutable = false;
             return this;
         }
         
         private void assertMutable() {
             AssertState.assertTrue(mutable, "Immutable config");
+        }
+        
+        public String toString() {
+            return String.format("[rootPath=%s, timeout=%s, attempts=%s, threads=%s, replace=%b]", 
+                    rootPath, ipfsTimeout, ipfsAttempts, ipfsThreads, replaceExisting);
         }
     }
 }

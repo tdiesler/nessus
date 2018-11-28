@@ -125,13 +125,8 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         network.generate(1);
     }
 
-    DefaultContentManager createContentManager(long timeout, int attempts) {
+    DefaultContentManager createContentManager(Config config) {
         LOG.info("");
-        
-        Config config = new Config(blockchain, ipfsClient)
-                .ipfsTimeout(timeout)
-                .ipfsAttempts(attempts);
-        
         return cntmgr = new ExtendedContentManager(config);
     }
     
