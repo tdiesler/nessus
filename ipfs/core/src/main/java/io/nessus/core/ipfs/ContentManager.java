@@ -23,12 +23,15 @@ package io.nessus.core.ipfs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.util.List;
 
 import io.nessus.Blockchain;
 import io.nessus.Wallet.Address;
+import io.nessus.core.ipfs.impl.DefaultContentManager;
+import io.nessus.utils.AssertState;
 
 public interface ContentManager {
 
@@ -106,4 +109,78 @@ public interface ContentManager {
      */
     boolean removeLocalContent(Address owner, Path path) throws IOException;
 
+
+    public class Config {
+
+        private final Blockchain blockchain;
+        private final IPFSClient ipfsClient;
+        private long ipfsTimeout = DefaultContentManager.DEFAULT_IPFS_TIMEOUT;
+        private int ipfsAttempts = DefaultContentManager.DEFAULT_IPFS_ATTEMPTS;
+        private int ipfsThreads = DefaultContentManager.DEFAULT_IPFS_THREADS;
+        private Path rootPath = Paths.get(System.getProperty("user.home"), ".nessus");
+        
+        private boolean mutable = true;
+        
+        public Config(Blockchain blockchain, IPFSClient ipfsClient) {
+            this.blockchain = blockchain;
+            this.ipfsClient = ipfsClient;
+        }
+
+        public Blockchain getBlockchain() {
+            return blockchain;
+        }
+
+        public IPFSClient getIpfsClient() {
+            return ipfsClient;
+        }
+
+        public long getIpfsTimeout() {
+            return ipfsTimeout;
+        }
+
+        public Config ipfsTimeout(long ipfsTimeout) {
+            assertMutable();
+            this.ipfsTimeout = ipfsTimeout;
+            return this;
+        }
+
+        public int getIpfsAttempts() {
+            return ipfsAttempts;
+        }
+
+        public Config ipfsAttempts(int ipfsAttempts) {
+            assertMutable();
+            this.ipfsAttempts = ipfsAttempts;
+            return this;
+        }
+
+        public int getIpfsThreads() {
+            return ipfsThreads;
+        }
+
+        public Config ipfsThreads(int ipfsThreads) {
+            assertMutable();
+            this.ipfsThreads = ipfsThreads;
+            return this;
+        }
+
+        public Path getRootPath() {
+            return rootPath;
+        }
+
+        public Config rootPath(Path rootPath) {
+            assertMutable();
+            this.rootPath = rootPath;
+            return this;
+        }
+
+        public Config makeImutable() {
+            mutable = false;
+            return this;
+        }
+        
+        private void assertMutable() {
+            AssertState.assertTrue(mutable, "Immutable config");
+        }
+    }
 }

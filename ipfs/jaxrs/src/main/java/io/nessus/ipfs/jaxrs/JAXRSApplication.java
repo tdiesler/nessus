@@ -52,6 +52,7 @@ import io.nessus.Network;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.core.ipfs.ContentManager;
 import io.nessus.core.ipfs.IPFSClient;
+import io.nessus.core.ipfs.ContentManager.Config;
 import io.nessus.core.ipfs.impl.DefaultContentManager;
 import io.nessus.core.ipfs.impl.DefaultIPFSClient;
 import io.nessus.utils.SystemUtils;
@@ -145,8 +146,10 @@ public class JAXRSApplication extends Application {
         providerFactory.registerProvider(IOExceptionMapper.class);
 
         Blockchain blockchain = BlockchainFactory.getBlockchain();
-        IPFSClient ipfs = new DefaultIPFSClient();
-        contentManager = new DefaultContentManager(ipfs, blockchain);
+        IPFSClient ipfsClient = new DefaultIPFSClient();
+        
+        Config config = new Config(blockchain, ipfsClient);
+        contentManager = new DefaultContentManager(config);
 
         INSTANCE = this;
     }

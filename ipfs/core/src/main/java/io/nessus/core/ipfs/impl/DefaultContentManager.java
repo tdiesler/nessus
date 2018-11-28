@@ -97,23 +97,22 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class DefaultContentManager implements ContentManager {
 
+    static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
+
     public static final long DEFAULT_IPFS_TIMEOUT = 6000; // 6 sec
     public static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
     public static final int DEFAULT_IPFS_THREADS = 12;
 
-    static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
-
+    protected final Config config;
+    protected final IPFSClient ipfsClient;
     protected final Blockchain blockchain;
     protected final Network network;
     protected final Wallet wallet;
-
     protected final FHeaderId fhid;
-    protected final IPFSClient ipfs;
-    protected final BCData bcdata;
-    protected final Path rootPath;
+    private final BCData bcdata;
 
     // Executor service for async IPFS get operations
-    final ExecutorService executorService;
+    protected final ExecutorService executorService;
     
     // Contains fully initialized FHandles pointing to encrypted files.
     // It is guarantied that the wallet contains the privKeys needed to access these files.
@@ -126,33 +125,20 @@ public class DefaultContentManager implements ContentManager {
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
     private final IPFSFileCache filecache = new IPFSFileCache();
     
-    private final long ipfsTimeout;
-    private final int ipfsAttempts;
-    private final int ipfsThreads;
-    
-    public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain) {
-        this(ipfs, blockchain, DEFAULT_IPFS_TIMEOUT, DEFAULT_IPFS_ATTEMPTS, DEFAULT_IPFS_THREADS);
-    }
-    
-    public DefaultContentManager(IPFSClient ipfs, Blockchain blockchain, Long timeout, Integer attepts, Integer threads) {
-        this.blockchain = blockchain;
-        this.ipfs = ipfs;
-        
+    public DefaultContentManager(Config config) {
+        this.config = config.makeImutable();
+
+        ipfsClient = config.getIpfsClient();
+        blockchain = config.getBlockchain();
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
-        
-        rootPath = Paths.get(System.getProperty("user.home"), ".nessus");
-        rootPath.toFile().mkdirs();
         
         fhid = getFHeaderId();
         bcdata = new BCData(fhid);
         
-        ipfsTimeout = timeout != null ? timeout : DEFAULT_IPFS_TIMEOUT;
-        ipfsAttempts = attepts != null ? attepts : DEFAULT_IPFS_ATTEMPTS;
-        ipfsThreads = threads != null ? threads : DEFAULT_IPFS_THREADS;
+        LOG.info("{}", config);
         
-        LOG.info("DefaultContentManager[timeout={}, attempts={}, threads={}]", ipfsTimeout, ipfsAttempts, ipfsThreads);
-        
+        int ipfsThreads = config.getIpfsThreads();
         executorService = Executors.newFixedThreadPool(ipfsThreads, new ThreadFactory() {
             AtomicInteger count = new AtomicInteger();
             public Thread newThread(Runnable run) {
@@ -161,22 +147,10 @@ public class DefaultContentManager implements ContentManager {
         });
     }
 
-    public long getIPFSTimeout() {
-        return ipfsTimeout;
+    public Config getConfig() {
+        return config;
     }
 
-    public int getIPFSAttempts() {
-        return ipfsAttempts;
-    }
-
-    public int getIPFSThreads() {
-        return ipfsThreads;
-    }
-
-    public Path getRootPath() {
-        return rootPath;
-    }
-    
     @Override
     public Blockchain getBlockchain() {
         return blockchain;
@@ -184,7 +158,7 @@ public class DefaultContentManager implements ContentManager {
     
     @Override
     public IPFSClient getIPFSClient() {
-        return ipfs;
+        return ipfsClient;
     }
 
     @Override
@@ -210,6 +184,8 @@ public class DefaultContentManager implements ContentManager {
 
         // Send a Tx to record the OP_RETURN data
 
+        Network network = getBlockchain().getNetwork();
+        Wallet wallet = getBlockchain().getWallet();
         BigDecimal dustAmount = network.getDustThreshold();
         BigDecimal feePerKB = network.estimateSmartFee(null);
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
@@ -264,6 +240,7 @@ public class DefaultContentManager implements ContentManager {
         PublicKey pubKey = findAddressRegistation(addr);
         if (pubKey == null) return null;
         
+        Wallet wallet = getBlockchain().getWallet();
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(addr)).stream()
                 .filter(utxo -> pubKey.equals(getPubKeyFromTx(utxo, addr)))
                 .peek(utxo -> wallet.lockUnspent(utxo, true))
@@ -292,6 +269,7 @@ public class DefaultContentManager implements ContentManager {
 
         List<String> results = new ArrayList<>();
         
+        Wallet wallet = getBlockchain().getWallet();
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(owner)).stream()
                 .filter(utxo -> {
                     FHandle fh = getFHandleFromTx(utxo, owner);
@@ -358,7 +336,7 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("IPFS add: {}", fhandle);
         
         Path auxPath = Paths.get(fhandle.getURL().getPath());
-        String cid = ipfs.addSingle(auxPath);
+        String cid = ipfsClient.addSingle(auxPath);
         
         // Move the temp file to its crypt path
         
@@ -397,7 +375,7 @@ public class DefaultContentManager implements ContentManager {
 
         LOG.info("Start IPFS Get: {} {}", owner, path);
         
-        timeout = timeout != null ? timeout : ipfsTimeout;
+        timeout = timeout != null ? timeout : config.getIpfsTimeout();
         FHandle fhandle = ipfsGet(cid, timeout);
         
         LOG.info("IPFS decrypt: {}", fhandle);
@@ -424,7 +402,7 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("Start IPFS Send: {} {}", owner, cid);
         
-        timeout = timeout != null ? timeout : ipfsTimeout;
+        timeout = timeout != null ? timeout : config.getIpfsTimeout();
         FHandle fhandle = ipfsGet(cid, timeout);
         
         LOG.info("IPFS decrypt: {}", fhandle);
@@ -443,7 +421,7 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("IPFS add: {}", fhandle);
         
         Path tmpPath = Paths.get(fhandle.getURL().getPath());
-        cid = ipfs.addSingle(tmpPath);
+        cid = ipfsClient.addSingle(tmpPath);
         
         Path cryptPath = getCryptPath(target).resolve(cid);
         Files.move(tmpPath, cryptPath);
@@ -558,7 +536,7 @@ public class DefaultContentManager implements ContentManager {
         }
         
         // Finally iterate get the IPFS files asynchronously
-        timeout = timeout != null ? timeout : ipfsTimeout;
+        timeout = timeout != null ? timeout : config.getIpfsTimeout();
         List<FHandle> results = ipfsGetAsync(unspentFHandles, timeout);
         
         return results;
@@ -668,20 +646,26 @@ public class DefaultContentManager implements ContentManager {
         return new FHeaderId("Nessus", "1.0");
     }
 
+    Path getRootPath() {
+        Path rootPath = config.getRootPath();
+        rootPath.toFile().mkdirs();
+        return rootPath;
+    }
+
     Path getPlainPath(Address owner) {
-        Path path = rootPath.resolve("plain").resolve(owner.getAddress());
+        Path path = getRootPath().resolve("plain").resolve(owner.getAddress());
         path.toFile().mkdirs();
         return path;
     }
 
     Path getCryptPath(Address owner) {
-        Path path = rootPath.resolve("crypt").resolve(owner.getAddress());
+        Path path = getRootPath().resolve("crypt").resolve(owner.getAddress());
         path.toFile().mkdirs();
         return path;
     }
 
     Path getTempPath() {
-        Path tmpPath = rootPath.resolve("tmp");
+        Path tmpPath = getRootPath().resolve("tmp");
         tmpPath.toFile().mkdirs();
         return tmpPath;
     }
@@ -710,7 +694,7 @@ public class DefaultContentManager implements ContentManager {
         Path tmpPath;
         try {
             
-            Future<Path> future = ipfs.get(cid, getTempPath());
+            Future<Path> future = ipfsClient.get(cid, getTempPath());
             tmpPath = future.get(timeout, TimeUnit.MILLISECONDS);
             
         } catch (InterruptedException | ExecutionException ex) {
@@ -1279,7 +1263,7 @@ public class DefaultContentManager implements ContentManager {
             
             if (ex instanceof IPFSTimeoutException) {
                 
-                if (ipfsAttempts <= attempt) {
+                if (config.getIpfsAttempts() <= attempt) {
                     fhres = new FHBuilder(fhres)
                             .expired(true)
                             .build();
@@ -1310,6 +1294,7 @@ public class DefaultContentManager implements ContentManager {
         }
 
         private String logPrefix(String action, int attempt) {
+            int ipfsAttempts = config.getIpfsAttempts();
             String trdName = Thread.currentThread().getName();
             return String.format("IPFS %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);
         }

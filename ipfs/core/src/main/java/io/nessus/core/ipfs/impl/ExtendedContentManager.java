@@ -26,27 +26,33 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 
-import io.nessus.Blockchain;
 import io.nessus.UTXO;
 import io.nessus.Wallet.Address;
 import io.nessus.core.ipfs.FHandle;
-import io.nessus.core.ipfs.IPFSClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class ExtendedContentManager extends DefaultContentManager {
 
-    public ExtendedContentManager(IPFSClient ipfs, Blockchain blockchain) {
-        super(ipfs, blockchain);
+    public ExtendedContentManager(Config config) {
+        super(config);
     }
 
-    public ExtendedContentManager(IPFSClient ipfs, Blockchain blockchain, Long timeout, Integer attepts, Integer threads) {
-        super(ipfs, blockchain, timeout, attepts, threads);
+    @Override
+    public Config getConfig() {
+        return super.getConfig();
     }
 
+    @Override
+    public Path getRootPath() {
+        return super.getRootPath();
+    }
+
+    @Override
     public Path getPlainPath(Address owner) {
         return super.getPlainPath(owner);
     }
 
+    @Override
     public Path getCryptPath(Address owner) {
         return super.getCryptPath(owner);
     }

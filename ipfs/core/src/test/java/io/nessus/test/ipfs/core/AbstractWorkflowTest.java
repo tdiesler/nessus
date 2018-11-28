@@ -56,6 +56,7 @@ import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.core.ipfs.FHandle;
 import io.nessus.core.ipfs.FHandle.FHBuilder;
 import io.nessus.core.ipfs.IPFSClient;
+import io.nessus.core.ipfs.ContentManager.Config;
 import io.nessus.core.ipfs.impl.DefaultContentManager;
 import io.nessus.core.ipfs.impl.DefaultIPFSClient;
 import io.nessus.core.ipfs.impl.ExtendedContentManager;
@@ -64,10 +65,10 @@ import io.nessus.testing.AbstractBlockchainTest;
 public class AbstractWorkflowTest extends AbstractBlockchainTest {
 
     static ExtendedContentManager cntmgr;
+    static IPFSClient ipfsClient;
     static Blockchain blockchain;
     static Network network;
     static Wallet wallet;
-    static IPFSClient ipfs;
     
     Address addrBob;
     Address addrMary;
@@ -79,8 +80,8 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
         
-        ipfs = new DefaultIPFSClient();
-        cntmgr = new ExtendedContentManager(ipfs, blockchain);
+        ipfsClient = new DefaultIPFSClient();
+        cntmgr = new ExtendedContentManager(new Config(blockchain, ipfsClient));
         
         importAddresses(wallet, AbstractWorkflowTest.class);
         
@@ -88,7 +89,8 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         
         // Delete all local files
         
-        Files.walkFileTree(((DefaultContentManager) cntmgr).getRootPath(), new SimpleFileVisitor<Path>() {
+        Path rootPath = cntmgr.getRootPath();
+        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
             public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
                 path.toFile().delete();
                 return FileVisitResult.CONTINUE;
@@ -125,8 +127,12 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
 
     DefaultContentManager createContentManager(long timeout, int attempts) {
         LOG.info("");
-        ipfs = new DefaultIPFSClient();
-        return cntmgr = new ExtendedContentManager(ipfs, blockchain, timeout, attempts, null);
+        
+        Config config = new Config(blockchain, ipfsClient)
+                .ipfsTimeout(timeout)
+                .ipfsAttempts(attempts);
+        
+        return cntmgr = new ExtendedContentManager(config);
     }
     
     void unlockAddressRegistrations(Address addr) {
@@ -167,10 +173,11 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
 
     FHandle ipfsGet(Address owner, String cid) throws Exception {
         FHandle fhandle = new FHBuilder(cid).owner(owner).build();
+        long ipfsTimeout = cntmgr.getConfig().getIpfsTimeout();
         try {
             long before = System.currentTimeMillis();
-            Future<Path> future = cntmgr.getIPFSClient().get(cid, Paths.get("target/" + cid));
-            Path path = future.get(cntmgr.getIPFSTimeout(), TimeUnit.MILLISECONDS);
+            Future<Path> future = ipfsClient.get(cid, Paths.get("target/" + cid));
+            Path path = future.get(ipfsTimeout, TimeUnit.MILLISECONDS);
             long elapsed = System.currentTimeMillis() - before;
             fhandle = new FHBuilder(fhandle).path(path).available(true).elapsed(elapsed).build();
         } catch (TimeoutException ex) {
@@ -193,7 +200,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         
         if (fhandles.isEmpty()) return fhandles;
         
-        long timeout = cntmgr.getIPFSTimeout();
+        long timeout = cntmgr.getConfig().getIpfsTimeout();
         long nowTime = System.currentTimeMillis();
         long endTime = nowTime + timeout / 10;
         

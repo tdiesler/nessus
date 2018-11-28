@@ -36,15 +36,15 @@ import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
-import io.nessus.core.ipfs.ContentManager;
+import io.nessus.core.ipfs.ContentManager.Config;
 import io.nessus.core.ipfs.IPFSClient;
-import io.nessus.core.ipfs.impl.DefaultContentManager;
 import io.nessus.core.ipfs.impl.DefaultIPFSClient;
+import io.nessus.core.ipfs.impl.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
 
-    protected static ContentManager cntmgr;
+    protected static ExtendedContentManager cntmgr;
     protected static Blockchain blockchain;
     protected static Network network;
     protected static AbstractWallet wallet;
@@ -59,8 +59,8 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
         wallet = (AbstractWallet) blockchain.getWallet();
         network = blockchain.getNetwork();
 
-        IPFSClient ipfs = new DefaultIPFSClient();
-        cntmgr = new DefaultContentManager(ipfs, blockchain);
+        IPFSClient ipfsClient = new DefaultIPFSClient();
+        cntmgr = new ExtendedContentManager(new Config(blockchain, ipfsClient));
 
         importAddresses(wallet, AbstractJAXRSTest.class);
 
