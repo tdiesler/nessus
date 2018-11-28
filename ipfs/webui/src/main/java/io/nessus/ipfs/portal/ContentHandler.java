@@ -25,7 +25,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -87,8 +86,6 @@ public class ContentHandler implements HttpHandler {
     // The last executable job
     private Future<Address> lastJob;
     
-    private Long blockchainVersion;
-    
     ContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
         this.blockchain = blockchain;
         this.gatewayUrl = gatewayURI;
@@ -111,24 +108,15 @@ public class ContentHandler implements HttpHandler {
     }
 
     @Override
-    public void handleRequest(HttpServerExchange exchange) {
+    public void handleRequest(HttpServerExchange exchange) throws Exception {
 
         ByteBuffer content = null;
-        try {
-            
-            String path = exchange.getRelativePath();
-            if (path.startsWith("/portal")) {
-                content = dynamicContent(exchange);
-            } else {
-                content = staticContent(exchange);
-            }
-            
-        } catch (Exception ex) {
-            StringWriter sw = new StringWriter();
-            ex.printStackTrace(new PrintWriter(sw));
-            content = ByteBuffer.wrap(sw.toString().getBytes());
-            exchange.getResponseHeaders().add(Headers.CONTENT_TYPE, "text/plain");
-            LOG.error("Error in: " + exchange.getRequestURI(), ex);
+        
+        String path = exchange.getRelativePath();
+        if (path.startsWith("/portal")) {
+            content = dynamicContent(exchange);
+        } else {
+            content = staticContent(exchange);
         }
 
         if (content != null) {
@@ -157,84 +145,86 @@ public class ContentHandler implements HttpHandler {
         String tmplPath = null;
         VelocityContext context = new VelocityContext();
 
-        // Assert Blockchain availability
-        
         try {
+            
+            // Assert Blockchain availability
             assertBlockchainAvailable();
+            
+            if (relPath.startsWith("/portal/addtxt")) {
+                actAddText(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/addurl")) {
+                actAddURL(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/assign")) {
+                actAssignLabel(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/fget")) {
+                actFileGet(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/fshow")) {
+                return actFileShow(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/impkey")) {
+                actImportKey(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/newaddr")) {
+                actNewAddress(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/padd")) {
+                tmplPath = pageFileAdd(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/pget")) {
+                tmplPath = pageFileGet(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/plist")) {
+                tmplPath = pageFileList(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/pqr")) {
+                tmplPath = pageQRCode(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/psend")) {
+                tmplPath = pageSend(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/regaddr")) {
+                actRegisterAddress(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/rmaddr")) {
+                actUnregisterAddress(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/rmlocal")) {
+                actRemoveLocalContent(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/rmipfs")) {
+                actRemoveIPFSContent(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/sendcid")) {
+                actSend(exchange, context);
+            }
+
+            else if (tmplPath == null) {
+                tmplPath = pageHome(context);
+            }
+            
         } catch (RuntimeException rte) {
+            
             tmplPath = pageError(context, rte);
-        }
-        
-        if (relPath.startsWith("/portal/addtxt")) {
-            actAddText(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/addurl")) {
-            actAddURL(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/assign")) {
-            actAssignLabel(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/fget")) {
-            actFileGet(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/fshow")) {
-            return actFileShow(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/impkey")) {
-            actImportKey(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/newaddr")) {
-            actNewAddress(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/padd")) {
-            tmplPath = pageFileAdd(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/pget")) {
-            tmplPath = pageFileGet(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/plist")) {
-            tmplPath = pageFileList(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/pqr")) {
-            tmplPath = pageQRCode(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/psend")) {
-            tmplPath = pageSend(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/regaddr")) {
-            actRegisterAddress(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/rmaddr")) {
-            actUnregisterAddress(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/rmlocal")) {
-            actRemoveLocalContent(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/rmipfs")) {
-            actRemoveIPFSContent(exchange, context);
-        }
-
-        else if (relPath.startsWith("/portal/sendcid")) {
-            actSend(exchange, context);
-        }
-
-        else if (tmplPath == null) {
-            tmplPath = pageHome(context);
         }
 
         if (tmplPath != null) {
@@ -260,7 +250,7 @@ public class ContentHandler implements HttpHandler {
         String relPath = qparams.get("path").getFirst();
         String content = qparams.get("content").getFirst();
 
-        client.add(rawAddr, relPath, new ByteArrayInputStream(content.getBytes()));
+        client.addIPFSContent(rawAddr, relPath, new ByteArrayInputStream(content.getBytes()));
 
         redirectFileList(exchange, rawAddr);
     }
@@ -272,7 +262,7 @@ public class ContentHandler implements HttpHandler {
         String relPath = qparams.get("path").getFirst();
         URL furl = new URL(qparams.get("url").getFirst());
 
-        client.add(rawAddr, relPath, furl.openStream());
+        client.addIPFSContent(rawAddr, relPath, furl.openStream());
 
         redirectFileList(exchange, rawAddr);
     }
@@ -296,7 +286,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        client.get(rawAddr, cid, relPath, null);
+        client.getIPFSContent(rawAddr, cid, relPath, null);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -391,7 +381,7 @@ public class ContentHandler implements HttpHandler {
         String rawToAddr = qparams.get("toaddr").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        client.send(rawFromAddr, cid, rawToAddr, null);
+        client.sendIPFSContent(rawFromAddr, cid, rawToAddr, null);
 
         redirectFileList(exchange, rawFromAddr);
     }
@@ -596,20 +586,7 @@ public class ContentHandler implements HttpHandler {
     }
 
     private void assertBlockchainAvailable() {
-        if (blockchainVersion == null) {
-            try {
-                String networkName = network.getClass().getSimpleName();
-                blockchainVersion = network.getNetworkInfo().version();
-                LOG.info("{} Version: {}",  networkName, blockchainVersion);
-            } catch (BitcoinRPCException rte) {
-                String errmsg = rte.getRPCError().getMessage();
-                LOG.error("Blockchain not available: {}", errmsg);
-                throw rte;
-            } catch (RuntimeException rte) {
-                LOG.error("Blockchain error", rte);
-                throw rte;
-            }
-        }
+        JAXRSClient.assertBlockchainNetworkAvailable(network);
     }
 
     private ByteBuffer getResource(String resname) throws IOException {

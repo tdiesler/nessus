@@ -36,9 +36,14 @@ import javax.ws.rs.core.MediaType;
 public interface JAXRSEndpoint {
 
     @GET
-    @Path("/register")
+    @Path("/regaddr")
     @Produces(MediaType.TEXT_PLAIN)
     String registerAddress(@QueryParam("addr") String rawAddr) throws GeneralSecurityException, IOException;
+
+    @GET
+    @Path("/findkey")
+    @Produces(MediaType.APPLICATION_JSON)
+    String findAddressRegistation(@QueryParam("addr") String rawAddr) throws IOException;
 
     @GET
     @Path("/rmaddr")
@@ -46,24 +51,19 @@ public interface JAXRSEndpoint {
     String unregisterAddress(@QueryParam("addr") String rawAddr) throws IOException;
     
     @POST
-    @Path("/add")
+    @Path("/addipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    SFHandle add(@QueryParam("addr") String rawAddr, @QueryParam("path") String path, InputStream input) throws IOException, GeneralSecurityException;
+    SFHandle addIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path, InputStream input) throws IOException, GeneralSecurityException;
 
     @GET
-    @Path("/get")
+    @Path("/getipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    SFHandle get(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("path") String path, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
+    SFHandle getIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("path") String path, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
 
     @GET
-    @Path("/send")
+    @Path("/sendipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    SFHandle send(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("target") String rawTarget, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
-
-    @GET
-    @Path("/findkey")
-    @Produces(MediaType.APPLICATION_JSON)
-    String findAddressRegistation(@QueryParam("addr") String rawAddr) throws IOException;
+    SFHandle sendIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("target") String rawTarget, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
 
     @GET
     @Path("/findipfs")

@@ -1,4 +1,4 @@
-package io.nessus.core.ipfs.impl;
+package io.nessus.ipfs.impl;
 
 /*-
  * #%L
@@ -83,13 +83,14 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.ECIESCipher;
-import io.nessus.core.ipfs.ContentManager;
-import io.nessus.core.ipfs.FHandle;
-import io.nessus.core.ipfs.FHandle.FHBuilder;
-import io.nessus.core.ipfs.IPFSClient;
-import io.nessus.core.ipfs.IPFSException;
-import io.nessus.core.ipfs.IPFSTimeoutException;
-import io.nessus.core.ipfs.MerkleNotFoundException;
+import io.nessus.ipfs.ContentManager;
+import io.nessus.ipfs.FHandle;
+import io.nessus.ipfs.FHandle.FHBuilder;
+import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.IPFSTimeoutException;
+import io.nessus.ipfs.MerkleNotFoundException;
+import io.nessus.ipfs.NessusUserFault;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
@@ -308,10 +309,10 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException {
+    public FHandle addIPFSContent(Address owner, InputStream input, Path destPath) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(input, "Null input");
-        AssertArgument.assertNotNull(path, "Null path");
+        AssertArgument.assertNotNull(destPath, "Null path");
         
         assertArgumentHasPrivateKey(owner);
         
@@ -319,16 +320,16 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
         boolean replaceExisting = config.isReplaceExisting();
-        Path plainPath = assertValidPlainPath(owner, path);
-        AssertState.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + plainPath);
+        Path plainPath = assertValidPlainPath(owner, destPath);
+        NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + destPath);
         
-        LOG.info("Start IPFS Add: {} {}", owner, path);
+        LOG.info("Start IPFS Add: {} {}", owner, destPath);
         
         plainPath.getParent().toFile().mkdirs();
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
         
         URL furl = plainPath.toFile().toURI().toURL();
-        FHandle fhandle = new FHBuilder(owner, path, furl).build();
+        FHandle fhandle = new FHBuilder(owner, destPath, furl).build();
 
         LOG.info("IPFS encrypt: {}", fhandle);
         
@@ -367,7 +368,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public FHandle get(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
+    public FHandle getIPFSContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(cid, "Null cid");
         AssertArgument.assertNotNull(path, "Null path");
@@ -389,7 +390,7 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public FHandle send(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
+    public FHandle sendIPFSContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(cid, "Null cid");
         AssertArgument.assertNotNull(target, "Null target");
@@ -1025,7 +1026,7 @@ public class DefaultContentManager implements ContentManager {
             
             boolean replaceExisting = config.isReplaceExisting();
             Path plainPath = assertValidPlainPath(owner, destPath);
-            AssertState.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + plainPath);
+            NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + destPath);
             
             plainPath.getParent().toFile().mkdirs();
             

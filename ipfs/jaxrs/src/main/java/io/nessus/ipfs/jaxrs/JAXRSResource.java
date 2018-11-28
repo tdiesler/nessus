@@ -37,10 +37,9 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Network;
 import io.nessus.Wallet.Address;
-import io.nessus.core.ipfs.ContentManager;
-import io.nessus.core.ipfs.FHandle;
+import io.nessus.ipfs.ContentManager;
+import io.nessus.ipfs.FHandle;
 import io.nessus.utils.AssertState;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 public class JAXRSResource implements JAXRSEndpoint {
 
@@ -48,8 +47,6 @@ public class JAXRSResource implements JAXRSEndpoint {
 
     final ContentManager cntmgr;
     
-    private static Long blockchainVersion;
-
     public JAXRSResource() throws IOException {
 
         JAXRSApplication app = JAXRSApplication.getInstance();
@@ -57,26 +54,23 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public SFHandle add(String rawAddr, String path, InputStream input) throws IOException, GeneralSecurityException {
+    public String registerAddress(String rawAddr) throws GeneralSecurityException {
 
-        assertBlockchainAvailable();
+        assertBlockchainNetworkAvailable();
         
-        Address owner = assertWalletAddress(rawAddr);
-        FHandle fhandle = cntmgr.add(owner, input, Paths.get(path));
+        Address addr = assertWalletAddress(rawAddr);
 
-        AssertState.assertTrue(new File(fhandle.getURL().getPath()).exists());
-        AssertState.assertNotNull(fhandle.getCid());
+        PublicKey pubKey = cntmgr.registerAddress(addr);
+        LOG.info("/regaddr {} => {}", rawAddr, pubKey);
 
-        SFHandle shandle = new SFHandle(fhandle);
-        LOG.info("/add {}", shandle);
-
-        return shandle;
+        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+        return encKey;
     }
 
     @Override
     public String findAddressRegistation(String rawAddr) {
 
-        assertBlockchainAvailable();
+        assertBlockchainNetworkAvailable();
         
         Address addr = assertWalletAddress(rawAddr);
         PublicKey pubKey = cntmgr.findAddressRegistation(addr);
@@ -88,9 +82,73 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
+    public String unregisterAddress(String rawAddr) {
+
+        assertBlockchainNetworkAvailable();
+        
+        Address addr = assertWalletAddress(rawAddr);
+        PublicKey pubKey = cntmgr.unregisterAddress(addr);
+        LOG.info("/rmaddr {} => {}", rawAddr, pubKey);
+
+        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+        return encKey;
+    }
+
+    @Override
+    public SFHandle addIPFSContent(String rawAddr, String path, InputStream input) throws IOException, GeneralSecurityException {
+
+        assertBlockchainNetworkAvailable();
+        
+        Address owner = assertWalletAddress(rawAddr);
+        FHandle fhandle = cntmgr.addIPFSContent(owner, input, Paths.get(path));
+
+        AssertState.assertTrue(new File(fhandle.getURL().getPath()).exists());
+        AssertState.assertNotNull(fhandle.getCid());
+
+        SFHandle shandle = new SFHandle(fhandle);
+        LOG.info("/addipfs {}", shandle);
+
+        return shandle;
+    }
+
+    @Override
+    public SFHandle getIPFSContent(String rawAddr, String cid, String path, Long timeout) throws IOException, GeneralSecurityException {
+
+        assertBlockchainNetworkAvailable();
+        
+        Address owner = assertWalletAddress(rawAddr);
+        FHandle fhandle = cntmgr.getIPFSContent(owner, cid, Paths.get(path), timeout);
+
+        AssertState.assertTrue(new File(fhandle.getURL().getPath()).exists());
+        AssertState.assertNull(fhandle.getCid());
+
+        SFHandle shandle = new SFHandle(fhandle);
+        LOG.info("/getipfs {} => {}", cid, shandle);
+
+        return shandle;
+    }
+
+    @Override
+    public SFHandle sendIPFSContent(String rawAddr, String cid, @QueryParam("target") String rawTarget, Long timeout) throws IOException, GeneralSecurityException {
+
+        assertBlockchainNetworkAvailable();
+        
+        Address owner = assertWalletAddress(rawAddr);
+        Address target = assertWalletAddress(rawTarget);
+
+        FHandle fhandle = cntmgr.sendIPFSContent(owner, cid, target, timeout);
+        AssertState.assertNotNull(fhandle.getCid());
+
+        SFHandle shandle = new SFHandle(fhandle);
+        LOG.info("/sendipfs {} => {}", cid, shandle);
+
+        return shandle;
+    }
+
+    @Override
     public List<SFHandle> findIPFSContent(String rawAddr, Long timeout) throws IOException {
 
-        assertBlockchainAvailable();
+        assertBlockchainNetworkAvailable();
         
         List<SFHandle> result = new ArrayList<>();
 
@@ -104,9 +162,22 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
+    public List<String> removeIPFSContent(String rawAddr, List<String> cids) throws IOException {
+        
+        assertBlockchainNetworkAvailable();
+        
+        Address owner = assertWalletAddress(rawAddr);
+        
+        List<String> result = cntmgr.removeIPFSContent(owner, cids);
+        LOG.info("/rmipfs {} {} => {}", rawAddr, cids, result);
+
+        return result;
+    }
+
+    @Override
     public List<SFHandle> findLocalContent(String rawAddr) throws IOException {
 
-        assertBlockchainAvailable();
+        assertBlockchainNetworkAvailable();
         
         List<SFHandle> result = new ArrayList<>();
 
@@ -120,26 +191,9 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public SFHandle get(String rawAddr, String cid, String path, Long timeout) throws IOException, GeneralSecurityException {
-
-        assertBlockchainAvailable();
-        
-        Address owner = assertWalletAddress(rawAddr);
-        FHandle fhandle = cntmgr.get(owner, cid, Paths.get(path), timeout);
-
-        AssertState.assertTrue(new File(fhandle.getURL().getPath()).exists());
-        AssertState.assertNull(fhandle.getCid());
-
-        SFHandle result = new SFHandle(fhandle);
-        LOG.info("/get {} => {}", cid, result);
-
-        return result;
-    }
-
-    @Override
     public InputStream getLocalContent(String rawAddr, String path) throws IOException {
 
-        assertBlockchainAvailable();
+        assertBlockchainNetworkAvailable();
         
         Address owner = assertWalletAddress(rawAddr);
         InputStream content = cntmgr.getLocalContent(owner, Paths.get(path));
@@ -149,90 +203,20 @@ public class JAXRSResource implements JAXRSEndpoint {
     }
 
     @Override
-    public String registerAddress(String rawAddr) throws GeneralSecurityException {
-
-        assertBlockchainAvailable();
-        
-        Address addr = assertWalletAddress(rawAddr);
-
-        PublicKey pubKey = cntmgr.registerAddress(addr);
-        LOG.info("/register {} => {}", rawAddr, pubKey);
-
-        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-        return encKey;
-    }
-
-    @Override
     public boolean removeLocalContent(String rawAddr, String path) throws IOException {
 
-        assertBlockchainAvailable();
+        assertBlockchainNetworkAvailable();
         
         Address owner = assertWalletAddress(rawAddr);
         boolean removed = cntmgr.removeLocalContent(owner, Paths.get(path));
-        LOG.info("/rmlocal  {} {} => {}", rawAddr, path, removed);
+        LOG.info("/rmlocal {} {} => {}", rawAddr, path, removed);
 
         return removed;
     }
 
-    @Override
-    public SFHandle send(String rawAddr, String cid, @QueryParam("target") String rawTarget, Long timeout) throws IOException, GeneralSecurityException {
-
-        assertBlockchainAvailable();
-        
-        Address owner = assertWalletAddress(rawAddr);
-        Address target = assertWalletAddress(rawTarget);
-
-        FHandle fhandle = cntmgr.send(owner, cid, target, timeout);
-        AssertState.assertNotNull(fhandle.getCid());
-
-        SFHandle shandle = new SFHandle(fhandle);
-        LOG.info("/send {} => {}", cid, shandle);
-
-        return shandle;
-    }
-
-    @Override
-    public String unregisterAddress(String rawAddr) {
-
-        assertBlockchainAvailable();
-        
-        Address addr = assertWalletAddress(rawAddr);
-        PublicKey pubKey = cntmgr.unregisterAddress(addr);
-        LOG.info("/rmaddr {} => {}", rawAddr, pubKey);
-
-        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-        return encKey;
-    }
-
-    @Override
-    public List<String> removeIPFSContent(String rawAddr, List<String> cids) throws IOException {
-        
-        assertBlockchainAvailable();
-        
-        Address owner = assertWalletAddress(rawAddr);
-        
-        List<String> result = cntmgr.removeIPFSContent(owner, cids);
-        LOG.info("/rmipfs {} {} => {}", rawAddr, cids, result);
-
-        return result;
-    }
-
-    private void assertBlockchainAvailable() {
-        if (blockchainVersion == null) {
-            try {
-                Network network = cntmgr.getBlockchain().getNetwork();
-                String networkName = network.getClass().getSimpleName();
-                blockchainVersion = network.getNetworkInfo().version();
-                LOG.info("{} Version: {}",  networkName, blockchainVersion);
-            } catch (BitcoinRPCException rte) {
-                String errmsg = rte.getRPCError().getMessage();
-                LOG.error("Blockchain not available: {}", errmsg);
-                throw rte;
-            } catch (RuntimeException rte) {
-                LOG.error("Blockchain error", rte);
-                throw rte;
-            }
-        }
+    private void assertBlockchainNetworkAvailable() {
+        Network network = cntmgr.getBlockchain().getNetwork();
+        JAXRSClient.assertBlockchainNetworkAvailable(network);
     }
 
     private Address assertWalletAddress(String rawAddr) {

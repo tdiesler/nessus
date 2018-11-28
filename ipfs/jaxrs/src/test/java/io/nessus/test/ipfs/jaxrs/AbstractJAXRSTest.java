@@ -36,10 +36,10 @@ import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
-import io.nessus.core.ipfs.ContentManager.Config;
-import io.nessus.core.ipfs.IPFSClient;
-import io.nessus.core.ipfs.impl.DefaultIPFSClient;
-import io.nessus.core.ipfs.impl.ExtendedContentManager;
+import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.impl.DefaultIPFSClient;
+import io.nessus.ipfs.impl.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {

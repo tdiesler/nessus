@@ -1,4 +1,4 @@
-package io.nessus.core.ipfs;
+package io.nessus.ipfs;
 
 /*-
  * #%L

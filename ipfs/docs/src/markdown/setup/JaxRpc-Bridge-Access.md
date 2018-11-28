@@ -34,7 +34,7 @@ Note, we could also run the various commands below from the host's command line,
  
 Lets register Bob's address with the system by making a JSON-RPC call to the bridge.
 
-    curl http://172.17.0.4:8081/nessus/register?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	
+    curl http://172.17.0.4:8081/nessus/regaddr?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf 	 	
 
     MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAE9A1T+jvZrehXnx6t1fndvB+QYnitK4d3zTHatJ1Svb4=
 
@@ -49,7 +49,7 @@ Lets see, if we can also retrieve it from the blockchain.
 Now, lets add this document to the system.
 
     echo "Hello World" > test.txt
-    curl --request POST --data @test.txt http://172.17.0.4:8081/nessus/add?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=test.txt
+    curl --request POST --data @test.txt http://172.17.0.4:8081/nessus/addipfs?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=test.txt
 
     {
         "cid": "QmaKutjDrA2nZ9KMaXJRxuy5GftKgKAgA8sG7eeDVewfTZ",
@@ -111,7 +111,7 @@ Lets remove that local file.
 
 Lets assume at a later time, we would like to get that file from IPFS
 
-    curl http://172.17.0.4:8081/nessus/get?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=other.txt\&cid=QmaKutjDrA2nZ9KMaXJRxuy5GftKgKAgA8sG7eeDVewfTZ
+    curl http://172.17.0.4:8081/nessus/getipfs?addr=mjaktrgwfTteDUtotiAmT1QULd75c1gHmf&path=other.txt\&cid=QmaKutjDrA2nZ9KMaXJRxuy5GftKgKAgA8sG7eeDVewfTZ
 
     {
     "cid": null,

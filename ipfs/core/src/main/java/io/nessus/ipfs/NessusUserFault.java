@@ -1,4 +1,4 @@
-package io.nessus.core.ipfs;
+package io.nessus.ipfs;
 
 /*-
  * #%L
@@ -21,13 +21,14 @@ package io.nessus.core.ipfs;
  */
 
 @SuppressWarnings("serial")
-public class MerkleNotFoundException extends IPFSException {
+public class NessusUserFault extends NessusException {
 
-    public MerkleNotFoundException(String message) {
+    public NessusUserFault(String message) {
         super(message);
     }
-    
-    public MerkleNotFoundException(String message, Throwable cause) {
-        super(message, cause);
+
+    public static Boolean assertTrue(Boolean value, String message) {
+        if (!Boolean.valueOf(value)) throw new NessusUserFault(message);
+        return value;
     }
 }

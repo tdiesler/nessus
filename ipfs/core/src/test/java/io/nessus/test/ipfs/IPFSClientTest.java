@@ -1,4 +1,4 @@
-package io.nessus.test.ipfs.core;
+package io.nessus.test.ipfs;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,9 +35,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import io.nessus.core.ipfs.IPFSClient;
-import io.nessus.core.ipfs.IPFSException;
-import io.nessus.core.ipfs.impl.DefaultIPFSClient;
+import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.impl.DefaultIPFSClient;
 import io.nessus.utils.StreamUtils;
 
 /**

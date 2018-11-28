@@ -1,4 +1,4 @@
-package io.nessus.core.ipfs;
+package io.nessus.ipfs;
 
 /*-
  * #%L
@@ -30,7 +30,7 @@ import java.util.List;
 
 import io.nessus.Blockchain;
 import io.nessus.Wallet.Address;
-import io.nessus.core.ipfs.impl.DefaultContentManager;
+import io.nessus.ipfs.impl.DefaultContentManager;
 import io.nessus.utils.AssertState;
 
 public interface ContentManager {
@@ -65,29 +65,34 @@ public interface ContentManager {
     PublicKey unregisterAddress(Address addr);
     
     /**
+     * Add content to IPFS.
+     */
+    FHandle addIPFSContent(Address owner, InputStream input, Path relPath) throws IOException, GeneralSecurityException;
+    
+    /**
+     * Get content from IPFS. 
+     */
+    FHandle getIPFSContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException;
+    
+    /**
+     * Find registered IPFS content for a given address.
+     */
+    List<FHandle> findIPFSContent(Address owner, Long timeout) throws IOException;
+    
+    /**
+     * Send content to a target address via IPFS. 
+     */
+    FHandle sendIPFSContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException;
+
+    /**
      * Unregister a IPFS content.
      */
     List<String> removeIPFSContent(Address owner, List<String> cids) throws IOException;
     
     /**
-     * Add content to IPFS.
+     * Show content of a plain file from local storage.  
      */
-    FHandle add(Address owner, InputStream input, Path path) throws IOException, GeneralSecurityException;
-    
-    /**
-     * Get content from IPFS. 
-     */
-    FHandle get(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException;
-    
-    /**
-     * Send content to a target address via IPFS. 
-     */
-    FHandle send(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException;
-
-    /**
-     * Find registered IPFS content for a given address.
-     */
-    List<FHandle> findIPFSContent(Address owner, Long timeout) throws IOException;
+    InputStream getLocalContent(Address owner, Path path) throws IOException;
     
     /**
      * Find local content for a given address.
@@ -98,11 +103,6 @@ public interface ContentManager {
      * Find local content for a given address and path.
      */
     FHandle findLocalContent(Address owner, Path path) throws IOException;
-    
-    /**
-     * Show content of a plain file from local storage.  
-     */
-    InputStream getLocalContent(Address owner, Path path) throws IOException;
     
     /**
      * Remove a plain file content from local storage.  

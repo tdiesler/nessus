@@ -1,4 +1,4 @@
-package io.nessus.test.ipfs.core;
+package io.nessus.test.ipfs;
 
 /*-
  * #%L
@@ -53,13 +53,13 @@ import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
-import io.nessus.core.ipfs.FHandle;
-import io.nessus.core.ipfs.FHandle.FHBuilder;
-import io.nessus.core.ipfs.IPFSClient;
-import io.nessus.core.ipfs.ContentManager.Config;
-import io.nessus.core.ipfs.impl.DefaultContentManager;
-import io.nessus.core.ipfs.impl.DefaultIPFSClient;
-import io.nessus.core.ipfs.impl.ExtendedContentManager;
+import io.nessus.ipfs.FHandle;
+import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.FHandle.FHBuilder;
+import io.nessus.ipfs.impl.DefaultContentManager;
+import io.nessus.ipfs.impl.DefaultIPFSClient;
+import io.nessus.ipfs.impl.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public class AbstractWorkflowTest extends AbstractBlockchainTest {
@@ -158,12 +158,12 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     
     FHandle addContent(Address addrBob, Path path) throws Exception {
         InputStream input = getClass().getResourceAsStream("/" + path);
-        return cntmgr.add(addrBob, input, path);
+        return cntmgr.addIPFSContent(addrBob, input, path);
     }
 
     FHandle addContent(Address addrBob, Path path, String content) throws Exception {
         InputStream input = new ByteArrayInputStream(content.getBytes());
-        return cntmgr.add(addrBob, input, path);
+        return cntmgr.addIPFSContent(addrBob, input, path);
     }
 
     FHandle ipfsGet(Address owner, String cid) throws Exception {

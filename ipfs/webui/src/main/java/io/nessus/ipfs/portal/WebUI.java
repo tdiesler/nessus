@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
-import io.nessus.core.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.jaxrs.JAXRSApplication;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.JAXRSConstants;
@@ -70,7 +70,7 @@ public class WebUI {
         URL rpcUrl = JAXRSApplication.blockchainURL();
         Class<Blockchain> bcclass = JAXRSApplication.blockchainClass();
         Blockchain blockchain = BlockchainFactory.getBlockchain(rpcUrl, bcclass);
-        JAXRSApplication.logNetworkVersionFailsafe(blockchain.getNetwork());
+        JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
         envHost = SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_ADDR, "127.0.0.1");
         envPort = SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_PORT, "8081");

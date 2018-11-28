@@ -1,4 +1,4 @@
-package io.nessus.core.ipfs.impl;
+package io.nessus.ipfs.impl;
 
 /*-
  * #%L
@@ -28,7 +28,7 @@ import java.security.PublicKey;
 
 import io.nessus.UTXO;
 import io.nessus.Wallet.Address;
-import io.nessus.core.ipfs.FHandle;
+import io.nessus.ipfs.FHandle;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class ExtendedContentManager extends DefaultContentManager {

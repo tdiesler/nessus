@@ -1,4 +1,4 @@
-package io.nessus.test.ipfs.core;
+package io.nessus.test.ipfs;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -40,9 +40,10 @@ import org.junit.Test;
 
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.core.ipfs.FHandle;
-import io.nessus.core.ipfs.ContentManager.Config;
-import io.nessus.core.ipfs.impl.DefaultContentManager.FHeader;
+import io.nessus.ipfs.FHandle;
+import io.nessus.ipfs.NessusUserFault;
+import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.impl.DefaultContentManager.FHeader;
 import io.nessus.utils.TimeUtils;
 
 public class ContentManagerTest extends AbstractWorkflowTest {
@@ -84,7 +85,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Address addrBob = wallet.getAddress(LABEL_BOB);
         
         ByteArrayInputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
-        FHandle fhandle = cntmgr.add(addrBob, input, Paths.get("some.txt"));
+        FHandle fhandle = cntmgr.addIPFSContent(addrBob, input, Paths.get("some.txt"));
         
         List<FHandle> fhandles = cntmgr.findIPFSContent(addrBob, null);
         Assert.assertEquals(1, fhandles.size());
@@ -108,7 +109,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertFalse(fhres.isAvailable());
         
         InputStream input = new ByteArrayInputStream("some text".getBytes());
-        fhres = cntmgr.add(addrBob, input, path);
+        fhres = cntmgr.addIPFSContent(addrBob, input, path);
         
         String cid = fhres.getCid();
         Assert.assertNotNull(cid);
@@ -129,7 +130,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         // Get the file from IPFS
-        fhres = cntmgr.get(addrBob, cid, path, null);
+        fhres = cntmgr.getIPFSContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
 
         // Verify local content
@@ -144,21 +145,21 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         InputStream input = new ByteArrayInputStream(content.getBytes());
         
         try {
-            cntmgr.add(addrBob, input, null);
+            cntmgr.addIPFSContent(addrBob, input, null);
             Assert.fail("IllegalArgumentException expected");
         } catch (IllegalArgumentException ex) {
             // ignore
         }
         
         try {
-            cntmgr.add(addrBob, input, Paths.get(""));
+            cntmgr.addIPFSContent(addrBob, input, Paths.get(""));
             Assert.fail("IllegalArgumentException expected");
         } catch (IllegalArgumentException ex) {
             // ignore
         }
         
         try {
-            cntmgr.add(addrBob, input, Paths.get(" "));
+            cntmgr.addIPFSContent(addrBob, input, Paths.get(" "));
             Assert.fail("IllegalArgumentException expected");
         } catch (IllegalArgumentException ex) {
             // ignore
@@ -168,7 +169,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         // https://github.com/tdiesler/nessus/issues/47
         
         Path srcPath = Paths.get("some space");
-        FHandle fhandle = cntmgr.add(addrBob, input, srcPath);
+        FHandle fhandle = cntmgr.addIPFSContent(addrBob, input, srcPath);
         Path cryptPath = Paths.get(fhandle.getURL().toURI());
         try (Reader rd = new FileReader(cryptPath.toFile())) {
             FHeader fheader = cntmgr.readFHeader(rd);
@@ -280,14 +281,14 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         InputStream input = new ByteArrayInputStream("some text".getBytes());
-        String cid = cntmgr.add(addrBob, input, path).getCid();
+        String cid = cntmgr.addIPFSContent(addrBob, input, path).getCid();
 
         // Verify that we cannot add to an existing path
         try {
             input = new ByteArrayInputStream("some other".getBytes());
-            cntmgr.add(addrBob, input, path).getCid();
-            Assert.fail("IllegalStateException expected");
-        } catch (IllegalStateException ex) {
+            cntmgr.addIPFSContent(addrBob, input, path).getCid();
+            Assert.fail("NessusUserFault expected");
+        } catch (NessusUserFault ex) {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
         }
 
@@ -296,7 +297,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         // Get the file from IPFS
-        FHandle fhres = cntmgr.get(addrBob, cid, path, null);
+        FHandle fhres = cntmgr.getIPFSContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
 
         // Verify local content
@@ -305,16 +306,16 @@ public class ContentManagerTest extends AbstractWorkflowTest {
 
         // Verify that we cannot get to an existing path
         try {
-            cntmgr.get(addrBob, cid, path, null);
-            Assert.fail("IllegalStateException expected");
-        } catch (IllegalStateException ex) {
+            cntmgr.getIPFSContent(addrBob, cid, path, null);
+            Assert.fail("NessusUserFault expected");
+        } catch (NessusUserFault ex) {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
         }
         
         createContentManager(new Config(blockchain, ipfsClient).replaceExisting());
 
         // Verify that we now can get to an existing path
-        fhres = cntmgr.get(addrBob, cid, path, null);
+        fhres = cntmgr.getIPFSContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
         
         // Verify local content
@@ -330,7 +331,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         InputStream input = new ByteArrayInputStream("some text".getBytes());
-        cntmgr.add(addrBob, input, path).getCid();
+        cntmgr.addIPFSContent(addrBob, input, path).getCid();
 
         // Verify local content
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));

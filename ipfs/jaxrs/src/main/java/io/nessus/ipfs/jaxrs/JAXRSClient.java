@@ -28,7 +28,6 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -40,7 +39,11 @@ import javax.ws.rs.core.Response.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.nessus.Network;
+import io.nessus.ipfs.NessusException;
+import io.nessus.ipfs.NessusUserFault;
 import io.nessus.utils.AssertState;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 public class JAXRSClient implements JAXRSEndpoint {
 
@@ -49,84 +52,49 @@ public class JAXRSClient implements JAXRSEndpoint {
     final Client client = ClientBuilder.newClient();
     final URI urlRoot;
 
+    static Long networkVersion;
+    
     public JAXRSClient(URI urlRoot) {
         this.urlRoot = urlRoot;
+    }
+
+    public static void logBlogchainNetworkAvailable(Network network) {
+        try {
+            assertBlockchainNetworkAvailable(network);
+        } catch (BitcoinRPCException rte) {
+            // ignore
+        }
+    }
+
+    public static void assertBlockchainNetworkAvailable(Network network) {
+        if (networkVersion == null) {
+            try {
+                String networkName = network.getClass().getSimpleName();
+                networkVersion = network.getNetworkInfo().version();
+                LOG.info("{} Version: {}",  networkName, networkVersion);
+            } catch (BitcoinRPCException rte) {
+                String errmsg = rte.getRPCError().getMessage();
+                LOG.error("Blockchain not available: {}", errmsg);
+                throw rte;
+            } catch (RuntimeException rte) {
+                LOG.error("Blockchain error", rte);
+                throw rte;
+            }
+        }
     }
 
     @Override
     public String registerAddress(String rawAddr) throws IOException {
 
-        WebTarget target = client.target(generateURL("/register"))
+        WebTarget target = client.target(generateURL("/regaddr"))
                 .queryParam("addr", rawAddr);
 
         Response res = processResponse(target.request().get(Response.class));
 
         String encKey = res.readEntity(String.class);
-        LOG.info("/register => {}", encKey);
+        LOG.info("/regaddr {} => {}", rawAddr, encKey);
 
         return encKey;
-    }
-
-    @Override
-    public String unregisterAddress(String rawAddr) throws IOException {
-
-        WebTarget target = client.target(generateURL("/rmaddr"))
-                .queryParam("addr", rawAddr);
-
-        Response res = processResponse(target.request().get(Response.class));
-        String encKey = res.readEntity(String.class);
-        LOG.info("/rmaddr => {}", encKey);
-
-        return encKey;
-    }
-
-    @Override
-    public SFHandle add(String rawAddr, String relPath, InputStream input) throws IOException {
-
-        WebTarget target = client.target(generateURL("/add"))
-                .queryParam("addr", rawAddr)
-                .queryParam("path", relPath);
-
-        Response res = processResponse(target.request().post(Entity.entity(input, MediaType.APPLICATION_OCTET_STREAM), Response.class));
-
-        SFHandle shandle = res.readEntity(SFHandle.class);
-        LOG.info("/add => {}", shandle);
-
-        return shandle;
-    }
-
-    @Override
-    public SFHandle get(String rawAddr, String cid, String relPath, Long timeout) throws IOException {
-
-        WebTarget target = client.target(generateURL("/get"))
-                .queryParam("addr", rawAddr)
-                .queryParam("path", relPath)
-                .queryParam("timeout", timeout)
-                .queryParam("cid", cid);
-
-        Response res = processResponse(target.request().get(Response.class));
-
-        SFHandle shandle = res.readEntity(SFHandle.class);
-        LOG.info("/get => {}", shandle);
-
-        return shandle;
-    }
-
-    @Override
-    public SFHandle send(String rawAddr, String cid, String rawTarget, Long timeout) throws IOException {
-
-        WebTarget target = client.target(generateURL("/send"))
-                .queryParam("addr", rawAddr)
-                .queryParam("target", rawTarget)
-                .queryParam("cid", cid)
-                .queryParam("timeout", timeout);
-
-        Response res = processResponse(target.request().get(Response.class));
-
-        SFHandle shandle = res.readEntity(SFHandle.class);
-        LOG.info("/send => {}", shandle);
-
-        return shandle;
     }
 
     @Override
@@ -139,9 +107,71 @@ public class JAXRSClient implements JAXRSEndpoint {
         if (Status.NO_CONTENT.getStatusCode() == res.getStatus()) return null;
 
         String encKey = res.readEntity(String.class);
-        LOG.info("/findkey => {}", encKey);
+        LOG.info("/findkey {} => {}", rawAddr, encKey);
 
         return encKey;
+    }
+
+    @Override
+    public String unregisterAddress(String rawAddr) throws IOException {
+
+        WebTarget target = client.target(generateURL("/rmaddr"))
+                .queryParam("addr", rawAddr);
+
+        Response res = processResponse(target.request().get(Response.class));
+        String encKey = res.readEntity(String.class);
+        LOG.info("/rmaddr {} => {}", rawAddr, encKey);
+
+        return encKey;
+    }
+
+    @Override
+    public SFHandle addIPFSContent(String rawAddr, String relPath, InputStream input) throws IOException {
+
+        WebTarget target = client.target(generateURL("/addipfs"))
+                .queryParam("addr", rawAddr)
+                .queryParam("path", relPath);
+
+        Response res = processResponse(target.request().post(Entity.entity(input, MediaType.APPLICATION_OCTET_STREAM), Response.class));
+
+        SFHandle shandle = res.readEntity(SFHandle.class);
+        LOG.info("/addipfs => {}", shandle);
+
+        return shandle;
+    }
+
+    @Override
+    public SFHandle getIPFSContent(String rawAddr, String cid, String relPath, Long timeout) throws IOException {
+
+        WebTarget target = client.target(generateURL("/getipfs"))
+                .queryParam("addr", rawAddr)
+                .queryParam("path", relPath)
+                .queryParam("timeout", timeout)
+                .queryParam("cid", cid);
+
+        Response res = processResponse(target.request().get(Response.class));
+
+        SFHandle shandle = res.readEntity(SFHandle.class);
+        LOG.info("/getipfs {} => {}", cid, shandle);
+
+        return shandle;
+    }
+
+    @Override
+    public SFHandle sendIPFSContent(String rawAddr, String cid, String rawTarget, Long timeout) throws IOException {
+
+        WebTarget target = client.target(generateURL("/sendipfs"))
+                .queryParam("addr", rawAddr)
+                .queryParam("target", rawTarget)
+                .queryParam("cid", cid)
+                .queryParam("timeout", timeout);
+
+        Response res = processResponse(target.request().get(Response.class));
+
+        SFHandle shandle = res.readEntity(SFHandle.class);
+        LOG.info("/sendipfs {} => {}", cid, shandle);
+
+        return shandle;
     }
 
     @Override
@@ -154,7 +184,7 @@ public class JAXRSClient implements JAXRSEndpoint {
         Response res = processResponse(target.request().get(Response.class));
 
         List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
-        LOG.info("/findipfs => {}", result);
+        LOG.info("/findipfs {} => {} files", rawAddr, result.size());
 
         return result;
     }
@@ -169,7 +199,7 @@ public class JAXRSClient implements JAXRSEndpoint {
         Response res = processResponse(target.request().get(Response.class));
 
         List<String> result = Arrays.asList(res.readEntity(String[].class));
-        LOG.info("/rmipfs => {}", result);
+        LOG.info("/rmipfs {} {} => {}", rawAddr, cids, result);
 
         return result;
     }
@@ -183,7 +213,7 @@ public class JAXRSClient implements JAXRSEndpoint {
         Response res = processResponse(target.request().get(Response.class));
 
         List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
-        LOG.info("/findlocal => {}", result);
+        LOG.info("/findlocal {} => {} files", rawAddr, result.size());
 
         return result;
     }
@@ -198,7 +228,7 @@ public class JAXRSClient implements JAXRSEndpoint {
         Response res = processResponse(target.request().get(Response.class));
 
         InputStream content = res.readEntity(InputStream.class);
-        LOG.info("/getlocal => {}", content);
+        LOG.info("/getlocal {} {}", rawAddr, path);
 
         return content;
     }
@@ -212,10 +242,10 @@ public class JAXRSClient implements JAXRSEndpoint {
 
         Response res = processResponse(target.request().get(Response.class));
 
-        Boolean deleted = res.readEntity(Boolean.class);
-        LOG.info("/rmlocal => {}", deleted);
+        Boolean removed = res.readEntity(Boolean.class);
+        LOG.info("/rmlocal {} {} => {}", rawAddr, path, removed);
 
-        return deleted;
+        return removed;
     }
 
     private Response processResponse(Response res) throws IOException {
@@ -223,7 +253,6 @@ public class JAXRSClient implements JAXRSEndpoint {
         if (status == Status.INTERNAL_SERVER_ERROR) {
 
             String stackTrace = res.readEntity(String.class);
-            LOG.error(status.getReasonPhrase());
             LOG.error(stackTrace);
 
             String line = new BufferedReader(new StringReader(stackTrace)).readLine();
@@ -238,18 +267,17 @@ public class JAXRSClient implements JAXRSEndpoint {
                 message = "";
             } 
 
-            Exception ex;
-            try {
-                Class<?> clazz = JAXRSClient.class.getClassLoader().loadClass(errorType);
-                ex = (Exception) clazz.getConstructor(String.class).newInstance(message);
-            } catch (Exception refex) {
-                throw new InternalServerErrorException(line);
-            }
-
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
+            if (NessusUserFault.class.getName().equals(errorType)) {
+                
+                throw new NessusUserFault(message);
+                
+            } else if (NessusException.class.getName().equals(errorType)) {
+                
+                throw new NessusException(message);
+                
             } else {
-                throw new IllegalStateException(ex);
+                
+                throw new IllegalStateException(message);
             }
 
         } else if (status == Status.NO_CONTENT) {
@@ -257,9 +285,11 @@ public class JAXRSClient implements JAXRSEndpoint {
             // ignore;
 
         } else {
+            
             if (status != Status.OK) LOG.error("{} - {}", status.getStatusCode(), status.getReasonPhrase());
             AssertState.assertEquals(Status.OK, status, status.getReasonPhrase());
         }
+        
         return res;
     }
 

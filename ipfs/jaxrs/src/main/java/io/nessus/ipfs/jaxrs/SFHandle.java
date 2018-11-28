@@ -22,7 +22,7 @@ package io.nessus.ipfs.jaxrs;
 
 import java.nio.file.Path;
 
-import io.nessus.core.ipfs.FHandle;
+import io.nessus.ipfs.FHandle;
 
 public class SFHandle {
 

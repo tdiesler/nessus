@@ -1,4 +1,4 @@
-package io.nessus.core.ipfs;
+package io.nessus.ipfs;
 
 import java.io.IOException;
 import java.io.InputStream;

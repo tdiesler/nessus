@@ -120,7 +120,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Path relPath = Paths.get("bob/userfile.txt");
         InputStream input = getClass().getResourceAsStream("/userfile.txt");
 
-        SFHandle fhandle = client.add(addrBob.getAddress(), relPath.toString(), input);
+        SFHandle fhandle = client.addIPFSContent(addrBob.getAddress(), relPath.toString(), input);
 
         Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
@@ -157,7 +157,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         String cid = fhandle.getCid();
 
-        fhandle = client.get(addrBob.getAddress(), cid, relPath.toString(), timeout);
+        fhandle = client.getIPFSContent(addrBob.getAddress(), cid, relPath.toString(), timeout);
 
         Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
@@ -166,7 +166,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Send content from IPFS
 
-        fhandle = client.send(addrBob.getAddress(), cid, addrMary.getAddress(), timeout);
+        fhandle = client.sendIPFSContent(addrBob.getAddress(), cid, addrMary.getAddress(), timeout);
 
         Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
@@ -187,7 +187,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         // Get content from IPFS
 
         relPath = Paths.get("marry/userfile.txt");
-        fhandle = client.get(addrMary.getAddress(), fhandle.getCid(), relPath.toString(), timeout);
+        fhandle = client.getIPFSContent(addrMary.getAddress(), fhandle.getCid(), relPath.toString(), timeout);
 
         Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));

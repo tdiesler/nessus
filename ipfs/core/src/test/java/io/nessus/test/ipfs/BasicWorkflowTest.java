@@ -1,4 +1,4 @@
-package io.nessus.test.ipfs.core;
+package io.nessus.test.ipfs;
 
 import java.io.BufferedReader;
 
@@ -35,8 +35,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.nessus.Wallet.Address;
-import io.nessus.core.ipfs.FHandle;
-import io.nessus.core.ipfs.ContentManager.Config;
+import io.nessus.ipfs.FHandle;
+import io.nessus.ipfs.ContentManager.Config;
 
 public class BasicWorkflowTest extends AbstractWorkflowTest {
 
@@ -65,7 +65,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         Path relPath = Paths.get("bob/userfile.txt");
         InputStream input = getClass().getResourceAsStream("/markdown/etc/userfile.txt");
-        FHandle fhandle = cntmgr.add(addrBob, input, relPath);
+        FHandle fhandle = cntmgr.addIPFSContent(addrBob, input, relPath);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
@@ -103,7 +103,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Get content from IPFS
         
-        fhandle  = cntmgr.get(addrBob, cidBob, relPath, null);
+        fhandle  = cntmgr.getIPFSContent(addrBob, cidBob, relPath, null);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
@@ -112,7 +112,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Send content to IPFS
         
-        fhandle  = cntmgr.send(addrBob, cidBob, addrMary, null);
+        fhandle  = cntmgr.sendIPFSContent(addrBob, cidBob, addrMary, null);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());
@@ -132,7 +132,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Get content from IPFS
         
         relPath = Paths.get("marry/userfile.txt");
-        fhandle  = cntmgr.get(addrMary, fhandle.getCid(), relPath, null);
+        fhandle  = cntmgr.getIPFSContent(addrMary, fhandle.getCid(), relPath, null);
         Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());

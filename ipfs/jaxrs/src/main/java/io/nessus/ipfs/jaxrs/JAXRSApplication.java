@@ -48,19 +48,16 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
-import io.nessus.Network;
 import io.nessus.bitcoin.BitcoinBlockchain;
-import io.nessus.core.ipfs.ContentManager;
-import io.nessus.core.ipfs.IPFSClient;
-import io.nessus.core.ipfs.ContentManager.Config;
-import io.nessus.core.ipfs.impl.DefaultContentManager;
-import io.nessus.core.ipfs.impl.DefaultIPFSClient;
+import io.nessus.ipfs.ContentManager;
+import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.impl.DefaultContentManager;
+import io.nessus.ipfs.impl.DefaultIPFSClient;
 import io.nessus.utils.SystemUtils;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCError;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
 @ApplicationPath("/nessus")
 public class JAXRSApplication extends Application {
@@ -74,10 +71,10 @@ public class JAXRSApplication extends Application {
         config = new JAXRSConfig(jaxrsAddr, jaxrsPort);
     }
 
+    private final ContentManager contentManager;
+
     private static JAXRSApplication INSTANCE;
     private static JAXRSServer jaxrsServer;
-
-    private final ContentManager contentManager;
 
     public static void main(String[] args) throws Exception {
 
@@ -100,7 +97,7 @@ public class JAXRSApplication extends Application {
         URL rpcUrl = blockchainURL();
         Class<Blockchain> bcclass = blockchainClass();
         Blockchain blockchain = BlockchainFactory.getBlockchain(rpcUrl, bcclass);
-        logNetworkVersionFailsafe(blockchain.getNetwork());
+        JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
         Builder builder = Undertow.builder().addHttpListener(config.port, config.host);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
@@ -110,21 +107,6 @@ public class JAXRSApplication extends Application {
         LOG.info("Nessus JAXRS: {}",  jaxrsServer.getRootURL());
 
         return jaxrsServer;
-    }
-
-    public static void logNetworkVersionFailsafe(Network network) {
-        
-        String networkName = network.getClass().getSimpleName();
-        try {
-            Long networkVersion = network.getNetworkInfo().version();
-            LOG.info("{} Version: {}",  networkName, networkVersion);
-        } catch (BitcoinRPCException rte) {
-            BitcoinRPCError rpcError = rte.getRPCError();
-            if (rpcError != null) {
-                String errmsg = rpcError.getMessage();
-                LOG.warn("{} Warning: {}",  networkName, errmsg);
-            }
-        }
     }
 
     public static void serverStop() {

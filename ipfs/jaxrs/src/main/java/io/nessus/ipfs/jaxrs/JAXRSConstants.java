@@ -1,6 +1,6 @@
 package io.nessus.ipfs.jaxrs;
 
-import io.nessus.core.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSClient;
 
 /*-
  * #%L
