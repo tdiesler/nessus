@@ -22,6 +22,7 @@ package io.nessus.ipfs;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
@@ -67,27 +68,37 @@ public interface ContentManager {
     /**
      * Add content to IPFS.
      */
-    FHandle addIPFSContent(Address owner, InputStream input, Path relPath) throws IOException, GeneralSecurityException;
+    FHandle addIpfsContent(Address owner, Path dstPath, URL srcUrl) throws IOException, GeneralSecurityException;
+    
+    /**
+     * Add content to IPFS.
+     */
+    FHandle addIpfsContent(Address owner, Path dstPath, InputStream input) throws IOException, GeneralSecurityException;
+    
+    /**
+     * Add content to IPFS from local file system.
+     */
+    FHandle addIpfsContent(Address owner, Path srcPath) throws IOException, GeneralSecurityException;
     
     /**
      * Get content from IPFS. 
      */
-    FHandle getIPFSContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException;
+    FHandle getIpfsContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException;
     
     /**
      * Find registered IPFS content for a given address.
      */
-    List<FHandle> findIPFSContent(Address owner, Long timeout) throws IOException;
+    List<FHandle> findIpfsContent(Address owner, Long timeout) throws IOException;
     
     /**
      * Send content to a target address via IPFS. 
      */
-    FHandle sendIPFSContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException;
+    FHandle sendIpfsContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException;
 
     /**
      * Unregister a IPFS content.
      */
-    List<String> removeIPFSContent(Address owner, List<String> cids) throws IOException;
+    List<String> unregisterIpfsContent(Address owner, List<String> cids) throws IOException;
     
     /**
      * Show content of a plain file from local storage.  

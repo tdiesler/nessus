@@ -40,6 +40,7 @@ import org.junit.Test;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.jaxrs.JAXRSApplication;
 import io.nessus.ipfs.jaxrs.JAXRSApplication.JAXRSServer;
+import io.nessus.utils.FileUtils;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.SFHandle;
 
@@ -69,9 +70,6 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
     @Before
     public void before() {
 
-        redeemLockedUtxos(LABEL_BOB, addrBob);
-        redeemLockedUtxos(LABEL_MARY, addrMary);
-
         // Verify that Bob has some funds
         BigDecimal balBob = wallet.getBalance(addrBob);
         if (balBob.doubleValue() < 1.0)
@@ -86,8 +84,8 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
     @After
     public void after() {
 
-        redeemLockedUtxos(LABEL_BOB, addrBob);
-        redeemLockedUtxos(LABEL_MARY, addrMary);
+        redeemLockedUtxos(addrBob);
+        redeemLockedUtxos(addrMary);
     }
 
     @Test
@@ -117,10 +115,11 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Add content to IPFS
 
-        Path relPath = Paths.get("bob/userfile.txt");
+        Path relPath = Paths.get("Bob/userfile.txt");
+        FileUtils.recursiveDelete(cntmgr.getPlainPath(addrBob).resolve("Bob"));
         InputStream input = getClass().getResourceAsStream("/userfile.txt");
 
-        SFHandle fhandle = client.addIPFSContent(addrBob.getAddress(), relPath.toString(), input);
+        SFHandle fhandle = client.addIpfsContent(addrBob.getAddress(), relPath.toString(), input);
 
         Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
@@ -135,8 +134,8 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertFalse(fhLocal.isExpired());
         Assert.assertFalse(fhLocal.isEncrypted());
 
-        InputStream reader = client.getLocalContent(addrBob.getAddress(), relPath.toString());
-        BufferedReader br = new BufferedReader(new InputStreamReader(reader));
+        input = client.getLocalContent(addrBob.getAddress(), relPath.toString());
+        BufferedReader br = new BufferedReader(new InputStreamReader(input));
         Assert.assertEquals("The quick brown fox jumps over the lazy dog.", br.readLine());
 
         Assert.assertTrue(client.removeLocalContent(addrBob.getAddress(), relPath.toString()));
@@ -157,7 +156,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         String cid = fhandle.getCid();
 
-        fhandle = client.getIPFSContent(addrBob.getAddress(), cid, relPath.toString(), timeout);
+        fhandle = client.getIpfsContent(addrBob.getAddress(), cid, relPath.toString(), timeout);
 
         Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
@@ -166,7 +165,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Send content from IPFS
 
-        fhandle = client.sendIPFSContent(addrBob.getAddress(), cid, addrMary.getAddress(), timeout);
+        fhandle = client.sendIpfsContent(addrBob.getAddress(), cid, addrMary.getAddress(), timeout);
 
         Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
@@ -187,24 +186,42 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         // Get content from IPFS
 
         relPath = Paths.get("marry/userfile.txt");
-        fhandle = client.getIPFSContent(addrMary.getAddress(), fhandle.getCid(), relPath.toString(), timeout);
+        FileUtils.recursiveDelete(cntmgr.getPlainPath(addrMary));
+        fhandle = client.getIpfsContent(addrMary.getAddress(), fhandle.getCid(), relPath.toString(), timeout);
 
         Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertFalse(fhandle.isEncrypted());
         Assert.assertNull(fhandle.getCid());
+        
+        input = client.getLocalContent(addrMary.getAddress(), relPath.toString());
+        br = new BufferedReader(new InputStreamReader(input));
+        Assert.assertEquals("The quick brown fox jumps over the lazy dog.", br.readLine());
+        
+        // Find local content
+        
+        List<SFHandle> fhandles = client.findLocalContent(addrMary.getAddress(), null);
+        Assert.assertEquals(1, fhandles.size());
+        SFHandle fhParent = fhandles.get(0);
+        Assert.assertEquals(1, fhParent.getChildren().size());
+        SFHandle fhChild = fhParent.getChildren().get(0);
+        Assert.assertEquals(relPath, Paths.get(fhChild.getPath()));
+        
+        fhandles = client.findLocalContent(addrMary.getAddress(), relPath.toString());
+        Assert.assertEquals(1, fhandles.size());
+        Assert.assertEquals(0, fhandles.get(0).getChildren().size());
+        Assert.assertEquals(relPath, Paths.get(fhandles.get(0).getPath()));
     }
 
     private SFHandle findLocalContent(Address addr, Path path) throws IOException {
-        SFHandle fhLocal = client.findLocalContent(addr.getAddress()).stream()
-                .filter(fh -> Paths.get(fh.getPath()).equals(path))
-                .findFirst().orElse(null);
+        List<SFHandle> fhandles = client.findLocalContent(addr.getAddress(), path.toString());
+        SFHandle fhLocal = fhandles.stream().findFirst().orElse(null);
         return fhLocal;
     }
 
     private SFHandle findIPFSContent(Address addr, String cid, Long timeout) throws IOException, InterruptedException {
 
-        List<SFHandle> fhandles = client.findIPFSContent(addr.getAddress(), timeout);
+        List<SFHandle> fhandles = client.findIpfsContent(addr.getAddress(), timeout);
         SFHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
         Assert.assertNotNull(fhandle);
         Assert.assertTrue(fhandle.isAvailable());

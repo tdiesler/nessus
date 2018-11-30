@@ -1,14 +1,5 @@
 package io.nessus.test.ipfs;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.FileReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 /*-
  * #%L
  * Nessus :: IPFS :: Core
@@ -29,6 +20,15 @@ import java.nio.file.Paths;
  * #L%
  */
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.FileReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.Date;
@@ -40,10 +40,11 @@ import org.junit.Test;
 
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
+import io.nessus.ipfs.ContentManager.Config;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.NessusUserFault;
-import io.nessus.ipfs.ContentManager.Config;
 import io.nessus.ipfs.impl.DefaultContentManager.FHeader;
+import io.nessus.utils.FileUtils;
 import io.nessus.utils.TimeUtils;
 
 public class ContentManagerTest extends AbstractWorkflowTest {
@@ -85,31 +86,33 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Address addrBob = wallet.getAddress(LABEL_BOB);
         
         ByteArrayInputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
-        FHandle fhandle = cntmgr.addIPFSContent(addrBob, input, Paths.get("some.txt"));
+        FHandle fhandle = cntmgr.addIpfsContent(addrBob, Paths.get("some.txt"), input);
         
-        List<FHandle> fhandles = cntmgr.findIPFSContent(addrBob, null);
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
         Assert.assertEquals(1, fhandles.size());
         Assert.assertEquals(fhandle, fhandles.get(0));
         
-        List<String> cids = cntmgr.removeIPFSContent(addrBob, Arrays.asList(fhandle.getCid()));
+        List<String> cids = cntmgr.unregisterIpfsContent(addrBob, Arrays.asList(fhandle.getCid()));
         Assert.assertEquals(1, cids.size());
         Assert.assertEquals(fhandle.getCid(), cids.get(0));
         
-        fhandles = cntmgr.findIPFSContent(addrBob, null);
+        fhandles = cntmgr.findIpfsContent(addrBob, null);
         Assert.assertEquals(0, fhandles.size());
     }
     
     @Test
     public void simpleAdd() throws Exception {
 
-        Path path = Paths.get("my/src/path");
+        Path path = Paths.get("contentA/subA/file01.txt");
         cntmgr.removeLocalContent(addrBob, path);
         
         FHandle fhres = cntmgr.findLocalContent(addrBob, path);
-        Assert.assertFalse(fhres.isAvailable());
+        Assert.assertNull(fhres);
         
-        InputStream input = new ByteArrayInputStream("some text".getBytes());
-        fhres = cntmgr.addIPFSContent(addrBob, input, path);
+        InputStream input = new ByteArrayInputStream("file 01".getBytes());
+        fhres = cntmgr.addIpfsContent(addrBob, path, input);
+        Assert.assertTrue(fhres.isAvailable());
+        Assert.assertTrue(fhres.isEncrypted());
         
         String cid = fhres.getCid();
         Assert.assertNotNull(cid);
@@ -122,7 +125,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         // https://github.com/tdiesler/nessus/issues/41
         
         // Use an extremely short timeout 
-        fhres = findIPFSContent(addrBob, cid, 10L);
+        fhres = findIpfsContent(addrBob, cid, 10L);
         Assert.assertTrue(fhres.isAvailable());
         
         // Clear the file cache & local file
@@ -130,12 +133,62 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         // Get the file from IPFS
-        fhres = cntmgr.getIPFSContent(addrBob, cid, path, null);
+        fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
 
         // Verify local content
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
-        Assert.assertEquals("some text", new BufferedReader(rd).readLine());
+        Assert.assertEquals("file 01", new BufferedReader(rd).readLine());
+    }
+
+    @Test
+    public void multipleAdd() throws Exception {
+
+        Path path = Paths.get("contentA");
+        cntmgr.removeLocalContent(addrBob, path);
+        
+        FHandle fhres = cntmgr.findLocalContent(addrBob, path);
+        Assert.assertNull(fhres);
+        
+        Path srcPath = Paths.get("src/test/resources/contentA");
+        Path dstPath = cntmgr.getPlainPath(addrBob).resolve("contentA");
+        FileUtils.recursiveCopy(srcPath, dstPath);
+        
+        fhres = cntmgr.findLocalContent(addrBob, path);
+        Assert.assertTrue(fhres.isAvailable());
+        
+        fhres = cntmgr.addIpfsContent(addrBob, path);
+        Assert.assertTrue(fhres.isAvailable());
+        Assert.assertTrue(fhres.isEncrypted());
+        
+        String cid = fhres.getCid();
+        Assert.assertNotNull(cid);
+        
+        // Expect to find the local content
+        fhres = cntmgr.findLocalContent(addrBob, path);
+        Assert.assertTrue(fhres.isAvailable());
+        
+        // Clear the file cache & local file
+        cntmgr.clearFileCache();
+        cntmgr.removeLocalContent(addrBob, path);
+        
+        // Find the IPFS tree
+        fhres = findIpfsContent(addrBob, cid, null);
+        Assert.assertTrue(fhres.isAvailable());
+        Assert.assertEquals(3, fhres.getChildren().size());
+        Assert.assertEquals(cid + "/subA", fhres.getChildren().get(0).getCid());
+        Assert.assertEquals(cid + "/subB", fhres.getChildren().get(1).getCid());
+        Assert.assertEquals(cid + "/file03.txt", fhres.getChildren().get(2).getCid());
+        
+        // Get the file from IPFS
+        fhres = cntmgr.getIpfsContent(addrBob, cid, null, null);
+        Assert.assertTrue(fhres.isAvailable());
+        Assert.assertEquals(3, fhres.getChildren().size());
+
+        // Verify local content
+        path = Paths.get("contentA/subA/file01.txt");
+        Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
+        Assert.assertEquals("file 01", new BufferedReader(rd).readLine());
     }
 
     @Test
@@ -145,21 +198,21 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         InputStream input = new ByteArrayInputStream(content.getBytes());
         
         try {
-            cntmgr.addIPFSContent(addrBob, input, null);
+            cntmgr.addIpfsContent(addrBob, null, input);
             Assert.fail("IllegalArgumentException expected");
         } catch (IllegalArgumentException ex) {
             // ignore
         }
         
         try {
-            cntmgr.addIPFSContent(addrBob, input, Paths.get(""));
+            cntmgr.addIpfsContent(addrBob, Paths.get(""), input);
             Assert.fail("IllegalArgumentException expected");
         } catch (IllegalArgumentException ex) {
             // ignore
         }
         
         try {
-            cntmgr.addIPFSContent(addrBob, input, Paths.get(" "));
+            cntmgr.addIpfsContent(addrBob, Paths.get(" "), input);
             Assert.fail("IllegalArgumentException expected");
         } catch (IllegalArgumentException ex) {
             // ignore
@@ -169,15 +222,15 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         // https://github.com/tdiesler/nessus/issues/47
         
         Path srcPath = Paths.get("some space");
-        FHandle fhandle = cntmgr.addIPFSContent(addrBob, input, srcPath);
-        Path cryptPath = Paths.get(fhandle.getURL().toURI());
+        FHandle fhandle = cntmgr.addIpfsContent(addrBob, srcPath, input);
+        Path cryptPath = fhandle.getFilePath();
         try (Reader rd = new FileReader(cryptPath.toFile())) {
             FHeader fheader = cntmgr.readFHeader(rd);
             Assert.assertEquals(srcPath, fheader.path);
         }
         Path destPath = Paths.get("some other");
-        fhandle = cntmgr.decrypt(fhandle, addrBob, destPath, true);
-        Path plainPath = Paths.get(fhandle.getURL().toURI());
+        fhandle = cntmgr.decrypt(fhandle, destPath, true);
+        Path plainPath = fhandle.getFilePath();
         Assert.assertTrue(plainPath.toFile().isFile());
         Assert.assertEquals(destPath, plainPath.getFileName());
         try (Reader rd = new FileReader(plainPath.toFile())) {
@@ -193,11 +246,11 @@ public class ContentManagerTest extends AbstractWorkflowTest {
                 .ipfsAttempts(attempts));
         
         Date start = new Date();
-        addContent(addrBob, getTestPath(100), "test100_" + start.getTime());
+        addIpfsContent(addrBob, getTestPath(100), "test100_" + start.getTime());
         LOG.info("addContent: {}", TimeUtils.elapsedTimeString(start));
 
         start = new Date();
-        List<FHandle> fhandles = cntmgr.findIPFSContent(addrBob, 20000L);
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, 20000L);
         LOG.info("findIPFSContent: {}", TimeUtils.elapsedTimeString(start));
         fhandles.forEach(fh -> LOG.info("{}", fh));
     }
@@ -209,14 +262,16 @@ public class ContentManagerTest extends AbstractWorkflowTest {
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
-        List<FHandle> fhandles = cntmgr.findIPFSContent(addrBob, null);
+        cntmgr.removeLocalContent(addrBob, Paths.get("contentA"));
+        
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
         if (fhandles.isEmpty()) {
-            addContent(addrBob, Paths.get("contentA/file01.txt"));
-            addContent(addrBob, Paths.get("contentA/file02.txt"));
-            addContent(addrBob, Paths.get("contentA/file03.txt"));
+            addIpfsContent(addrBob, Paths.get("contentA/subA/file01.txt"));
+            addIpfsContent(addrBob, Paths.get("contentA/subB/subC/file02.txt"));
+            addIpfsContent(addrBob, Paths.get("contentA/file03.txt"));
         }
         
-        fhandles = cntmgr.findIPFSContent(addrBob, null);
+        fhandles = cntmgr.findIpfsContent(addrBob, null);
         fhandles.forEach(fh -> LOG.info("{}", fh));
         Assert.assertEquals(3, fhandles.size());
         
@@ -227,7 +282,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         wallet.sendFromLabel(LABEL_BOB, addrBob.getAddress(), Wallet.ALL_FUNDS);
         
         // Verify that no IPFS files are found
-        fhandles = cntmgr.findIPFSContent(addrBob, null);
+        fhandles = cntmgr.findIpfsContent(addrBob, null);
         Assert.assertTrue(fhandles.isEmpty());
     }
 
@@ -238,15 +293,15 @@ public class ContentManagerTest extends AbstractWorkflowTest {
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
-        List<FHandle> fhandles = cntmgr.findIPFSContent(addrBob, null);
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
         if (fhandles.isEmpty()) {
             long millis = System.currentTimeMillis();
-            addContent(addrBob, getTestPath(200), "test200_" + millis);
-            addContent(addrBob, getTestPath(201), "test201_" + millis);
-            addContent(addrBob, getTestPath(202), "test202_" + millis);
+            addIpfsContent(addrBob, getTestPath(200), "test200_" + millis);
+            addIpfsContent(addrBob, getTestPath(201), "test201_" + millis);
+            addIpfsContent(addrBob, getTestPath(202), "test202_" + millis);
         }
         
-        fhandles = cntmgr.findIPFSContent(addrBob, null);
+        fhandles = cntmgr.findIpfsContent(addrBob, null);
         fhandles = awaitFileAvailability(fhandles, 3, true);
         
         // SET A BREAKPOINT HERE AND CONTINUE WITH A NEW IPFS INSTANCE
@@ -255,7 +310,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
-        fhandles = cntmgr.findIPFSContent(addrBob, null);
+        fhandles = cntmgr.findIpfsContent(addrBob, null);
         fhandles.forEach(fh -> LOG.info("{}", fh));
         
         // Verify that no IPFS files are found
@@ -263,12 +318,12 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         fhandles = awaitFileAvailability(fhandles, 1, false);
         if (fhandles.size() == 0) {
             long millis = System.currentTimeMillis();
-            addContent(addrBob, getTestPath(200), "test200_" + millis);
-            addContent(addrBob, getTestPath(201), "test201_" + millis);
-            addContent(addrBob, getTestPath(202), "test202_" + millis);
+            addIpfsContent(addrBob, getTestPath(200), "test200_" + millis);
+            addIpfsContent(addrBob, getTestPath(201), "test201_" + millis);
+            addIpfsContent(addrBob, getTestPath(202), "test202_" + millis);
         }
         
-        fhandles = cntmgr.findIPFSContent(addrBob, null);
+        fhandles = cntmgr.findIpfsContent(addrBob, null);
         fhandles.forEach(fh -> LOG.info("{}", fh));
         
         awaitFileAvailability(fhandles, 3, true);
@@ -281,12 +336,12 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         InputStream input = new ByteArrayInputStream("some text".getBytes());
-        String cid = cntmgr.addIPFSContent(addrBob, input, path).getCid();
+        String cid = cntmgr.addIpfsContent(addrBob, path, input).getCid();
 
         // Verify that we cannot add to an existing path
         try {
             input = new ByteArrayInputStream("some other".getBytes());
-            cntmgr.addIPFSContent(addrBob, input, path).getCid();
+            cntmgr.addIpfsContent(addrBob, path, input).getCid();
             Assert.fail("NessusUserFault expected");
         } catch (NessusUserFault ex) {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
@@ -297,7 +352,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         // Get the file from IPFS
-        FHandle fhres = cntmgr.getIPFSContent(addrBob, cid, path, null);
+        FHandle fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
 
         // Verify local content
@@ -306,7 +361,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
 
         // Verify that we cannot get to an existing path
         try {
-            cntmgr.getIPFSContent(addrBob, cid, path, null);
+            cntmgr.getIpfsContent(addrBob, cid, path, null);
             Assert.fail("NessusUserFault expected");
         } catch (NessusUserFault ex) {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
@@ -315,7 +370,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         createContentManager(new Config(blockchain, ipfsClient).replaceExisting());
 
         // Verify that we now can get to an existing path
-        fhres = cntmgr.getIPFSContent(addrBob, cid, path, null);
+        fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
         
         // Verify local content
@@ -327,11 +382,11 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void recursiveRemove() throws Exception {
 
-        Path path = Paths.get("remove", "file01.txt");
-        cntmgr.removeLocalContent(addrBob, path);
+        FileUtils.recursiveDelete(Paths.get("remove"));
         
+        Path path = Paths.get("remove/file01.txt");
         InputStream input = new ByteArrayInputStream("some text".getBytes());
-        cntmgr.addIPFSContent(addrBob, input, path).getCid();
+        cntmgr.addIpfsContent(addrBob, path, input).getCid();
 
         // Verify local content
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));

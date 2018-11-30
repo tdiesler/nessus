@@ -3,45 +3,67 @@
 
 function treeMenuIpfs(node) {
 
-    // Directory items have no context menu
-    if (node.children.length > 0) {
-        return "";
-    }
-    
     var jstree = $('#treeIpfs').jstree(true);
     var data = jstree.get_selected(true)[0].data;
     console.log("treeIpfs: " + data);
         
-    var items = {
-        "show": {
-            "label": "show",
-            "action": function (obj) { 
-                var href = data.gatewayUrl + "/" + data.cid;
-                window.open(href); 
-                }
-        },
-        "get": {
-            "label": "get",
-            "action": function (obj) { 
-                var href = "/portal/pget?addr=" + data.addr + "&path=" + data.path + "&cid=" + data.cid;
-                window.open(href, "_self"); 
-                }
-        },
-        "send": {
-            "label": "send",
+    /** 
+     * There are four types of IPFS nodes
+     * 
+     * [A] Top level file 
+     * [B] Top level directory
+     * [C] Sub level directory
+     * [D] Sub level file
+     * 
+     * Actions apply as follows
+     * 
+     * [A] get, show, send, remove
+     * [B] get, ----, send, remove
+     * [C] ---, ----, ----, ------
+     * [D] get, show, send, ------
+     */
+
+    var hasParent = node.parent != "#";
+    var hasChildren = node.children.length > 0;
+    
+    var typeA = !hasParent && !hasChildren;
+    var typeB = !hasParent && hasChildren;
+    var typeC = hasParent && hasChildren;
+    var typeD = hasParent && !hasChildren;
+    
+    var hrefGet = "/portal/pget?addr=" + data.addr + "&path=" + data.path + "&cid=" + data.cid;
+    var hrefShow = data.gatewayUrl + "/" + data.cid;
+    var hrefSend = "/portal/psend?addr=" + data.addr + "&path=" + data.path + "&cid=" + data.cid;
+    var hrefRemove = "/portal/rmipfs?addr=" + data.addr + "&cids=" + data.cid;
+
+    var itemGet = { 
+    		"label": "get", 
+    		"action": function (obj) { window.open(hrefGet, "_self"); } 
+    }
+    var itemShow = { 
+    		"label": "show", 
+            "_disabled": typeB,
+    		"action": function (obj) { window.open(hrefShow); } 
+    }
+    var itemSend = { 
+    		"label": "send", 
             "_disabled": data.nosend,
-            "action": function (obj) { 
-                var href = "/portal/psend?addr=" + data.addr + "&path=" + data.path + "&cid=" + data.cid;
-                window.open(href, "_self"); 
-                }
-        },
-        "remove": {
-            "label": "remove",
-            "action": function (obj) { 
-                var href = "/portal/rmipfs?addr=" + data.addr + "&cids=" + data.cid;
-                window.open(href, "_self"); 
-            }
-        }
+    		"action": function (obj) { window.open(hrefSend, "_self"); } 
+    }
+    var itemRemove = { 
+    		"label": "remove", 
+            "_disabled": typeD,
+    		"action": function (obj) { window.open(hrefRemove, "_self"); } 
+    }
+    
+    // No menu for TypeC
+    if (typeC) return "";
+    
+    var items = {
+	        "get": itemGet,
+	        "show": itemShow,
+	        "send": itemSend,
+	        "remove": itemRemove
     }
 
     return items;
@@ -53,27 +75,53 @@ function treeMenuLocal(node) {
     var data = jstree.get_selected(true)[0].data;
     console.log("treeLocal: " + data);
     
-    var items = {
-        "show": {
-            "label": "show",
-            "action": function (obj) { 
-                var href = "/portal/fshow?addr=" + data.addr + "&path=" + data.path;
-                window.open(href); 
-                }
-        },
-        "remove": {
-            "label": "remove",
-            "action": function (obj) { 
-                var href = "/portal/rmlocal?addr=" + data.addr + "&path=" + data.path;
-                window.open(href, "_self"); 
-            }
-        }
-    }
+    /** 
+     * There are four types of IPFS nodes
+     * 
+     * [A] Top level file 
+     * [B] Top level directory
+     * [C] Sub level directory
+     * [D] Sub level file
+     * 
+     * Actions apply as follows
+     * 
+     * [A] add, show, remove
+     * [B] add, ----, remove
+     * [C] add, ----, remove
+     * [D] add, show, remove
+     */
 
-    // Directory items have no show
-    if (node.children.length > 0) {
-    	delete items.show;
+    var hasParent = node.parent != "#";
+    var hasChildren = node.children.length > 0;
+    
+    var typeA = !hasParent && !hasChildren;
+    var typeB = !hasParent && hasChildren;
+    var typeC = hasParent && hasChildren;
+    var typeD = hasParent && !hasChildren;
+    
+    var hrefAdd = "/portal/addpath?addr=" + data.addr + "&path=" + data.path;
+    var hrefShow = "/portal/fshow?addr=" + data.addr + "&path=" + data.path;
+    var hrefRemove = "/portal/rmlocal?addr=" + data.addr + "&path=" + data.path;
+
+    var itemAdd = { 
+    		"label": "add", 
+    		"action": function (obj) { window.open(hrefAdd, "_self"); } 
+    }
+    var itemShow = { 
+    		"label": "show", 
+            "_disabled": typeB || typeC,
+    		"action": function (obj) { window.open(hrefShow); } 
+    }
+    var itemRemove = { 
+    		"label": "remove", 
+    		"action": function (obj) { window.open(hrefRemove, "_self"); } 
     }
     
+    var items = {
+	        "add": itemAdd,
+	        "show": itemShow,
+	        "remove": itemRemove
+    }
+
     return items;
 }

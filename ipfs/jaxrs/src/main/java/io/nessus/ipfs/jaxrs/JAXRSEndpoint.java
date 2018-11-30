@@ -22,6 +22,7 @@ package io.nessus.ipfs.jaxrs;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.util.List;
 
@@ -53,32 +54,37 @@ public interface JAXRSEndpoint {
     @POST
     @Path("/addipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    SFHandle addIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path, InputStream input) throws IOException, GeneralSecurityException;
+    SFHandle addIpfsContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path, InputStream input) throws IOException, GeneralSecurityException;
+
+    @GET
+    @Path("/addipfs")
+    @Produces(MediaType.APPLICATION_JSON)
+    SFHandle addIpfsContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path, @QueryParam("url") URL srcURL) throws IOException, GeneralSecurityException;
 
     @GET
     @Path("/getipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    SFHandle getIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("path") String path, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
+    SFHandle getIpfsContent(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("path") String path, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
 
     @GET
     @Path("/sendipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    SFHandle sendIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("target") String rawTarget, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
+    SFHandle sendIpfsContent(@QueryParam("addr") String rawAddr, @QueryParam("cid") String cid, @QueryParam("target") String rawTarget, @QueryParam("timeout") Long timeout) throws IOException, GeneralSecurityException;
 
     @GET
     @Path("/findipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    List<SFHandle> findIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("timeout") Long timeout) throws IOException;
+    List<SFHandle> findIpfsContent(@QueryParam("addr") String rawAddr, @QueryParam("timeout") Long timeout) throws IOException;
 
     @GET
     @Path("/rmipfs")
     @Produces(MediaType.APPLICATION_JSON)
-    List<String> removeIPFSContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
+    List<String> unregisterIpfsContent(@QueryParam("addr") String rawAddr, @QueryParam("cids") List<String> cids) throws IOException;
     
     @GET
     @Path("/findlocal")
     @Produces(MediaType.APPLICATION_JSON)
-    List<SFHandle> findLocalContent(@QueryParam("addr") String rawAddr) throws IOException;
+    List<SFHandle> findLocalContent(@QueryParam("addr") String rawAddr, @QueryParam("path") String path) throws IOException;
 
     @GET
     @Path("/getlocal")

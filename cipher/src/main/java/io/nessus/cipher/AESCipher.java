@@ -36,6 +36,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import io.nessus.utils.AssertArgument;
+import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
 
 public class AESCipher {
@@ -121,7 +122,9 @@ public class AESCipher {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         StreamUtils.copyStream(secretStream, baos);
         byte[] secretMessage = baos.toByteArray();
-
+        
+        AssertArgument.assertTrue(secretMessage.length > 0, "Secret message cannot be empty");
+        
         // First deconstruct the message
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(secretMessage);
@@ -147,6 +150,8 @@ public class AESCipher {
         StreamUtils.copyStream(cis, baos);
         byte[] result = baos.toByteArray();
 
+        AssertState.assertTrue(result.length > 0, "Decryption results in empty message");
+        
         return new ByteArrayInputStream(result);
     }
 

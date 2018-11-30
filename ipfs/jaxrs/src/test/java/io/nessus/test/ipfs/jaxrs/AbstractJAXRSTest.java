@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 
 import io.nessus.AbstractWallet;
@@ -36,6 +37,7 @@ import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
+import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.ContentManager.Config;
 import io.nessus.ipfs.impl.DefaultIPFSClient;
@@ -75,16 +77,26 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
         wallet.redeemChange(LABEL_MARY, addrMary);
     }
 
-    protected void redeemLockedUtxos(String label, Address addr) {
+    protected void redeemLockedUtxos(Address addr) {
 
         // Unlock all UTXOs
         wallet.listLockUnspent(Arrays.asList(addr))
             .forEach(utxo -> wallet.lockUnspent(utxo, true));
 
         // Redeem all locked UTXOs
-        List<UTXO> utxos = wallet.listUnspent(label);
+        String label = addr.getLabels().get(0);
+        List<UTXO> utxos = wallet.listUnspent(Arrays.asList(addr));
         String changeAddr = wallet.getChangeAddress(label).getAddress();
         
         wallet.sendToAddress(addr.getAddress(), changeAddr, Wallet.ALL_FUNDS, utxos);
+    }
+
+    FHandle findIpfsContent(Address addr, String cid, Long timeout) throws Exception {
+        
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
+        FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
+        Assert.assertNotNull(fhandle);
+        
+        return fhandle;
     }
 }

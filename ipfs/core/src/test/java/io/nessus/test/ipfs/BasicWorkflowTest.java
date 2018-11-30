@@ -1,28 +1,6 @@
 package io.nessus.test.ipfs;
 
 import java.io.BufferedReader;
-
-/*-
- * #%L
- * Nessus :: IPFS
- * %%
- * Copyright (C) 2018 Nessus
- * %%
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * #L%
- */
-
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
@@ -35,8 +13,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.FHandle;
 
 public class BasicWorkflowTest extends AbstractWorkflowTest {
 
@@ -65,8 +43,8 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         Path relPath = Paths.get("bob/userfile.txt");
         InputStream input = getClass().getResourceAsStream("/markdown/etc/userfile.txt");
-        FHandle fhandle = cntmgr.addIPFSContent(addrBob, input, relPath);
-        Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
+        FHandle fhandle = cntmgr.addIpfsContent(addrBob, relPath, input);
+        Assert.assertTrue(fhandle.getFilePath().toFile().exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
         Assert.assertTrue(fhandle.isEncrypted());
@@ -77,11 +55,13 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         List<FHandle> fhandles = cntmgr.findLocalContent(addrBob);
         Assert.assertEquals(1, fhandles.size());
-        FHandle fhLocal = fhandles.get(0);
-        Assert.assertEquals(relPath, fhLocal.getPath());
-        Assert.assertTrue(fhLocal.isAvailable());
-        Assert.assertFalse(fhLocal.isExpired());
-        Assert.assertFalse(fhLocal.isEncrypted());
+        FHandle fhParent = fhandles.get(0);
+        Assert.assertEquals(1, fhParent.getChildren().size());
+        FHandle fhChild = fhParent.getChildren().get(0);
+        Assert.assertEquals(relPath, fhChild.getPath());
+        Assert.assertTrue(fhChild.isAvailable());
+        Assert.assertFalse(fhChild.isExpired());
+        Assert.assertFalse(fhChild.isEncrypted());
         
         InputStream reader = cntmgr.getLocalContent(addrBob, relPath);
         BufferedReader br = new BufferedReader(new InputStreamReader(reader));
@@ -93,7 +73,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Find IPFS content on blockchain
         
         String cidBob = fhandle.getCid();
-        fhandle = findIPFSContent(addrBob, cidBob, null);
+        fhandle = findIpfsContent(addrBob, cidBob, null);
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
         Assert.assertEquals(relPath, fhandle.getPath());
@@ -103,8 +83,8 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Get content from IPFS
         
-        fhandle  = cntmgr.getIPFSContent(addrBob, cidBob, relPath, null);
-        Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
+        fhandle  = cntmgr.getIpfsContent(addrBob, cidBob, relPath, null);
+        Assert.assertTrue(fhandle.getFilePath().toFile().exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
@@ -112,8 +92,8 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Send content to IPFS
         
-        fhandle  = cntmgr.sendIPFSContent(addrBob, cidBob, addrMary, null);
-        Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
+        fhandle  = cntmgr.sendIpfsContent(addrBob, cidBob, addrMary, null);
+        Assert.assertTrue(fhandle.getFilePath().toFile().exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertNotNull(fhandle.getCid());
@@ -121,7 +101,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Find IPFS content on blockchain
         
         String cidMary = fhandle.getCid();
-        fhandle = findIPFSContent(addrMary, cidMary, null);
+        fhandle = findIpfsContent(addrMary, cidMary, null);
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
         Assert.assertEquals(relPath, fhandle.getPath());
@@ -132,8 +112,8 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         // Get content from IPFS
         
         relPath = Paths.get("marry/userfile.txt");
-        fhandle  = cntmgr.getIPFSContent(addrMary, fhandle.getCid(), relPath, null);
-        Assert.assertTrue(new File(fhandle.getURL().toURI()).exists());
+        fhandle  = cntmgr.getIpfsContent(addrMary, fhandle.getCid(), relPath, null);
+        Assert.assertTrue(fhandle.getFilePath().toFile().exists());
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());

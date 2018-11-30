@@ -151,11 +151,15 @@ public class ContentHandler implements HttpHandler {
             assertBlockchainAvailable();
             
             if (relPath.startsWith("/portal/addtxt")) {
-                actAddText(exchange, context);
+                actAddIpfsText(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/addurl")) {
-                actAddURL(exchange, context);
+                actAddIpfsURL(exchange, context);
+            }
+
+            else if (relPath.startsWith("/portal/addpath")) {
+                actAddIpfsPath(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/assign")) {
@@ -163,11 +167,11 @@ public class ContentHandler implements HttpHandler {
             }
 
             else if (relPath.startsWith("/portal/fget")) {
-                actFileGet(exchange, context);
+                actIpfsGet(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/fshow")) {
-                return actFileShow(exchange, context);
+                return actShowLocal(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/impkey")) {
@@ -179,15 +183,15 @@ public class ContentHandler implements HttpHandler {
             }
 
             else if (relPath.startsWith("/portal/padd")) {
-                tmplPath = pageFileAdd(exchange, context);
+                tmplPath = pageIpfsAdd(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/pget")) {
-                tmplPath = pageFileGet(exchange, context);
+                tmplPath = pageIpfsGet(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/plist")) {
-                tmplPath = pageFileList(exchange, context);
+                tmplPath = pageIpfsList(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/pqr")) {
@@ -195,7 +199,7 @@ public class ContentHandler implements HttpHandler {
             }
 
             else if (relPath.startsWith("/portal/psend")) {
-                tmplPath = pageSend(exchange, context);
+                tmplPath = pageIpfsSend(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/regaddr")) {
@@ -207,15 +211,15 @@ public class ContentHandler implements HttpHandler {
             }
 
             else if (relPath.startsWith("/portal/rmlocal")) {
-                actRemoveLocalContent(exchange, context);
+                actRemoveLocal(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/rmipfs")) {
-                actRemoveIPFSContent(exchange, context);
+                actUnregisterIpfs(exchange, context);
             }
 
             else if (relPath.startsWith("/portal/sendcid")) {
-                actSend(exchange, context);
+                actIpfsSend(exchange, context);
             }
 
             else if (tmplPath == null) {
@@ -243,30 +247,6 @@ public class ContentHandler implements HttpHandler {
         return null;
     }
 
-    private void actAddText(HttpServerExchange exchange, VelocityContext context) throws Exception {
-
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
-        String relPath = qparams.get("path").getFirst();
-        String content = qparams.get("content").getFirst();
-
-        client.addIPFSContent(rawAddr, relPath, new ByteArrayInputStream(content.getBytes()));
-
-        redirectFileList(exchange, rawAddr);
-    }
-
-    private void actAddURL(HttpServerExchange exchange, VelocityContext context) throws Exception {
-
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
-        String relPath = qparams.get("path").getFirst();
-        URL furl = new URL(qparams.get("url").getFirst());
-
-        client.addIPFSContent(rawAddr, relPath, furl.openStream());
-
-        redirectFileList(exchange, rawAddr);
-    }
-
     private void actAssignLabel(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
@@ -277,33 +257,6 @@ public class ContentHandler implements HttpHandler {
         addr.setLabels(Arrays.asList(label));
 
         redirectHomePage(exchange);
-    }
-
-    private void actFileGet(HttpServerExchange exchange, VelocityContext context) throws Exception {
-
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String relPath = qparams.get("path").getFirst();
-        String rawAddr = qparams.get("addr").getFirst();
-        String cid = qparams.get("cid").getFirst();
-
-        client.getIPFSContent(rawAddr, cid, relPath, null);
-
-        redirectFileList(exchange, rawAddr);
-    }
-
-    private ByteBuffer actFileShow(HttpServerExchange exchange, VelocityContext context) throws Exception {
-
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
-        String relPath = qparams.get("path").getFirst();
-
-        try (InputStream ins = client.getLocalContent(rawAddr, relPath)) {
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            StreamUtils.copyStream(ins, baos);
-
-            return ByteBuffer.wrap(baos.toByteArray());
-        }
     }
 
     private void actImportKey(HttpServerExchange exchange, VelocityContext context) throws Exception {
@@ -351,41 +304,6 @@ public class ContentHandler implements HttpHandler {
         redirectHomePage(exchange);
     }
 
-    private void actRemoveIPFSContent(HttpServerExchange exchange, VelocityContext context) throws Exception {
-        
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
-        Deque<String> deque = qparams.get("cids");
-        String[] cids = deque.toArray(new String[deque.size()]);
-
-        client.removeIPFSContent(rawAddr, Arrays.asList(cids));
-        
-        redirectFileList(exchange, rawAddr);
-    }
-
-    private void actRemoveLocalContent(HttpServerExchange exchange, VelocityContext context) throws Exception {
-
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
-        String relPath = qparams.get("path").getFirst();
-
-        client.removeLocalContent(rawAddr, relPath);
-
-        redirectFileList(exchange, rawAddr);
-    }
-
-    private void actSend(HttpServerExchange exchange, VelocityContext context) throws Exception {
-
-        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawFromAddr = qparams.get("fromaddr").getFirst();
-        String rawToAddr = qparams.get("toaddr").getFirst();
-        String cid = qparams.get("cid").getFirst();
-
-        client.sendIPFSContent(rawFromAddr, cid, rawToAddr, null);
-
-        redirectFileList(exchange, rawFromAddr);
-    }
-
     private void actUnregisterAddress(HttpServerExchange exchange, VelocityContext context) throws Exception {
         
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
@@ -394,6 +312,103 @@ public class ContentHandler implements HttpHandler {
         client.unregisterAddress(rawAddr);
         
         redirectHomePage(exchange);
+    }
+
+    private void actAddIpfsText(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        String relPath = qparams.get("path").getFirst();
+        String content = qparams.get("content").getFirst();
+
+        client.addIpfsContent(rawAddr, relPath, new ByteArrayInputStream(content.getBytes()));
+
+        redirectFileList(exchange, rawAddr);
+    }
+
+    private void actAddIpfsPath(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        String relPath = qparams.get("path").getFirst();
+
+        client.addIpfsContent(rawAddr, relPath, (URL) null);
+
+        redirectFileList(exchange, rawAddr);
+    }
+
+    private void actAddIpfsURL(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        String relPath = qparams.get("path").getFirst();
+        URL furl = new URL(qparams.get("url").getFirst());
+
+        client.addIpfsContent(rawAddr, relPath, furl);
+
+        redirectFileList(exchange, rawAddr);
+    }
+
+    private void actIpfsGet(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String relPath = qparams.get("path").getFirst();
+        String rawAddr = qparams.get("addr").getFirst();
+        String cid = qparams.get("cid").getFirst();
+
+        client.getIpfsContent(rawAddr, cid, relPath, null);
+
+        redirectFileList(exchange, rawAddr);
+    }
+
+    private void actIpfsSend(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawFromAddr = qparams.get("fromaddr").getFirst();
+        String rawToAddr = qparams.get("toaddr").getFirst();
+        String cid = qparams.get("cid").getFirst();
+
+        client.sendIpfsContent(rawFromAddr, cid, rawToAddr, null);
+
+        redirectFileList(exchange, rawFromAddr);
+    }
+
+    private void actUnregisterIpfs(HttpServerExchange exchange, VelocityContext context) throws Exception {
+        
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        Deque<String> deque = qparams.get("cids");
+        String[] cids = deque.toArray(new String[deque.size()]);
+
+        client.unregisterIpfsContent(rawAddr, Arrays.asList(cids));
+        
+        redirectFileList(exchange, rawAddr);
+    }
+
+    private ByteBuffer actShowLocal(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        String relPath = qparams.get("path").getFirst();
+
+        try (InputStream ins = client.getLocalContent(rawAddr, relPath)) {
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            StreamUtils.copyStream(ins, baos);
+
+            return ByteBuffer.wrap(baos.toByteArray());
+        }
+    }
+
+    private void actRemoveLocal(HttpServerExchange exchange, VelocityContext context) throws Exception {
+
+        Map<String, Deque<String>> qparams = exchange.getQueryParameters();
+        String rawAddr = qparams.get("addr").getFirst();
+        String relPath = qparams.get("path").getFirst();
+
+        client.removeLocalContent(rawAddr, relPath);
+
+        redirectFileList(exchange, rawAddr);
     }
 
     private String pageError(VelocityContext context, RuntimeException rte) {
@@ -409,7 +424,7 @@ public class ContentHandler implements HttpHandler {
         return "templates/portal-error.vm";
     }
 
-    private String pageFileAdd(HttpServerExchange exchange, VelocityContext context) throws Exception {
+    private String pageIpfsAdd(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
@@ -421,7 +436,7 @@ public class ContentHandler implements HttpHandler {
         return "templates/portal-add.vm";
     }
 
-    private String pageFileGet(HttpServerExchange exchange, VelocityContext context) throws Exception {
+    private String pageIpfsGet(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
@@ -435,12 +450,12 @@ public class ContentHandler implements HttpHandler {
         context.put("addr", paddr);
         context.put("file", fhandle);
 
-        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(addr.getAddress()), null));
+        context.put("treeDataLocal", getTreeData(client.findLocalContent(addr.getAddress(), null), null));
         
         return "templates/portal-get.vm";
     }
 
-    private String pageFileList(HttpServerExchange exchange, VelocityContext context) throws Exception {
+    private String pageIpfsList(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
@@ -458,49 +473,12 @@ public class ContentHandler implements HttpHandler {
 
         Boolean nosend = toaddrs.isEmpty();
         
-        context.put("treeDataIpfs", getTreeData(addr, client.findIPFSContent(rawAddr, null), nosend));
-        context.put("treeDataLocal", getTreeData(addr, client.findLocalContent(rawAddr), nosend));
+        context.put("treeDataIpfs", getTreeData(client.findIpfsContent(rawAddr, null), nosend));
+        context.put("treeDataLocal", getTreeData(client.findLocalContent(rawAddr, null), nosend));
         
         return "templates/portal-list.vm";
     }
 
-    private TreeData getTreeData(Address addr, List<SFHandle> fhandles, Boolean nosend) {
-        
-        TreeData tree = new TreeData();
-        Map<Path, TreeNode> nodes = new LinkedHashMap<>();
-        
-        for (SFHandle fh : fhandles) {
-            Path path = Paths.get(fh.getPath());
-            createTreeNode(tree, addr, path, fh.getCid(), nosend, nodes);
-        }
-        
-        return tree;
-    }
-
-    private TreeNode createTreeNode(TreeData tree, Address addr, Path path, String cid, Boolean nosend, Map<Path, TreeNode> nodes) {
-        
-        Path parent = path.getParent();
-        TreeNode parentNode = parent != null ? nodes.get(parent) : null;
-        
-        // Recursively create the parent node 
-        if (parent != null && parentNode == null) {
-            parentNode = createTreeNode(tree, addr, parent, null, nosend, nodes);
-        }
-        
-        TreeNode node = new TreeNode(addr, path, cid);
-        if (nosend != null) node.getData().put("nosend", nosend);
-        if (cid != null) node.getData().put("gatewayUrl", gatewayUrl);
-        nodes.put(path, node);
-        
-        if (parentNode == null) {
-            tree.addNode(node);
-        } else {
-            parentNode.addChild(node);
-        }
-        
-        return node;
-    }
-    
     private String pageQRCode(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
@@ -513,7 +491,7 @@ public class ContentHandler implements HttpHandler {
         return "templates/portal-qr.vm";
     }
 
-    private String pageSend(HttpServerExchange exchange, VelocityContext context) throws Exception {
+    private String pageIpfsSend(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
@@ -545,6 +523,44 @@ public class ContentHandler implements HttpHandler {
         return "templates/portal-home.vm";
     }
 
+    private TreeData getTreeData(List<SFHandle> fhandles, Boolean nosend) {
+        
+        TreeData tree = new TreeData();
+        Map<Path, TreeNode> nodes = new LinkedHashMap<>();
+        
+        for (SFHandle sfh : fhandles) {
+            createTreeNode(tree, nodes, sfh, nosend);
+        }
+        
+        return tree;
+    }
+
+    private TreeNode createTreeNode(TreeData tree, Map<Path, TreeNode> nodes, SFHandle sfh, Boolean nosend) {
+        
+        Path path = Paths.get(sfh.getPath());
+        String cid = sfh.getCid();
+        
+        Path ppath = path.getParent();
+        TreeNode parent = nodes.get(ppath);
+        
+        TreeNode node = new TreeNode(parent, sfh);
+        if (nosend != null) node.getData().put("nosend", nosend);
+        if (cid != null) node.getData().put("gatewayUrl", gatewayUrl);
+        nodes.put(path, node);
+
+        for (SFHandle child : sfh.getChildren()) {
+            createTreeNode(tree, nodes, child, nosend);
+        }
+        
+        if (parent == null) {
+            tree.addNode(node);
+        } else {
+            parent.addChild(node);
+        }
+        
+        return node;
+    }
+    
     private List<AddressDTO> findAddresses(boolean requireLabel, boolean requireRegistered) {
 
         List<AddressDTO> addrs = wallet.getAddresses().stream()

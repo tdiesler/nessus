@@ -68,13 +68,13 @@ public class ExtendedContentManager extends DefaultContentManager {
     }
 
     @Override
-    public FHeaderId getFHeaderId() {
+    public FHeaderIdentity getFHeaderId() {
         return super.getFHeaderId();
     }
 
     @Override
-    public FHandle decrypt(FHandle fhandle, Address owner, Path destPath, boolean storePlain) throws IOException, GeneralSecurityException {
-        return super.decrypt(fhandle, owner, destPath, storePlain);
+    public FHandle decrypt(FHandle fhandle, Path destPath, boolean storePlain) throws IOException, GeneralSecurityException {
+        return super.decrypt(fhandle, destPath, storePlain);
     }
 
     @Override
@@ -83,8 +83,8 @@ public class ExtendedContentManager extends DefaultContentManager {
     }
 
     @Override
-    public FHandle getFHandleFromTx(UTXO utxo, Address owner) {
-        return super.getFHandleFromTx(utxo, owner);
+    public FHandle getFHandleFromTx(Address owner, UTXO utxo) {
+        return super.getFHandleFromTx(owner, utxo);
     }
 
     @Override
@@ -92,4 +92,8 @@ public class ExtendedContentManager extends DefaultContentManager {
         return super.readFHeader(rd);
     }
 
+    @Override
+    public FHandle buildTreeFromPath(Address owner, Path path) throws IOException {
+        return super.buildTreeFromPath(owner, path);
+    }
 }

@@ -24,15 +24,10 @@ import static io.nessus.Wallet.ALL_FUNDS;
 import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.List;
@@ -49,18 +44,18 @@ import org.junit.BeforeClass;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
 import io.nessus.Network;
-import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.BitcoinBlockchain;
-import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
+import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.impl.DefaultContentManager;
 import io.nessus.ipfs.impl.DefaultIPFSClient;
 import io.nessus.ipfs.impl.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
+import io.nessus.utils.FileUtils;
 
 public class AbstractWorkflowTest extends AbstractBlockchainTest {
 
@@ -90,12 +85,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         // Delete all local files
         
         Path rootPath = cntmgr.getRootPath();
-        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
-            public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
-                path.toFile().delete();
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        FileUtils.recursiveDelete(rootPath);
     }
     
     @Before
@@ -133,41 +123,33 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     void unlockAddressRegistrations(Address addr) {
         wallet.listLockUnspent(Arrays.asList(addr)).stream().forEach(utxo -> {
             PublicKey pubKey = cntmgr.getPubKeyFromTx(utxo, null);
-            if (pubKey != null) unlockAddressRegistration(addr, pubKey, utxo); 
+            if (pubKey != null) wallet.lockUnspent(utxo, true);
         });
     }
 
-    void unlockFileRegistrations(Address addr) {
-        wallet.listLockUnspent(Arrays.asList(addr)).stream().forEach(utxo -> {
-            FHandle fhandle = cntmgr.getFHandleFromTx(utxo, null);
-            if (fhandle != null) unlockFileRegistration(addr, fhandle, utxo); 
+    void unlockFileRegistrations(Address owner) {
+        wallet.listLockUnspent(Arrays.asList(owner)).stream().forEach(utxo -> {
+            FHandle fhandle = cntmgr.getFHandleFromTx(owner, utxo);
+            if (fhandle != null) wallet.lockUnspent(utxo, true);
         });
-    }
-
-    void unlockAddressRegistration(Address addr, PublicKey pubKey, UTXO utxo) {
-        wallet.lockUnspent(utxo, true);
-    }
-
-    void unlockFileRegistration(Address addr, FHandle fhandle, UTXO utxo) {
-        wallet.lockUnspent(utxo, true);
     }
 
     Path getTestPath(int idx) {
         return Paths.get(getClass().getSimpleName(), String.format("file%03d.txt", idx));
     }
     
-    FHandle addContent(Address addrBob, Path path) throws Exception {
+    FHandle addIpfsContent(Address addrBob, Path path) throws Exception {
         InputStream input = getClass().getResourceAsStream("/" + path);
-        return cntmgr.addIPFSContent(addrBob, input, path);
+        return cntmgr.addIpfsContent(addrBob, path, input);
     }
 
-    FHandle addContent(Address addrBob, Path path, String content) throws Exception {
+    FHandle addIpfsContent(Address addrBob, Path path, String content) throws Exception {
         InputStream input = new ByteArrayInputStream(content.getBytes());
-        return cntmgr.addIPFSContent(addrBob, input, path);
+        return cntmgr.addIpfsContent(addrBob, path, input);
     }
 
-    FHandle ipfsGet(Address owner, String cid) throws Exception {
-        FHandle fhandle = new FHBuilder(cid).owner(owner).build();
+    FHandle getIpfsContent(Address owner, String cid) throws Exception {
+        FHandle fhandle = new FHBuilder(owner, cid).build();
         long ipfsTimeout = cntmgr.getConfig().getIpfsTimeout();
         try {
             long before = System.currentTimeMillis();
@@ -182,12 +164,9 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         return fhandle;
     }
     
-    FHandle findIPFSContent(Address addr, String cid, Long timeout) throws Exception {
-        
-        List<FHandle> fhandles = cntmgr.findIPFSContent(addr, timeout);
+    FHandle findIpfsContent(Address addr, String cid, Long timeout) throws Exception {
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
         FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
-        Assert.assertNotNull(fhandle);
-        
         return fhandle;
     }
 
@@ -203,7 +182,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         
         while (avfiles.size() < count && nowTime < endTime) {
             Thread.sleep(timeout);
-            avfiles = getAvailableFiles(cntmgr.findIPFSContent(addrBob, null));
+            avfiles = getAvailableFiles(cntmgr.findIpfsContent(addrBob, null));
             nowTime = System.currentTimeMillis();
         }
         

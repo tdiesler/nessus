@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.net.URI;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 
@@ -42,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import io.nessus.Network;
 import io.nessus.ipfs.NessusException;
 import io.nessus.ipfs.NessusUserFault;
+import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
@@ -90,8 +92,8 @@ public class JAXRSClient implements JAXRSEndpoint {
                 .queryParam("addr", rawAddr);
 
         Response res = processResponse(target.request().get(Response.class));
-
         String encKey = res.readEntity(String.class);
+        
         LOG.info("/regaddr {} => {}", rawAddr, encKey);
 
         return encKey;
@@ -120,13 +122,32 @@ public class JAXRSClient implements JAXRSEndpoint {
 
         Response res = processResponse(target.request().get(Response.class));
         String encKey = res.readEntity(String.class);
+        
         LOG.info("/rmaddr {} => {}", rawAddr, encKey);
 
         return encKey;
     }
 
     @Override
-    public SFHandle addIPFSContent(String rawAddr, String relPath, InputStream input) throws IOException {
+    public SFHandle addIpfsContent(String rawAddr, String relPath, URL srcUrl) throws IOException {
+        AssertArgument.assertTrue(relPath != null || srcUrl != null, "Path or URL must be given");
+
+        WebTarget target = client.target(generateURL("/addipfs"))
+                .queryParam("addr", rawAddr);
+        
+        if (relPath != null) target = target.queryParam("path", relPath);
+        if (srcUrl != null) target = target.queryParam("url", srcUrl);
+
+        Response res = processResponse(target.request().get(Response.class));
+
+        SFHandle shandle = res.readEntity(SFHandle.class);
+        LOG.info("/addipfs => {}", shandle.toString(true));
+
+        return shandle;
+    }
+
+    @Override
+    public SFHandle addIpfsContent(String rawAddr, String relPath, InputStream input) throws IOException {
 
         WebTarget target = client.target(generateURL("/addipfs"))
                 .queryParam("addr", rawAddr)
@@ -141,7 +162,7 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public SFHandle getIPFSContent(String rawAddr, String cid, String relPath, Long timeout) throws IOException {
+    public SFHandle getIpfsContent(String rawAddr, String cid, String relPath, Long timeout) throws IOException {
 
         WebTarget target = client.target(generateURL("/getipfs"))
                 .queryParam("addr", rawAddr)
@@ -152,13 +173,13 @@ public class JAXRSClient implements JAXRSEndpoint {
         Response res = processResponse(target.request().get(Response.class));
 
         SFHandle shandle = res.readEntity(SFHandle.class);
-        LOG.info("/getipfs {} => {}", cid, shandle);
+        LOG.info("/getipfs {} => {}", cid, shandle.toString(true));
 
         return shandle;
     }
 
     @Override
-    public SFHandle sendIPFSContent(String rawAddr, String cid, String rawTarget, Long timeout) throws IOException {
+    public SFHandle sendIpfsContent(String rawAddr, String cid, String rawTarget, Long timeout) throws IOException {
 
         WebTarget target = client.target(generateURL("/sendipfs"))
                 .queryParam("addr", rawAddr)
@@ -169,13 +190,13 @@ public class JAXRSClient implements JAXRSEndpoint {
         Response res = processResponse(target.request().get(Response.class));
 
         SFHandle shandle = res.readEntity(SFHandle.class);
-        LOG.info("/sendipfs {} => {}", cid, shandle);
+        LOG.info("/sendipfs {} => {}", cid, shandle.toString(true));
 
         return shandle;
     }
 
     @Override
-    public List<SFHandle> findIPFSContent(String rawAddr, Long timeout) throws IOException {
+    public List<SFHandle> findIpfsContent(String rawAddr, Long timeout) throws IOException {
 
         WebTarget target = client.target(generateURL("/findipfs"))
                 .queryParam("addr", rawAddr)
@@ -190,7 +211,7 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public List<String> removeIPFSContent(String rawAddr, List<String> cids) throws IOException {
+    public List<String> unregisterIpfsContent(String rawAddr, List<String> cids) throws IOException {
 
         WebTarget target = client.target(generateURL("/rmipfs"))
                 .queryParam("addr", rawAddr)
@@ -205,11 +226,13 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public List<SFHandle> findLocalContent(String rawAddr) throws IOException {
+    public List<SFHandle> findLocalContent(String rawAddr, String path) throws IOException {
 
         WebTarget target = client.target(generateURL("/findlocal"))
                 .queryParam("addr", rawAddr);
 
+        if (path != null) target = target.queryParam("path", path);
+        
         Response res = processResponse(target.request().get(Response.class));
 
         List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));

@@ -55,6 +55,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -86,6 +87,7 @@ import io.nessus.cipher.ECIESCipher;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
+import io.nessus.ipfs.FHandle.Visitor;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
 import io.nessus.ipfs.IPFSTimeoutException;
@@ -93,6 +95,7 @@ import io.nessus.ipfs.MerkleNotFoundException;
 import io.nessus.ipfs.NessusUserFault;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
+import io.nessus.utils.FileUtils;
 import io.nessus.utils.StreamUtils;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
@@ -109,7 +112,7 @@ public class DefaultContentManager implements ContentManager {
     protected final Blockchain blockchain;
     protected final Network network;
     protected final Wallet wallet;
-    protected final FHeaderId fhid;
+    protected final FHeaderIdentity fhid;
     private final BCData bcdata;
 
     // Executor service for async IPFS get operations
@@ -152,12 +155,10 @@ public class DefaultContentManager implements ContentManager {
         return config;
     }
 
-    @Override
     public Blockchain getBlockchain() {
         return blockchain;
     }
     
-    @Override
     public IPFSClient getIPFSClient() {
         return ipfsClient;
     }
@@ -263,7 +264,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public List<String> removeIPFSContent(Address owner, List<String> cids) throws IOException {
+    public List<String> unregisterIpfsContent(Address owner, List<String> cids) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
         
         assertArgumentHasLabel(owner);
@@ -273,7 +274,7 @@ public class DefaultContentManager implements ContentManager {
         Wallet wallet = getBlockchain().getWallet();
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(owner)).stream()
                 .filter(utxo -> {
-                    FHandle fh = getFHandleFromTx(utxo, owner);
+                    FHandle fh = getFHandleFromTx(owner, utxo);
                     if (fh == null) return false;
                     if (cids == null || cids.contains(fh.getCid())) {
                         results.add(fh.getCid());
@@ -309,10 +310,19 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public FHandle addIPFSContent(Address owner, InputStream input, Path destPath) throws IOException, GeneralSecurityException {
+    public FHandle addIpfsContent(Address owner, Path path, URL srcUrl) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(path, "Null path");
+        AssertArgument.assertNotNull(srcUrl, "Null srcUrl");
+        
+        return addIpfsContent(owner, path, srcUrl.openStream());
+    }
+
+    @Override
+    public FHandle addIpfsContent(Address owner, Path dstPath, InputStream input) throws IOException, GeneralSecurityException {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(dstPath, "Null path");
         AssertArgument.assertNotNull(input, "Null input");
-        AssertArgument.assertNotNull(destPath, "Null path");
         
         assertArgumentHasPrivateKey(owner);
         
@@ -320,33 +330,48 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
         boolean replaceExisting = config.isReplaceExisting();
-        Path plainPath = assertValidPlainPath(owner, destPath);
-        NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + destPath);
-        
-        LOG.info("Start IPFS Add: {} {}", owner, destPath);
+        Path plainPath = assertValidPlainPath(owner, dstPath);
+        NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
         
         plainPath.getParent().toFile().mkdirs();
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
         
-        URL furl = plainPath.toFile().toURI().toURL();
-        FHandle fhandle = new FHBuilder(owner, destPath, furl).build();
+        return addIpfsContent(owner, dstPath);
+    }
 
-        LOG.info("IPFS encrypt: {}", fhandle);
+    @Override
+    public FHandle addIpfsContent(Address owner, Path srcPath) throws IOException, GeneralSecurityException {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(srcPath, "Null srcPath");
+        
+        assertArgumentHasPrivateKey(owner);
+        
+        PublicKey pubKey = findAddressRegistation(owner);
+        AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
+        
+        LOG.info("Start IPFS Add: {} {}", owner, srcPath);
+        
+        FHandle fhandle = buildTreeFromPath(owner, srcPath);
+        
+        LOG.info("IPFS encrypt: {}", fhandle.toString(true));
         
         fhandle = encrypt(fhandle, pubKey);
         
-        LOG.info("IPFS add: {}", fhandle);
+        Path auxPath = fhandle.getFilePath();
+        AssertState.assertTrue(auxPath.toFile().exists(), "Encrypted content does not exists: " + srcPath);
         
-        Path auxPath = Paths.get(fhandle.getURL().getPath());
-        String cid = ipfsClient.addSingle(auxPath);
+        LOG.info("IPFS add: {}", fhandle.toString(true));
+        
+        List<String> cids = ipfsClient.add(auxPath);
+        AssertState.assertTrue(cids.size() > 0, "No ipfs content ids");
         
         // Move the temp file to its crypt path
         
-        Path cryptPath = getCryptPath(owner).resolve(cid);
-        Path tmpPath = Paths.get(fhandle.getURL().getPath());
-        Files.move(tmpPath, cryptPath);
+        String cid = cids.get(cids.size() - 1);
+        Path rootPath = getCryptPath(owner).resolve(cid);
+        Files.move(auxPath, rootPath, StandardCopyOption.ATOMIC_MOVE);
         
-        furl = cryptPath.toUri().toURL();
+        URL furl = rootPath.toUri().toURL();
         fhandle = new FHBuilder(fhandle)
                 .url(furl)
                 .cid(cid)
@@ -354,35 +379,109 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("IPFS record: {}", fhandle);
         
-        fhandle = recordFileData(fhandle, owner, owner);
+        fhandle = recordFileData(fhandle, owner);
         
-        fhandle = new FHBuilder(fhandle)
-                .available(true)
-                .build();
+        FHandle fhres = FHandle.walkTree(fhandle, new Visitor() {
+
+            @Override
+            public FHandle visit(FHandle fhandle) throws IOException {
+                
+                Path path = fhandle.getPath();
+                FHandle fhroot = fhandle.getRoot();
+                Path rootPath = fhroot.getFilePath();
+                
+                Path relPath = fhroot.getPath().relativize(path);
+                Path fullPath = rootPath.resolve(relPath);
+                URL furl = fullPath.toUri().toURL();
+                
+                FHandle fhres = new FHBuilder(fhroot)
+                        .findChild(path)
+                        .available(true)
+                        .url(furl)
+                        .build();
+                
+                return fhres;
+            }
+        });
         
-        filecache.put(fhandle);
+        filecache.put(fhres);
         
-        LOG.info("Done IPFS Add: {}", fhandle);
+        LOG.info("Done IPFS Add: {}", fhres.toString(true));
         
-        return fhandle;
+        return fhres;
+    }
+
+    protected FHandle buildTreeFromPath(Address owner, Path path) throws IOException {
+        
+        Path plainPath = assertValidPlainPath(owner, path);
+        AssertState.assertTrue(plainPath.toFile().exists(), "Local content does not exists: " + plainPath);
+        
+        boolean isDirectory = plainPath.toFile().isDirectory();
+        Path rootPath = isDirectory ? plainPath.getParent() : plainPath;
+        
+        List<FHandle> fhandles = new ArrayList<>();
+        Stack<FHandle> fhstack = new Stack<>();
+        
+        Files.walkFileTree(plainPath, new SimpleFileVisitor<Path>() {
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                FHandle fhandle = createFHandle(dir);
+                fhandles.add(fhandle);
+                fhstack.push(fhandle);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                fhstack.pop();
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                FHandle fhandle = createFHandle(file);
+                fhandles.add(fhandle);
+                return FileVisitResult.CONTINUE;
+            }
+
+            FHandle createFHandle(Path fullPath) throws IOException {
+                
+                FHandle parent = !fhstack.isEmpty() ? fhstack.peek() : null;
+                URL furl = fullPath.toFile().toURI().toURL();
+                boolean isDirectory = plainPath.toFile().isDirectory();
+                Path relPath = isDirectory ? rootPath.relativize(fullPath) : path;
+                
+                FHandle fhres = new FHBuilder(owner, relPath, furl)
+                        .parent(parent)
+                        .available(true)
+                        .build();
+                
+                return fhres;
+            }
+        });
+
+        AssertState.assertTrue(!fhandles.isEmpty(), "Cannot obtain fhandle for: " + path);
+        FHandle fhres = fhandles.get(0);
+        
+        return fhres;
     }
 
     @Override
-    public FHandle getIPFSContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
+    public FHandle getIpfsContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(cid, "Null cid");
-        AssertArgument.assertNotNull(path, "Null path");
 
         assertArgumentHasPrivateKey(owner);
 
-        LOG.info("Start IPFS Get: {} {}", owner, path);
+        LOG.info("Start IPFS Get: {} {}", owner, cid);
         
         timeout = timeout != null ? timeout : config.getIpfsTimeout();
-        FHandle fhandle = ipfsGet(cid, timeout);
+        FHandle fhandle = ipfsGet(owner, cid, timeout);
         
         LOG.info("IPFS decrypt: {}", fhandle);
         
-        fhandle = decrypt(fhandle, owner, path, true);
+        fhandle = decrypt(fhandle, path, true);
         
         LOG.info("Done IPFS Get: {}", fhandle);
         
@@ -390,7 +489,7 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public FHandle sendIPFSContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
+    public FHandle sendIpfsContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(cid, "Null cid");
         AssertArgument.assertNotNull(target, "Null target");
@@ -405,11 +504,11 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("Start IPFS Send: {} {}", owner, cid);
         
         timeout = timeout != null ? timeout : config.getIpfsTimeout();
-        FHandle fhandle = ipfsGet(cid, timeout);
+        FHandle fhandle = ipfsGet(owner, cid, timeout);
         
         LOG.info("IPFS decrypt: {}", fhandle);
 
-        fhandle = decrypt(fhandle, owner, null, false);
+        fhandle = decrypt(fhandle, null, false);
 
         fhandle = new FHBuilder(fhandle)
                 .owner(target)
@@ -422,7 +521,7 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("IPFS add: {}", fhandle);
         
-        Path tmpPath = Paths.get(fhandle.getURL().getPath());
+        Path tmpPath = fhandle.getFilePath();
         cid = ipfsClient.addSingle(tmpPath);
         
         Path cryptPath = getCryptPath(target).resolve(cid);
@@ -436,7 +535,7 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("IPFS record: {}", fhandle);
         
-        fhandle = recordFileData(fhandle, owner, target);
+        fhandle = recordFileData(fhandle, target);
         
         LOG.info("Done IPFS Send: {}", fhandle);
         
@@ -489,7 +588,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public List<FHandle> findIPFSContent(Address owner, Long timeout) throws IOException {
+    public List<FHandle> findIpfsContent(Address owner, Long timeout) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
 
         // The list of files that are recorded and unspent
@@ -505,7 +604,7 @@ public class DefaultContentManager implements ContentManager {
                 String txId = utxo.getTxId();
                 Tx tx = wallet.getTransaction(txId);
                 
-                FHandle fhandle = getFHandleFromTx(utxo, owner);
+                FHandle fhandle = getFHandleFromTx(owner, utxo);
                 if (fhandle != null) {
                     
                     unspentFHandles.add(fhandle);
@@ -547,43 +646,42 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public List<FHandle> findLocalContent(Address owner) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
-        Path fullPath = getPlainPath(owner);
-        return findLocalContent(owner, fullPath, new ArrayList<>());
+        
+        List<FHandle> fhandles = new ArrayList<>();
+        
+        Path rootPath = getPlainPath(owner);
+        if (rootPath.toFile().exists()) {
+            for (File file : rootPath.toFile().listFiles()) {
+                Path path = rootPath.relativize(file.toPath());
+                fhandles.add(findLocalContent(owner, path));
+            }
+        }
+        
+        return fhandles;
     }
 
     @Override
     public FHandle findLocalContent(Address owner, Path path) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(path, "Null path");
+
+        Path plainPath = getPlainPath(owner).resolve(path);
+        if (!plainPath.toFile().exists()) return null;
         
-        Path fullPath = getPlainPath(owner).resolve(path);
-        URL furl = fullPath.toUri().toURL();
+        FHandle fhres;
         
-        FHandle fhandle = new FHBuilder(owner, path, furl)
-                .available(fullPath.toFile().exists())
-                .build();
+        if (plainPath.toFile().isDirectory()) {
+            fhres = buildTreeFromPath(owner, path);
+        } else {
+            URL furl = plainPath.toUri().toURL();
+            fhres = new FHBuilder(owner, path, furl)
+                    .available(true)
+                    .build();
+        }
         
-        return fhandle;
+        return fhres;
     }
 
-    private List<FHandle> findLocalContent(Address owner, Path fullPath, List<FHandle> fhandles) throws IOException {
-        
-        if (fullPath.toFile().isDirectory()) {
-            for (String child : fullPath.toFile().list()) {
-                findLocalContent(owner, fullPath.resolve(child), fhandles);
-            }
-        }
-        
-        if (fullPath.toFile().isFile()) {
-            
-            Path relPath = getPlainPath(owner).relativize(fullPath);
-            FHandle fhandle = findLocalContent(owner, relPath);
-            fhandles.add(fhandle);
-        }
-        
-        return fhandles;
-    }
-    
     @Override
     public InputStream getLocalContent(Address owner, Path path) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
@@ -602,39 +700,15 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(path, "Null path");
         
         Path plainPath = assertValidPlainPath(owner, path);
-        if (!plainPath.toFile().exists()) return true;
+        boolean removed = FileUtils.recursiveDelete(plainPath);
+        AssertState.assertTrue(removed, "Cannot remove: " + plainPath);
         
-        return removeLocalContentInternal(owner, path);
-    }
-
-    private boolean removeLocalContentInternal(Address owner, Path path) throws IOException {
-        
-        Path plainPath = assertValidPlainPath(owner, path);
-        Files.walkFileTree(plainPath, new SimpleFileVisitor<Path>() {
-            
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                Files.delete(file);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                String[] list = dir.toFile().list();
-                if (list != null && list.length == 0) { 
-                    Files.delete(dir);
-                }
-                return FileVisitResult.CONTINUE;
-            }
-        });
-        
-        Path relParent = path.getParent();
-        if (relParent != null) {
-            Path plainParent = assertValidPlainPath(owner, relParent);
-            String[] list = plainParent.toFile().list();
-            if (list != null && list.length == 0) { 
-                removeLocalContentInternal(owner, relParent);
-            }
+        Path parent = plainPath.getParent();
+        File pfile = parent != null ? parent.toFile() : null;
+        while (pfile != null && pfile.exists() && pfile.list().length == 0) {
+            removed = FileUtils.recursiveDelete(pfile.toPath());
+            AssertState.assertTrue(removed, "Cannot remove: " + pfile);
+            pfile = pfile.getParentFile();
         }
         
         return !path.toFile().exists();
@@ -644,8 +718,8 @@ public class DefaultContentManager implements ContentManager {
         return ((RpcClientSupport) blockchain).getRpcClient();
     }
 
-    protected FHeaderId getFHeaderId() {
-        return new FHeaderId("Nessus", "1.0");
+    protected FHeaderIdentity getFHeaderId() {
+        return new FHeaderIdentity("Nessus", "1.0");
     }
 
     Path getRootPath() {
@@ -672,11 +746,15 @@ public class DefaultContentManager implements ContentManager {
         return tmpPath;
     }
 
+    Path createTempDir() throws IOException {
+        return Files.createTempDirectory(getTempPath(), "");
+    }
+    
     Path createTempFile() throws IOException {
         return Files.createTempFile(getTempPath(), "", "");
     }
     
-    private FHandle ipfsGet(String cid, long timeout) throws IOException, IPFSTimeoutException {
+    private FHandle ipfsGet(Address owner, String cid, long timeout) throws IOException, IPFSTimeoutException {
         
         FHandle fhandle;
         synchronized (filecache) {
@@ -686,82 +764,211 @@ public class DefaultContentManager implements ContentManager {
                 return fhandle;
             
             if (fhandle == null) {
-                fhandle = new FHBuilder(cid).build();
+                fhandle = new FHBuilder(owner, cid).build();
                 filecache.put(fhandle);
             }
         }
 
-        long before = System.currentTimeMillis();
+        Path cryptPath = getCryptPath(owner);
+        Path rootPath = cryptPath.resolve(cid);
+
+        // Check if the requested crypt path already exists
         
-        Path tmpPath;
-        try {
+        if (rootPath.toFile().exists()) {
             
-            Future<Path> future = ipfsClient.get(cid, getTempPath());
-            tmpPath = future.get(timeout, TimeUnit.MILLISECONDS);
-            
-        } catch (InterruptedException | ExecutionException ex) {
-            
-            Throwable cause = ex.getCause();
-            if (cause instanceof IPFSException) 
-                throw (IPFSException)cause;
-            else 
-                throw new IPFSException(ex);
-            
-        } catch (TimeoutException ex) {
-            
-            throw new IPFSTimeoutException(ex);
-            
-        } finally {
-            
-            long elapsed = System.currentTimeMillis() - before;
             fhandle = new FHBuilder(fhandle)
-                    .elapsed(elapsed)
+                    .url(rootPath.toUri().toURL())
                     .build();
             
-            filecache.put(fhandle);
-        }
+        } else {
             
-        AssertState.assertTrue(tmpPath.toFile().exists(), "Cannot obtain file from: " + tmpPath);
-
-        long elapsed = System.currentTimeMillis() - before;
+            // Fetch the content from IPFS
+            
+            long before = System.currentTimeMillis();
+            try {
+                
+                Future<Path> future = ipfsClient.get(cid, cryptPath);
+                rootPath = future.get(timeout, TimeUnit.MILLISECONDS);
+                
+                AssertState.assertTrue(rootPath.toFile().exists(), "Cannot obtain file from: " + rootPath);
+                
+                fhandle = new FHBuilder(fhandle)
+                        .url(rootPath.toUri().toURL())
+                        .build();
+                
+            } catch (InterruptedException | ExecutionException ex) {
+                
+                Throwable cause = ex.getCause();
+                if (cause instanceof IPFSException) 
+                    throw (IPFSException)cause;
+                else 
+                    throw new IPFSException(ex);
+                
+            } catch (TimeoutException ex) {
+                
+                throw new IPFSTimeoutException(ex);
+                
+            } finally {
+                
+                long elapsed = System.currentTimeMillis() - before;
+                fhandle = new FHBuilder(fhandle)
+                        .elapsed(elapsed)
+                        .build();
+                
+                filecache.put(fhandle);
+            }
+        }
         
-        fhandle = new FHBuilder(fhandle)
-                .url(tmpPath.toUri().toURL())
-                .elapsed(elapsed)
+        File rootFile = rootPath.toFile();
+        AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootPath);
+        
+        if (rootFile.isDirectory()) {
+            fhandle = createIPFSFileTree(fhandle);
+        } else {
+            fhandle = createFromFileHeader(null, fhandle);
+        }
+        
+        FHandle fhres = new FHBuilder(fhandle)
                 .available(true)
                 .build();
+        
+        LOG.info("IPFS found: {}", fhres.toString(true));
 
-        try (FileReader fr = new FileReader(tmpPath.toFile())) {
+        filecache.put(fhres);
+        
+        return fhres;
+    }
+
+    private FHandle createIPFSFileTree(FHandle fhroot) throws IOException {
+        
+        List<FHandle> fhandles = new ArrayList<>();
+        Stack<FHandle> fhstack = new Stack<>();
+        
+        String cid = fhroot.getCid();
+        Path rootPath = fhroot.getFilePath();
+        
+        // Find the root node path by reading the 
+        // file header of the first encrypted file we find
+        
+        StringBuffer pathHolder = new StringBuffer();
+        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                
+                FHandle aux = new FHBuilder(fhroot)
+                        .url(file.toUri().toURL())
+                        .build();
+                
+                FHandle fhres = createFromFileHeader(null, aux);
+                pathHolder.append(fhres.getPath().getName(0));
+                
+                return FileVisitResult.TERMINATE;
+            }
+        });
+        
+        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
+
+            Path rootNodePath = Paths.get(pathHolder.toString());
+            
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                FHandle fhandle = createFileHandle(dir);
+                fhandles.add(fhandle);
+                fhstack.push(fhandle);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                fhstack.pop();
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                fhandles.add(createFileHandle(file));
+                return FileVisitResult.CONTINUE;
+            }
+            
+            FHandle createFileHandle(Path fullPath) throws IOException {
+                
+                FHandle parent = !fhstack.isEmpty() ? fhstack.peek() : null;
+                
+                Path relPath = rootPath.relativize(fullPath);
+                relPath = rootNodePath.resolve(relPath);
+                
+                FHandle fhres;
+                if (fullPath.toFile().isDirectory()) {
+                    
+                    if (parent == null) {
+                        
+                        // Root handle                         
+                        fhres = new FHBuilder(fhroot)
+                                .path(rootNodePath)
+                                .build();
+                        
+                    } else {
+                        
+                        // Sub directory handles
+                        Address owner = parent.getOwner();
+                        URL furl = fullPath.toUri().toURL();
+                        String subcid = parent.getCid() + "/" + relPath.getFileName();
+                        fhres = new FHBuilder(owner, relPath, furl)
+                                .parent(parent)
+                                .cid(subcid)
+                                .build();
+                    }
+                    
+                } else {
+                    
+                    // Content handles
+                    Address owner = parent.getOwner();
+                    URL furl = fullPath.toUri().toURL();
+                    String subcid = parent.getCid() + "/" + relPath.getFileName();
+                    FHandle fhaux = new FHBuilder(owner, relPath, furl)
+                            .cid(subcid)
+                            .build();
+                    
+                    fhres = createFromFileHeader(parent, fhaux);
+                }
+                
+                return fhres;
+            }
+        });
+        
+        AssertState.assertTrue(!fhandles.isEmpty(), "Cannot obtain fhandle for: " + cid);
+        FHandle fhres = fhandles.get(0);
+        
+        return fhres;
+    }
+
+    private FHandle createFromFileHeader(FHandle parent, FHandle fhandle) throws IOException {
+        
+        Path fullPath = fhandle.getFilePath();
+        AssertState.assertTrue(fullPath.toFile().isFile(), "Cannot find IPFS content at: " + fullPath);
+        
+        try (FileReader fr = new FileReader(fullPath.toFile())) {
             BufferedReader br = new BufferedReader(fr);
 
             FHeader header = readFHeader(br);
-            Address addr = getAddress(header.owner);
-            AssertState.assertNotNull(addr, "Address unknown to this wallet: " + header.owner);
+            Address owner = getAddress(header.owner);
+            String encToken = header.token;
+            Path path = header.path;
+            
+            AssertState.assertNotNull(owner, "Address unknown to this wallet: " + header.owner);
 
-            LOG.debug("IPFS token: {} => {}", cid, header.token);
-
-            fhandle = new FHBuilder(fhandle)
-                    .owner(getAddress(header.owner))
-                    .secretToken(header.token)
-                    .path(header.path)
+            FHandle fhres = new FHBuilder(fhandle)
+                    .secretToken(encToken)
+                    .parent(parent)
+                    .owner(owner)
+                    .path(path)
                     .build();
+            
+            return fhres;
         }
-        
-        // [TODO] Instead of replace, this file op can likely be optimized
-        Path cryptPath = getCryptPath(fhandle.getOwner()).resolve(cid);
-        Files.move(tmpPath, cryptPath, StandardCopyOption.REPLACE_EXISTING);
-
-        fhandle = new FHBuilder(fhandle)
-                .url(cryptPath.toUri().toURL())
-                .build();
-        
-        LOG.info("IPFS found: {}", fhandle);
-
-        filecache.put(fhandle);
-        
-        return fhandle;
     }
-
+    
     private List<FHandle> ipfsGetAsync(List<FHandle> fhandles, long timeout) throws IOException {
         
         synchronized (filecache) {
@@ -827,7 +1034,7 @@ public class DefaultContentManager implements ContentManager {
         }
     }
     
-    private FHandle recordFileData(FHandle fhandle, Address fromAddr, Address toAddr) throws GeneralSecurityException {
+    private FHandle recordFileData(FHandle fhandle, Address toAddr) throws GeneralSecurityException {
 
         AssertArgument.assertTrue(fhandle.isEncrypted(), "File not encrypted: " + fhandle);
 
@@ -842,7 +1049,8 @@ public class DefaultContentManager implements ContentManager {
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
-        String label = fromAddr.getLabels().get(0);
+        Address owner = fhandle.getOwner();
+        String label = owner.getLabels().get(0);
         List<UTXO> utxos = wallet.selectUnspent(label, spendAmount.add(feePerKB));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
@@ -879,7 +1087,7 @@ public class DefaultContentManager implements ContentManager {
         }
 
         LOG.debug("Redeem change: {}", changeAmount);
-        ((AbstractWallet) wallet).redeemChange(label, fromAddr);
+        ((AbstractWallet) wallet).redeemChange(label, owner);
         
         fhandle = new FHBuilder(fhandle)
                 .txId(txId)
@@ -892,11 +1100,6 @@ public class DefaultContentManager implements ContentManager {
         Address addrs = wallet.findAddress(rawAddr);
         AssertState.assertNotNull(addrs, "Address not known to this wallet: " + rawAddr);
         return addrs;
-    }
-
-    private SecretKey getAESKey(byte[] token) {
-        String encoded = Base64.getEncoder().encodeToString(token);
-        return new AESCipher().decodeSecretKey(encoded);
     }
 
     private KeyPair getECKeyPair(Address addr) throws GeneralSecurityException {
@@ -938,105 +1141,155 @@ public class DefaultContentManager implements ContentManager {
         // Create the target file handle
         fhandle = new FHBuilder(fhandle)
                 .secretToken(secToken)
-                .cid(null)
                 .build();
 
-        File tmpFile = createTempFile().toFile();
-        try (FileWriter fw = new FileWriter(tmpFile)) {
-            
-            // Writhe the file header
-            writeHeader(fhandle, fw);
-            
-            try (InputStream ins = fhandle.getURL().openStream()) {
+        Path tmpDir = createTempDir();
+        FHandle fhres = FHandle.walkTree(fhandle, new Visitor() {
+
+            @Override
+            public FHandle visit(FHandle fhandle) throws IOException {
+
+                Path path = fhandle.getPath();
+                Path tmpPath = tmpDir.resolve(path);
+                tmpPath.getParent().toFile().mkdirs();
                 
-                // Encrypt the file content
-                InputStream encrypted = acipher.encrypt(secKey, ins);
+                FHandle fhres = new FHBuilder(fhandle.getRoot())
+                        .findChild(path)
+                        .url(tmpPath.toUri().toURL())
+                        .build();
                 
-                // Hex encode the encrypted content
-                // [TODO] provide a stream based hex encoder
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                StreamUtils.copyStream(encrypted, baos);
-                String base64Encoded = Base64.getEncoder().encodeToString(baos.toByteArray());
+                if (fhres.hasChildren()) 
+                    return fhres;
                 
-                // Append encrypted file content
-                fw.write(base64Encoded);
+                File srcFile = fhandle.getFilePath().toFile();
+                AssertState.assertTrue(srcFile.isFile(), "Cannot obtain source file: " + srcFile);
+                
+                try (FileWriter fw = new FileWriter(tmpPath.toFile())) {
+                    
+                    // Writhe the file header
+                    writeHeader(fhres, fw);
+                    
+                    try (InputStream ins = new FileInputStream(srcFile)) {
+                        
+                        // Encrypt the file content
+                        AESCipher acipher = new AESCipher();
+                        InputStream encrypted = acipher.encrypt(secKey, ins);
+                        
+                        // Hex encode the encrypted content
+                        // [TODO] provide a stream based hex encoder
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        StreamUtils.copyStream(encrypted, baos);
+                        String base64Encoded = Base64.getEncoder().encodeToString(baos.toByteArray());
+                        
+                        // Append encrypted file content
+                        fw.write(base64Encoded);
+                        
+                    } catch (GeneralSecurityException ex) {
+                        throw new IllegalStateException(ex);
+                    }
+                }
+                
+                return fhres;
             }
-        }
+        });
         
-        return new FHBuilder(fhandle)
-                .url(tmpFile.toURI().toURL())
-                .build();
+        return fhres;
     }
-    
-    protected FHandle decrypt(FHandle fhandle, Address owner, Path destPath, boolean storePlain) throws IOException, GeneralSecurityException {
+
+    protected FHandle decrypt(FHandle fhandle, Path dstPath, boolean storePlain) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(fhandle, "Null fhandle");
-        AssertArgument.assertNotNull(owner, "Null owner");
 
-        Path cryptPath = getCryptPath(fhandle.getOwner()).resolve(fhandle.getCid());
-        AssertState.assertTrue(cryptPath.toFile().exists(), "Cannot obtain file: " + cryptPath);
+        Address owner = fhandle.getOwner();
+        KeyPair keyPair = getECKeyPair(owner);
+        PrivateKey privKey = keyPair.getPrivate();
+        
+        Path tmpDir = createTempDir();
+        FHandle fhres = FHandle.walkTree(fhandle, new Visitor() {
 
-        destPath = destPath != null ? destPath : fhandle.getPath();
-        AssertArgument.assertTrue(!destPath.isAbsolute(), "Given path must be relative: " + destPath);
-        
-        // Read the file header
-        
-        FHeader header;
-        try (FileReader fr = new FileReader(cryptPath.toFile())) {
-            header = readFHeader(fr);
-            AssertState.assertEquals(fhid.VERSION_STRING, header.version);
-        }
-        
-        FHandle fhres;
-        
-        // Read the content
-        try (FileReader fr = new FileReader(cryptPath.toFile())) {
+            @Override
+            public FHandle visit(FHandle fhandle) throws IOException {
 
-            // Skip the header
-            for (int i = 0; i < header.length; i++) {
-                fr.read();
+                Path path = fhandle.getPath();
+                Path tmpPath = tmpDir.resolve(path);
+                tmpPath.getParent().toFile().mkdirs();
+                
+                FHandle fhres = new FHBuilder(fhandle.getRoot())
+                        .findChild(path)
+                        .url(tmpPath.toUri().toURL())
+                        .build();
+                
+                if (fhandle.hasChildren()) 
+                    return fhres;
+                
+                // Read the file header
+                
+                File srcFile = fhandle.getFilePath().toFile();
+                AssertState.assertTrue(srcFile.isFile(), "Cannot obtain source file: " + srcFile);
+                
+                FHeader header;
+                try (FileReader fr = new FileReader(srcFile)) {
+                    header = readFHeader(fr);
+                    AssertState.assertEquals(fhid.VERSION_STRING, header.version);
+                }
+                
+                // Read the content
+                try (FileReader fr = new FileReader(srcFile)) {
+
+                    // Skip the header
+                    for (int i = 0; i < header.length; i++) {
+                        fr.read();
+                    }
+                    
+                    ECIESCipher cipher = new ECIESCipher();
+                    byte[] encToken = Base64.getDecoder().decode(header.token);
+                    byte[] token = cipher.decrypt(privKey, encToken);
+                    
+                    AESCipher acipher = new AESCipher();
+                    String encoded = Base64.getEncoder().encodeToString(token);
+                    SecretKey secKey = acipher.decodeSecretKey(encoded);
+
+                    // Read Base64 encoded content
+                    String base64Encoded = new BufferedReader(fr).readLine();
+                    byte[] encBytes = Base64.getDecoder().decode(base64Encoded);
+                    ByteArrayInputStream ins = new ByteArrayInputStream(encBytes);
+                    
+                    // Decrypt the file content
+                    InputStream decrypted = acipher.decrypt(secKey, ins);
+                    
+                    // [TODO] How is it possible that the tmp file already exists?
+                    Path tmpFile = tmpDir.resolve(fhres.getPath());
+                    tmpFile.getParent().toFile().mkdirs();
+                    
+                    Files.copy(decrypted, tmpFile, StandardCopyOption.REPLACE_EXISTING); 
+                    
+                    fhres = new FHBuilder(fhres.getRoot())
+                            .findChild(path)
+                            .url(tmpFile.toUri().toURL())
+                            .secretToken(null)
+                            .build();
+                    
+                } catch (GeneralSecurityException ex) {
+                    throw new IllegalStateException(ex);
+                }
+                
+                return fhres;
             }
-            
-            ECIESCipher cipher = new ECIESCipher();
-            KeyPair keyPair = getECKeyPair(owner);
-            PrivateKey privKey = keyPair.getPrivate();
-            byte[] encToken = Base64.getDecoder().decode(header.token);
-            byte[] token = cipher.decrypt(privKey, encToken);
-            SecretKey secKey = getAESKey(token);
-
-            // Read Base64 encoded content
-            String base64Encoded = new BufferedReader(fr).readLine();
-            byte[] encBytes = Base64.getDecoder().decode(base64Encoded);
-            ByteArrayInputStream ins = new ByteArrayInputStream(encBytes);
-            
-            // Decrypt the file content
-            InputStream decrypted = new AESCipher().decrypt(secKey, ins);
-            
-            // [TODO] How is it possible that the tmp file already exists?
-            Path tmpFile = createTempFile();
-            Files.copy(decrypted, tmpFile, StandardCopyOption.REPLACE_EXISTING); 
-            
-            fhres = new FHBuilder(fhandle)
-                    .url(tmpFile.toUri().toURL())
-                    .secretToken(null)
-                    .path(destPath)
-                    .build();
-        }
-        
+        });
+                
         if (storePlain) {
             
+            dstPath = dstPath != null ? dstPath : fhandle.getPath();
+            AssertArgument.assertTrue(!dstPath.isAbsolute(), "Given path must be relative: " + dstPath);
+            
             boolean replaceExisting = config.isReplaceExisting();
-            Path plainPath = assertValidPlainPath(owner, destPath);
-            NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + destPath);
+            Path plainPath = assertValidPlainPath(owner, dstPath);
+            NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
             
+            Path tmpPath = fhres.getFilePath();
             plainPath.getParent().toFile().mkdirs();
-            
-            Path tmpPath = Paths.get(fhres.getURL().getPath());
             Files.move(tmpPath, plainPath, StandardCopyOption.REPLACE_EXISTING);
             
-            URL furl = plainPath.toFile().toURI().toURL();
-            fhres = new FHBuilder(owner, destPath, furl)
-                    .available(true)
-                    .build();
+            fhres = buildTreeFromPath(owner, dstPath);
         }
         
         return fhres;
@@ -1071,7 +1324,7 @@ public class DefaultContentManager implements ContentManager {
         return pubKey;
     }
 
-    protected FHandle getFHandleFromTx(UTXO utxo, Address owner) {
+    protected FHandle getFHandleFromTx(Address owner, UTXO utxo) {
         AssertArgument.assertNotNull(utxo, "Null utxo");
 
         Tx tx = wallet.getTransaction(utxo.getTxId());
@@ -1099,7 +1352,7 @@ public class DefaultContentManager implements ContentManager {
             // Not owned by the given address
             if (owner != null && !owner.equals(outAddr)) return null;
             
-            fhandle = new FHBuilder(cid)
+            fhandle = new FHBuilder(owner, cid)
                     .txId(tx.txId())
                     .owner(owner)
                     .build();
@@ -1154,14 +1407,14 @@ public class DefaultContentManager implements ContentManager {
         return FHeader.create(fhid, rd);
     }
 
-    public FHeader writeHeader(FHandle fhandle, Writer pw) throws GeneralSecurityException, IOException {
+    private FHeader writeHeader(FHandle fhandle, Writer pw) throws IOException {
         
         String owner = fhandle.getOwner().getAddress();
-        String base64Token = fhandle.getSecretToken();
+        String encToken = fhandle.getRoot().getSecretToken();
         
-        LOG.debug("IPFS token: {}", base64Token);
+        LOG.debug("IPFS token: {}", encToken);
         
-        FHeader header = new FHeader(fhid.VERSION_STRING, fhandle.getPath(), owner, base64Token, -1);
+        FHeader header = new FHeader(fhid.VERSION_STRING, fhandle.getPath(), owner, encToken, -1);
         header.write(fhid, pw);
         
         return header;
@@ -1232,6 +1485,7 @@ public class DefaultContentManager implements ContentManager {
         public FHandle call() throws Exception {
             
             String cid = fhandle.getCid();
+            Address owner = fhandle.getOwner();
             int attempt = fhandle.getAttempt() + 1;
             
             FHandle fhres = new FHBuilder(fhandle)
@@ -1244,7 +1498,7 @@ public class DefaultContentManager implements ContentManager {
             
             try {
                 
-                fhres = ipfsGet(cid, timeout);
+                fhres = ipfsGet(owner, cid, timeout);
                 
             } catch (IPFSException ex) {
                 
@@ -1377,14 +1631,14 @@ public class DefaultContentManager implements ContentManager {
         }
     }
     
-    public static class FHeaderId {
+    public static class FHeaderIdentity {
         
         public final String PREFIX;
         public final String VERSION;
         public final String VERSION_STRING;
         public final String FILE_HEADER_END;
         
-        public FHeaderId(String prefix, String version) {
+        public FHeaderIdentity(String prefix, String version) {
             this.PREFIX = prefix;
             this.VERSION = version;
             this.VERSION_STRING = PREFIX + "-Version: " + VERSION;
@@ -1401,6 +1655,11 @@ public class DefaultContentManager implements ContentManager {
         public final int length;
         
         FHeader(String version, Path path, String owner, String token, int length) {
+            AssertArgument.assertNotNull(version, "Null version");
+            AssertArgument.assertNotNull(path, "Null path");
+            AssertArgument.assertNotNull(owner, "Null owner");
+            AssertArgument.assertNotNull(token, "Null token");
+            AssertArgument.assertTrue(length != 0, "Invalid length: " + length);
             this.version = version;
             this.path = path;
             this.owner = owner;
@@ -1408,7 +1667,7 @@ public class DefaultContentManager implements ContentManager {
             this.length = length;
         }
 
-        static FHeader create(FHeaderId fhid, Reader rd) throws IOException {
+        static FHeader create(FHeaderIdentity fhid, Reader rd) throws IOException {
             BufferedReader br = new BufferedReader(rd);
             
             // First line is the version
@@ -1441,10 +1700,11 @@ public class DefaultContentManager implements ContentManager {
                 }
             }
             
-            return new FHeader(version, path, owner, token, length);
+            FHeader fheader = new FHeader(version, path, owner, token, length);
+            return fheader;
         }
 
-        void write(FHeaderId fhid, Writer wr) {
+        void write(FHeaderIdentity fhid, Writer wr) {
             PrintWriter pw = new PrintWriter(wr);
             
             // First line is the version
@@ -1464,7 +1724,7 @@ public class DefaultContentManager implements ContentManager {
         }
         
         public String toString() {
-            return String.format("[ver=%s, own=%s, path=%s, token=%s]", version, owner, path, token);
+            return String.format("[version=%s, owner=%s, path=%s, token=%s]", version, owner, path, token);
         }
     }
     
@@ -1476,7 +1736,7 @@ public class DefaultContentManager implements ContentManager {
         
         final String OP_PREFIX;
         
-        BCData(FHeaderId fhid) {
+        BCData(FHeaderIdentity fhid) {
             OP_PREFIX = fhid.PREFIX;
         }
 
