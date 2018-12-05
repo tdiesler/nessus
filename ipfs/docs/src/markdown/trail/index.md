@@ -15,7 +15,7 @@ Without further ado, lets dive right into what we have here ...
 
 ### Bob visits Nessus
 
-Our first actor is Bob. He has heard about what [Nessus](https://github.com/tdiesler/nessus) is doing with IPFS and would like to give Mary, who we will meet later, an encrypted copy of his medical records. For ensurance reasons, he needs proof that Mary has been given access to these records by a certain date. Needless to say, he does not want anybody else, but Mary, to be able to access these records.
+Our first actor is Bob. He has heard about what [Nessus](https://github.com/jboss-fuse/nessus) is doing with IPFS and would like to give Mary, who we will meet later, an encrypted copy of his medical records. For ensurance reasons, he needs proof that Mary has been given access to these records by a certain date. Needless to say, he does not want anybody else, but Mary, to be able to access these records.
 
 Bob visits Nessus here: [http://95.179.128.71:8082/portal](http://95.179.128.71:8082/portal)
 

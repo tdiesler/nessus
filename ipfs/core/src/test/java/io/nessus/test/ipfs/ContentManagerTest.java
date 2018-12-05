@@ -122,7 +122,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertTrue(fhres.isAvailable());
         
         // Unnecessary delay when adding encrypted content
-        // https://github.com/tdiesler/nessus/issues/41
+        // https://github.com/jboss-fuse/nessus/issues/41
         
         // Use an extremely short timeout 
         fhres = findIpfsContent(addrBob, cid, 10L);
@@ -219,7 +219,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         }
         
         // Investigate ipfs paths with whitespace
-        // https://github.com/tdiesler/nessus/issues/47
+        // https://github.com/jboss-fuse/nessus/issues/47
         
         Path srcPath = Paths.get("some space");
         FHandle fhandle = cntmgr.addIpfsContent(addrBob, srcPath, input);

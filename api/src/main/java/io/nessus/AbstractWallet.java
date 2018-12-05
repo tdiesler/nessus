@@ -279,7 +279,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         
         // Some APIs like listLockUnspent mey return a list of
         // UTXOs that have their scriptPubKey not initialised
-        // https://github.com/tdiesler/nessus/issues/65
+        // https://github.com/jboss-fuse/nessus/issues/65
         
         if (!utxoWithoutSPK.isEmpty()) {
             

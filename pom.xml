@@ -10,12 +10,12 @@
     <packaging>pom</packaging>
     
     <description>Blockchain and IPFS integration for Fuse</description>
-    <url>https://github.com/tdiesler/nessus</url>
+    <url>https://github.com/jboss-fuse/nessus</url>
 
     <scm>
-        <connection>scm:git:https://github.com/tdiesler/nessus</connection>
-        <developerConnection>scm:git:git@github.com:tdiesler/nessus</developerConnection>
-        <url>https://github.com/tdiesler/nessus</url>
+        <connection>scm:git:https://github.com/jboss-fuse/nessus</connection>
+        <developerConnection>scm:git:git@github.com:jboss-fuse/nessus</developerConnection>
+        <url>https://github.com/jboss-fuse/nessus</url>
         <tag>HEAD</tag>
     </scm>
     
@@ -46,7 +46,7 @@
         <version-markdown-plugin>2.1.0</version-markdown-plugin>
 
         <!-- GitHub -->
-        <github.namespace>tdiesler</github.namespace>
+        <github.namespace>jboss-fuse</github.namespace>
         <github.project>nessus</github.project>
     </properties>
     

@@ -15,7 +15,7 @@ String processIssues(def milestone, def issues, String category) {
     }
 
     println ''
-    println "For details see [${milestone.title} ${category}s](https://github.com/tdiesler/nessus/issues?q=milestone%3A\"${milestoneTitle}\"+label%3A${category})"
+    println "For details see [${milestone.title} ${category}s](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A\"${milestoneTitle}\"+label%3A${category})"
     return issueSummary
 }
 

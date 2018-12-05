@@ -15,7 +15,7 @@
 * [#67][67] Make rescan parameter dependent on blockchain config
 * [#71][71] Allow better abstraction and branding of WebUI
 
-For details see [1.0.0 Beta2 features](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Afeature)
+For details see [1.0.0 Beta2 features](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Afeature)
 
 **Tasks**
 
@@ -24,7 +24,7 @@ For details see [1.0.0 Beta2 features](https://github.com/tdiesler/nessus/issues
 * [#68][68] Hide sendTo addresses that are not registered
 * [#70][70] Prevent silent overwrite of plain content
 
-For details see [1.0.0 Beta2 tasks](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Atask)
+For details see [1.0.0 Beta2 tasks](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Atask)
 
 **Bugs**
 
@@ -33,26 +33,26 @@ For details see [1.0.0 Beta2 tasks](https://github.com/tdiesler/nessus/issues?q=
 * [#63][63] Address registration not seen on pruned instance
 * [#65][65] Cannot spend single address registration UTXO
 
-For details see [1.0.0 Beta2 bugs](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Abug)
+For details see [1.0.0 Beta2 bugs](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Beta2"+label%3Abug)
 
-[15]: https://github.com/tdiesler/nessus/issues/15
-[34]: https://github.com/tdiesler/nessus/issues/34
-[54]: https://github.com/tdiesler/nessus/issues/54
-[55]: https://github.com/tdiesler/nessus/issues/55
-[56]: https://github.com/tdiesler/nessus/issues/56
-[59]: https://github.com/tdiesler/nessus/issues/59
-[64]: https://github.com/tdiesler/nessus/issues/64
-[66]: https://github.com/tdiesler/nessus/issues/66
-[67]: https://github.com/tdiesler/nessus/issues/67
-[71]: https://github.com/tdiesler/nessus/issues/71
-[57]: https://github.com/tdiesler/nessus/issues/57
-[61]: https://github.com/tdiesler/nessus/issues/61
-[68]: https://github.com/tdiesler/nessus/issues/68
-[70]: https://github.com/tdiesler/nessus/issues/70
-[60]: https://github.com/tdiesler/nessus/issues/60
-[62]: https://github.com/tdiesler/nessus/issues/62
-[63]: https://github.com/tdiesler/nessus/issues/63
-[65]: https://github.com/tdiesler/nessus/issues/65
+[15]: https://github.com/jboss-fuse/nessus/issues/15
+[34]: https://github.com/jboss-fuse/nessus/issues/34
+[54]: https://github.com/jboss-fuse/nessus/issues/54
+[55]: https://github.com/jboss-fuse/nessus/issues/55
+[56]: https://github.com/jboss-fuse/nessus/issues/56
+[59]: https://github.com/jboss-fuse/nessus/issues/59
+[64]: https://github.com/jboss-fuse/nessus/issues/64
+[66]: https://github.com/jboss-fuse/nessus/issues/66
+[67]: https://github.com/jboss-fuse/nessus/issues/67
+[71]: https://github.com/jboss-fuse/nessus/issues/71
+[57]: https://github.com/jboss-fuse/nessus/issues/57
+[61]: https://github.com/jboss-fuse/nessus/issues/61
+[68]: https://github.com/jboss-fuse/nessus/issues/68
+[70]: https://github.com/jboss-fuse/nessus/issues/70
+[60]: https://github.com/jboss-fuse/nessus/issues/60
+[62]: https://github.com/jboss-fuse/nessus/issues/62
+[63]: https://github.com/jboss-fuse/nessus/issues/63
+[65]: https://github.com/jboss-fuse/nessus/issues/65
 
 #### Nessus 1.0.0 Beta1
 
@@ -61,19 +61,19 @@ For details see [1.0.0 Beta2 bugs](https://github.com/tdiesler/nessus/issues?q=m
 * [#47][47] Investigate ipfs paths with whitespace
 * [#53][53] Add generated changelog & release notes
 
-For details see [1.0.0 Beta1 tasks](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta1"+label%3Atask)
+For details see [1.0.0 Beta1 tasks](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Beta1"+label%3Atask)
 
 **Bugs**
 
 * [#41][41] Unnecessary delay when adding encrypted content
 * [#42][42] Redeem change may transfer funds to another account
 
-For details see [1.0.0 Beta1 bugs](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Beta1"+label%3Abug)
+For details see [1.0.0 Beta1 bugs](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Beta1"+label%3Abug)
 
-[47]: https://github.com/tdiesler/nessus/issues/47
-[53]: https://github.com/tdiesler/nessus/issues/53
-[41]: https://github.com/tdiesler/nessus/issues/41
-[42]: https://github.com/tdiesler/nessus/issues/42
+[47]: https://github.com/jboss-fuse/nessus/issues/47
+[53]: https://github.com/jboss-fuse/nessus/issues/53
+[41]: https://github.com/jboss-fuse/nessus/issues/41
+[42]: https://github.com/jboss-fuse/nessus/issues/42
 
 #### Nessus 1.0.0 Alpha5
 
@@ -82,17 +82,17 @@ For details see [1.0.0 Beta1 bugs](https://github.com/tdiesler/nessus/issues?q=m
 * [#50][50] Investigate find registration after wallet restart
 * [#51][51] Verify that address registration survives wallet restart
 
-For details see [1.0.0 Alpha5 tasks](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Alpha5"+label%3Atask)
+For details see [1.0.0 Alpha5 tasks](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Alpha5"+label%3Atask)
 
 **Bugs**
 
 * [#52][52] Stale IPFS content may never expire
 
-For details see [1.0.0 Alpha5 bugs](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Alpha5"+label%3Abug)
+For details see [1.0.0 Alpha5 bugs](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Alpha5"+label%3Abug)
 
-[50]: https://github.com/tdiesler/nessus/issues/50
-[51]: https://github.com/tdiesler/nessus/issues/51
-[52]: https://github.com/tdiesler/nessus/issues/52
+[50]: https://github.com/jboss-fuse/nessus/issues/50
+[51]: https://github.com/jboss-fuse/nessus/issues/51
+[52]: https://github.com/jboss-fuse/nessus/issues/52
 
 #### Nessus 1.0.0 Alpha4
 
@@ -101,7 +101,7 @@ For details see [1.0.0 Alpha5 bugs](https://github.com/tdiesler/nessus/issues?q=
 * [#22][22] Provide a camel component for IPFS
 * [#37][37] Add support for recursive IPFS add
 
-For details see [1.0.0 Alpha4 features](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Alpha4"+label%3Afeature)
+For details see [1.0.0 Alpha4 features](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Alpha4"+label%3Afeature)
 
 **Tasks**
 
@@ -113,17 +113,17 @@ For details see [1.0.0 Alpha4 features](https://github.com/tdiesler/nessus/issue
 * [#48][48] Revisit env var handling
 * [#49][49] Rename Marry to Mary
 
-For details see [1.0.0 Alpha4 tasks](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Alpha4"+label%3Atask)
+For details see [1.0.0 Alpha4 tasks](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Alpha4"+label%3Atask)
 
-[22]: https://github.com/tdiesler/nessus/issues/22
-[37]: https://github.com/tdiesler/nessus/issues/37
-[23]: https://github.com/tdiesler/nessus/issues/23
-[39]: https://github.com/tdiesler/nessus/issues/39
-[44]: https://github.com/tdiesler/nessus/issues/44
-[45]: https://github.com/tdiesler/nessus/issues/45
-[46]: https://github.com/tdiesler/nessus/issues/46
-[48]: https://github.com/tdiesler/nessus/issues/48
-[49]: https://github.com/tdiesler/nessus/issues/49
+[22]: https://github.com/jboss-fuse/nessus/issues/22
+[37]: https://github.com/jboss-fuse/nessus/issues/37
+[23]: https://github.com/jboss-fuse/nessus/issues/23
+[39]: https://github.com/jboss-fuse/nessus/issues/39
+[44]: https://github.com/jboss-fuse/nessus/issues/44
+[45]: https://github.com/jboss-fuse/nessus/issues/45
+[46]: https://github.com/jboss-fuse/nessus/issues/46
+[48]: https://github.com/jboss-fuse/nessus/issues/48
+[49]: https://github.com/jboss-fuse/nessus/issues/49
 
 #### Nessus 1.0.0 Alpha3
 
@@ -132,7 +132,7 @@ For details see [1.0.0 Alpha4 tasks](https://github.com/tdiesler/nessus/issues?q
 * [#32][32] Add support for locked utxos
 * [#33][33] IPFS ops from recorded blockchain UTOX must be asynchronous
 
-For details see [1.0.0 Alpha3 features](https://github.com/tdiesler/nessus/issues?q=milestone%3A"1.0.0+Alpha3"+label%3Afeature)
+For details see [1.0.0 Alpha3 features](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Alpha3"+label%3Afeature)
 
-[32]: https://github.com/tdiesler/nessus/issues/32
-[33]: https://github.com/tdiesler/nessus/issues/33
+[32]: https://github.com/jboss-fuse/nessus/issues/32
+[33]: https://github.com/jboss-fuse/nessus/issues/33

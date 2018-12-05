@@ -54,7 +54,7 @@
 </tr>
 <tr>
     <td>
-        <input name="url" type="text" size="80" value="https://raw.githubusercontent.com/tdiesler/nessus/master/ipfs/jaxrs/src/test/resources/userfile.txt">
+        <input name="url" type="text" size="80" value="https://raw.githubusercontent.com/jboss-fuse/nessus/master/ipfs/jaxrs/src/test/resources/userfile.txt">
     </td>
 </tr>
 <tr>
