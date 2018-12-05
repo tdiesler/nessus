@@ -286,7 +286,7 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
             List<Address> addrs = utxos.stream()
                     .map(utxo -> utxo.getAddress())
                     .map(raw -> findAddress(raw))
-                    .collect(Collectors.toList());
+                    .distinct().collect(Collectors.toList());
             
             List<UTXO> futxos = utxos;
             List<UTXO> utxoWithSPK = listUnspent(addrs).stream()

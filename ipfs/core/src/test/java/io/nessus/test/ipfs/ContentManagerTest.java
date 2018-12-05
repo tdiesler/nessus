@@ -85,16 +85,18 @@ public class ContentManagerTest extends AbstractWorkflowTest {
 
         Address addrBob = wallet.getAddress(LABEL_BOB);
         
-        ByteArrayInputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
-        FHandle fhandle = cntmgr.addIpfsContent(addrBob, Paths.get("some.txt"), input);
+        InputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
+        FHandle fhA = cntmgr.addIpfsContent(addrBob, Paths.get("kermit.txt"), input);
+        
+        input = new ByteArrayInputStream("Hello Piggy".getBytes());
+        FHandle fhB = cntmgr.addIpfsContent(addrBob, Paths.get("piggy.txt"), input);
         
         List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
-        Assert.assertEquals(1, fhandles.size());
-        Assert.assertEquals(fhandle, fhandles.get(0));
+        Assert.assertEquals(2, fhandles.size());
         
-        List<String> cids = cntmgr.unregisterIpfsContent(addrBob, Arrays.asList(fhandle.getCid()));
-        Assert.assertEquals(1, cids.size());
-        Assert.assertEquals(fhandle.getCid(), cids.get(0));
+        List<String> cids = Arrays.asList(fhA.getCid(), fhB.getCid());
+        List<String> cres = cntmgr.unregisterIpfsContent(addrBob, cids);
+        Assert.assertEquals(2, cres.size());
         
         fhandles = cntmgr.findIpfsContent(addrBob, null);
         Assert.assertEquals(0, fhandles.size());
