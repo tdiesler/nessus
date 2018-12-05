@@ -42,7 +42,7 @@
                     <!--
                         $ ipfs add -r ipfs/docs/target/docs/html
                         ...
-                        added Qmb95cMsbXZ2sPK3a4X1F2YVE1paX2uFou2bRRycLxQqnN html
+                        added QmdJe74VJAfW3JFKBMgfZGPQ1Jnp8YHp6k8uepA3Rztdd8 html
                     -->
                 </configuration>
             </plugin>

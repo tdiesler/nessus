@@ -34,8 +34,8 @@ public class SFHandle {
 
     private String cid;
     private String owner;
-    private String path;
     private String txId;
+    private String path;
     private boolean encrypted;
     private boolean available;
     private boolean expired;

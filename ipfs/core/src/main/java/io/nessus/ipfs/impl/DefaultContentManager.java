@@ -213,7 +213,7 @@ public class DefaultContentManager implements ContentManager {
 
         String txId = wallet.sendTx(tx);
 
-        LOG.info("PubKey register: {} => Tx {}", addr, txId);
+        LOG.info("Register PubKey: {} => Tx {}", addr.getAddress(), txId);
 
         tx = wallet.getTransaction(txId);
         int vout = tx.outputs().size() - 2;
@@ -258,7 +258,7 @@ public class DefaultContentManager implements ContentManager {
             return null;
         }
         
-        LOG.info("Unregister PubKey: {} => {} => {}", addr, pubKey, txId);
+        LOG.info("Unregister PubKey: {} => {} => Tx {}", addr.getAddress(), pubKey, txId);
         
         return pubKey;
     }
@@ -729,15 +729,15 @@ public class DefaultContentManager implements ContentManager {
     }
 
     Path getPlainPath(Address owner) {
-        Path path = getRootPath().resolve("plain").resolve(owner.getAddress());
-        path.toFile().mkdirs();
-        return path;
+        Path plainPath = getRootPath().resolve("plain").resolve(owner.getAddress());
+        plainPath.toFile().mkdirs();
+        return plainPath;
     }
 
     Path getCryptPath(Address owner) {
-        Path path = getRootPath().resolve("crypt").resolve(owner.getAddress());
-        path.toFile().mkdirs();
-        return path;
+        Path cryptPath = getRootPath().resolve("crypt").resolve(owner.getAddress());
+        cryptPath.toFile().mkdirs();
+        return cryptPath;
     }
 
     Path getTempPath() {

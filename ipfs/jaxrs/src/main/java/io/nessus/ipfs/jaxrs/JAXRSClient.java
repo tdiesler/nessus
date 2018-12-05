@@ -215,7 +215,7 @@ public class JAXRSClient implements JAXRSEndpoint {
 
         WebTarget target = client.target(generateURL("/rmipfs"))
                 .queryParam("addr", rawAddr)
-                .queryParam("cids", cids.toArray());
+                .queryParam("cid", cids.toArray());
 
         Response res = processResponse(target.request().get(Response.class));
 
