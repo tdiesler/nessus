@@ -177,6 +177,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         // Find the IPFS tree
         fhres = findIpfsContent(addrBob, cid, null);
         Assert.assertTrue(fhres.isAvailable());
+        Assert.assertTrue(fhres.isEncrypted());
         Assert.assertEquals(3, fhres.getChildren().size());
         Assert.assertEquals(cid + "/subA", fhres.getChildren().get(0).getCid());
         Assert.assertEquals(cid + "/subB", fhres.getChildren().get(1).getCid());

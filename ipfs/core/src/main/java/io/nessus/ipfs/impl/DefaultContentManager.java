@@ -87,6 +87,7 @@ import io.nessus.cipher.ECIESCipher;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
+import io.nessus.ipfs.FHandle.FHReference;
 import io.nessus.ipfs.FHandle.Visitor;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
@@ -368,10 +369,10 @@ public class DefaultContentManager implements ContentManager {
         // Move the temp file to its crypt path
         
         String cid = cids.get(cids.size() - 1);
-        Path rootPath = getCryptPath(owner).resolve(cid);
-        Files.move(auxPath, rootPath, StandardCopyOption.ATOMIC_MOVE);
+        Path fullPath = getCryptPath(owner).resolve(cid);
+        Files.move(auxPath, fullPath, StandardCopyOption.ATOMIC_MOVE);
         
-        URL furl = rootPath.toUri().toURL();
+        URL furl = fullPath.toUri().toURL();
         fhandle = new FHBuilder(fhandle)
                 .url(furl)
                 .cid(cid)
@@ -649,10 +650,10 @@ public class DefaultContentManager implements ContentManager {
         
         List<FHandle> fhandles = new ArrayList<>();
         
-        Path rootPath = getPlainPath(owner);
-        if (rootPath.toFile().exists()) {
-            for (File file : rootPath.toFile().listFiles()) {
-                Path path = rootPath.relativize(file.toPath());
+        Path plainPath = getPlainPath(owner);
+        if (plainPath.toFile().exists()) {
+            for (File file : plainPath.toFile().listFiles()) {
+                Path path = plainPath.relativize(file.toPath());
                 fhandles.add(findLocalContent(owner, path));
             }
         }
@@ -764,37 +765,38 @@ public class DefaultContentManager implements ContentManager {
                 return fhandle;
             
             if (fhandle == null) {
-                fhandle = new FHBuilder(owner, cid).build();
+                fhandle = new FHBuilder(owner, cid)
+                        .elapsed(0L)
+                        .build();
                 filecache.put(fhandle);
             }
         }
-
+        
+        return ipfsGet(fhandle, timeout);
+    }
+    
+    private FHandle ipfsGet(FHandle fhandle, long timeout) throws IOException, IPFSTimeoutException {
+        AssertArgument.assertNotNull(fhandle, "Null fhandle");
+        AssertArgument.assertNotNull(fhandle.getOwner(), "Null owner");
+        AssertArgument.assertNotNull(fhandle.getCid(), "Null cid");
+        
+        Address owner = fhandle.getOwner();
+        String cid = fhandle.getCid();
+        
         Path cryptPath = getCryptPath(owner);
         Path rootPath = cryptPath.resolve(cid);
-
-        // Check if the requested crypt path already exists
         
-        if (rootPath.toFile().exists()) {
-            
-            fhandle = new FHBuilder(fhandle)
-                    .url(rootPath.toUri().toURL())
-                    .build();
-            
-        } else {
-            
-            // Fetch the content from IPFS
+        // Fetch the content from IPFS
+        
+        if (!rootPath.toFile().exists()) {
             
             long before = System.currentTimeMillis();
             try {
                 
                 Future<Path> future = ipfsClient.get(cid, cryptPath);
-                rootPath = future.get(timeout, TimeUnit.MILLISECONDS);
+                Path resPath = future.get(timeout, TimeUnit.MILLISECONDS);
                 
-                AssertState.assertTrue(rootPath.toFile().exists(), "Cannot obtain file from: " + rootPath);
-                
-                fhandle = new FHBuilder(fhandle)
-                        .url(rootPath.toUri().toURL())
-                        .build();
+                AssertState.assertEquals(rootPath, resPath);
                 
             } catch (InterruptedException | ExecutionException ex) {
                 
@@ -819,8 +821,13 @@ public class DefaultContentManager implements ContentManager {
             }
         }
         
+        if (fhandle.getURL() == null) {
+            URL furl = rootPath.toUri().toURL();
+            fhandle = new FHBuilder(fhandle).url(furl).build();
+        }
+        
         File rootFile = rootPath.toFile();
-        AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootPath);
+        AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootFile);
         
         if (rootFile.isDirectory()) {
             fhandle = createIPFSFileTree(fhandle);
@@ -839,29 +846,39 @@ public class DefaultContentManager implements ContentManager {
         return fhres;
     }
 
-    private FHandle createIPFSFileTree(FHandle fhroot) throws IOException {
+    private FHandle createIPFSFileTree(FHandle fhandle) throws IOException {
         
-        List<FHandle> fhandles = new ArrayList<>();
         Stack<FHandle> fhstack = new Stack<>();
-        
-        String cid = fhroot.getCid();
-        Path rootPath = fhroot.getFilePath();
         
         // Find the root node path by reading the 
         // file header of the first encrypted file we find
         
-        StringBuffer pathHolder = new StringBuffer();
+        Path rootPath = fhandle.getFilePath();
+        File rootFile = rootPath.toFile();
+        AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootFile);
+        
+        FHReference fhref = new FHReference();
         Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
 
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 
-                FHandle aux = new FHBuilder(fhroot)
-                        .url(file.toUri().toURL())
+                URL furl = file.toUri().toURL();
+                FHandle fhaux = new FHBuilder(fhandle)
+                        .url(furl)
                         .build();
                 
-                FHandle fhres = createFromFileHeader(null, aux);
-                pathHolder.append(fhres.getPath().getName(0));
+                FHandle fhres = createFromFileHeader(null, fhaux);
+                
+                Path path = fhres.getPath().getName(0);
+                furl = rootFile.toURI().toURL();
+
+                fhres = new FHBuilder(fhres)
+                        .path(path)
+                        .url(furl)
+                        .build();
+                
+                fhref.setFHandle(fhres);
                 
                 return FileVisitResult.TERMINATE;
             }
@@ -869,12 +886,10 @@ public class DefaultContentManager implements ContentManager {
         
         Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
 
-            Path rootNodePath = Paths.get(pathHolder.toString());
-            
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                FHandle fhandle = createFileHandle(dir);
-                fhandles.add(fhandle);
+                FHandle parent = !fhstack.isEmpty() ? fhstack.peek() : null;
+                FHandle fhandle = createFileHandle(parent, dir);
                 fhstack.push(fhandle);
                 return FileVisitResult.CONTINUE;
             }
@@ -887,16 +902,12 @@ public class DefaultContentManager implements ContentManager {
 
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                fhandles.add(createFileHandle(file));
+                FHandle parent = !fhstack.isEmpty() ? fhstack.peek() : null;
+                createFileHandle(parent, file);
                 return FileVisitResult.CONTINUE;
             }
             
-            FHandle createFileHandle(Path fullPath) throws IOException {
-                
-                FHandle parent = !fhstack.isEmpty() ? fhstack.peek() : null;
-                
-                Path relPath = rootPath.relativize(fullPath);
-                relPath = rootNodePath.resolve(relPath);
+            FHandle createFileHandle(FHandle parent, Path fullPath) throws IOException {
                 
                 FHandle fhres;
                 if (fullPath.toFile().isDirectory()) {
@@ -904,32 +915,31 @@ public class DefaultContentManager implements ContentManager {
                     if (parent == null) {
                         
                         // Root handle                         
-                        fhres = new FHBuilder(fhroot)
-                                .path(rootNodePath)
-                                .build();
+                        fhres = fhref.getFHandle();
                         
                     } else {
                         
                         // Sub directory handles
-                        Address owner = parent.getOwner();
+                        
+                        FHandle fhroot = fhref.getFHandle();
+                        Path relPath = rootPath.relativize(fullPath);
+                        relPath = fhroot.getPath().resolve(relPath);
                         URL furl = fullPath.toUri().toURL();
-                        String subcid = parent.getCid() + "/" + relPath.getFileName();
-                        fhres = new FHBuilder(owner, relPath, furl)
+                        
+                        fhres = new FHBuilder(fhandle)
                                 .parent(parent)
-                                .cid(subcid)
+                                .path(relPath)
+                                .url(furl)
                                 .build();
                     }
                     
                 } else {
                     
-                    // Content handles
-                    Address owner = parent.getOwner();
                     URL furl = fullPath.toUri().toURL();
-                    String subcid = parent.getCid() + "/" + relPath.getFileName();
-                    FHandle fhaux = new FHBuilder(owner, relPath, furl)
-                            .cid(subcid)
+                    FHandle fhaux = new FHBuilder(fhandle)
+                            .url(furl)
                             .build();
-                    
+
                     fhres = createFromFileHeader(parent, fhaux);
                 }
                 
@@ -937,13 +947,14 @@ public class DefaultContentManager implements ContentManager {
             }
         });
         
-        AssertState.assertTrue(!fhandles.isEmpty(), "Cannot obtain fhandle for: " + cid);
-        FHandle fhres = fhandles.get(0);
+        FHandle fhres = fhref.getFHandle();
+        AssertState.assertNotNull(fhres, "Cannot obtain fhandle for: " + rootFile);
         
         return fhres;
     }
 
     private FHandle createFromFileHeader(FHandle parent, FHandle fhandle) throws IOException {
+        AssertArgument.assertNotNull(fhandle, "Null fullPath");
         
         Path fullPath = fhandle.getFilePath();
         AssertState.assertTrue(fullPath.toFile().isFile(), "Cannot find IPFS content at: " + fullPath);
@@ -958,10 +969,12 @@ public class DefaultContentManager implements ContentManager {
             
             AssertState.assertNotNull(owner, "Address unknown to this wallet: " + header.owner);
 
+            boolean available = parent != null ? parent.isAvailable() : false;
+            
             FHandle fhres = new FHBuilder(fhandle)
                     .secretToken(encToken)
+                    .available(available)
                     .parent(parent)
-                    .owner(owner)
                     .path(path)
                     .build();
             
@@ -1484,36 +1497,34 @@ public class DefaultContentManager implements ContentManager {
         @Override
         public FHandle call() throws Exception {
             
-            String cid = fhandle.getCid();
-            Address owner = fhandle.getOwner();
             int attempt = fhandle.getAttempt() + 1;
             
-            FHandle fhres = new FHBuilder(fhandle)
+            FHandle fhaux = new FHBuilder(fhandle)
                     .attempt(attempt)
                     .build();
             
-            filecache.put(fhres);
+            filecache.put(fhaux);
             
-            LOG.info("{}: {}", logPrefix("attempt", attempt),  fhres);
+            LOG.info("{}: {}", logPrefix("attempt", attempt),  fhaux);
             
             try {
                 
-                fhres = ipfsGet(owner, cid, timeout);
+                fhaux = ipfsGet(fhaux, timeout);
                 
-            } catch (IPFSException ex) {
+            } catch (Exception ex) {
                 
-                fhres = processIPFSException(fhres, ex);
+                fhaux = processException(fhaux, ex);
                 
             } finally {
                 
-                fhres.setScheduled(false);
-                filecache.put(fhres);
+                fhaux.setScheduled(false);
+                filecache.put(fhaux);
             }
 
-            return fhres;
+            return fhaux;
         }
         
-        private FHandle processIPFSException(FHandle fhres, IPFSException ex) throws InterruptedException {
+        private FHandle processException(FHandle fhres, Exception ex) throws InterruptedException {
             
             fhres = filecache.get(fhres.getCid());
             int attempt = fhres.getAttempt();
@@ -1544,7 +1555,7 @@ public class DefaultContentManager implements ContentManager {
                         .expired(true)
                         .build();
                 
-                LOG.error("{}: {}", logPrefix("error", attempt),  fhres);
+                LOG.error(logPrefix("error", attempt) + ": " + fhres, ex);
             }
             
             return fhres;

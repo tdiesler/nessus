@@ -3,6 +3,7 @@ package io.nessus.ipfs;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 
 /*-
  * #%L
@@ -60,14 +61,11 @@ public class FHandle {
     private FHandle(FHandle parent, Address owner, Path path, String cid, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, Long elapsed) {
         AssertArgument.assertNotNull(owner, "Null owner");
         boolean urlBased = path != null && furl != null;
-        AssertArgument.assertTrue(urlBased || cid != null, "Neither url not cid based");
+        AssertArgument.assertTrue(urlBased || cid != null, "Neither url nor cid based");
         
         // Adjust child cid
-        
-        if (parent != null && parent.cid != null) {
-            AssertArgument.assertTrue(cid == null || cid.startsWith(parent.cid), "Invalid child cid: " + cid);
+        if (parent != null && parent.cid != null) 
             cid = parent.cid + "/" + path.getFileName();
-        }
         
         this.parent = parent;
         this.owner = owner;
@@ -116,9 +114,13 @@ public class FHandle {
         return furl;
     }
 
-    public Path getFilePath() throws IOException {
+    public Path getFilePath() {
         if (furl == null || !furl.getProtocol().equals("file")) return null;
-        return Paths.get(URLDecoder.decode(furl.getPath(), "UTF-8"));
+        try {
+            return Paths.get(URLDecoder.decode(furl.getPath(), "UTF-8"));
+        } catch (UnsupportedEncodingException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public Path getPath() {
@@ -210,15 +212,15 @@ public class FHandle {
             this.fhref = fh;
         }
 
-        public FHandle getFHandle() {
+        public synchronized FHandle getFHandle() {
             return fhref;
         }
 
-        public void setFHandle(FHandle fh) {
+        public synchronized void setFHandle(FHandle fh) {
             this.fhref = fh;
         }
         
-        public String toString() {
+        public synchronized String toString() {
             return fhref.toString();
         }
     }
