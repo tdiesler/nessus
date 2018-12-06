@@ -1,13 +1,4 @@
-<html>
-
-<head>
-<link rel="stylesheet" href="/css/demo.css">
-</head>
-
-<body>
-<table>
-<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
-</table>
+#parse( "templates/header.vm" )
 
 <table>
 <tr><td><img src="http://api.qrserver.com/v1/create-qr-code?size=150x150&data=$addr.address"></td></tr>
@@ -15,5 +6,4 @@
 <tr><td>$addr.address</td></tr>
 </table>
 
-</body>
-</html>
+#parse( "templates/footer.vm" )

@@ -1,0 +1,13 @@
+
+   </div>
+   <div id="footer">
+    <footer class="footer">
+        <span><b>Version</b>: $implVersiond</span>
+        <br>
+        <span>Copyright &copy; 2018 Nessus</span>
+    </footer>
+   </div>
+</div>
+
+</body>
+</html>

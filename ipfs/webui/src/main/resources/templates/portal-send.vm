@@ -1,13 +1,4 @@
-<html>
-
-<head>
-<link rel="stylesheet" href="/css/demo.css">
-</head>
-
-<body>
-<table>
-<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
-</table>
+#parse( "templates/header.vm" )
 
 <h1>Send File</h1>
 
@@ -41,5 +32,4 @@
 </form>
 </table>
 
-</body>
-</html>
+#parse( "templates/footer.vm" )

@@ -144,6 +144,8 @@ public class ContentHandler implements HttpHandler {
         
         String tmplPath = null;
         VelocityContext context = new VelocityContext();
+        context.put("implVersion", WebUI.implVersion);
+        context.put("implBuild", WebUI.implBuild);
 
         try {
             

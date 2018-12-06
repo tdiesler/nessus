@@ -1,18 +1,4 @@
-<html>
-
-<head>
-<link rel="stylesheet" href="/css/demo.css">
-<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/themes/default/style.min.css">
-<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.7/jstree.min.js"></script>
-<script src="/js/demo.js"></script>
-</head>
-
-<body>
-<table>
-<tr><td><a href="/portal"><img alt="logo" width="144" height="144" src="/img/logo.png"></a></td><tr>
-</table>
-
+#parse( "templates/header.vm" )
 
 <h1>List Files</h1>
 
@@ -59,5 +45,4 @@ $(function() {
 });
 </script>
 
-</body>
-</html>
+#parse( "templates/footer.vm" )

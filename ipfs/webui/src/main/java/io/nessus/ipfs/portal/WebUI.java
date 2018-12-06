@@ -1,5 +1,8 @@
 package io.nessus.ipfs.portal;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 /*-
  * #%L
  * Nessus :: IPFS :: WebUI
@@ -22,6 +25,9 @@ package io.nessus.ipfs.portal;
 
 import java.net.URI;
 import java.net.URL;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +51,19 @@ public class WebUI {
     public static final String ENV_NESSUS_WEBUI_PORT = "NESSUS_WEBUI_PORT";
     public static final String ENV_NESSUS_WEBUI_LABEL = "NESSUS_WEBUI_LABEL";
     
+    static final String implVersion;
+    static final String implBuild;
+    static {
+        try (InputStream ins = ContentHandler.class.getResourceAsStream("/" + JarFile.MANIFEST_NAME)) {
+            Manifest manifest = new Manifest(ins);
+            Attributes attribs = manifest.getMainAttributes();
+            implVersion = attribs.getValue("Implementation-Version");
+            implBuild = attribs.getValue("Implementation-Build");
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+    
     public static void main(String[] args) throws Exception {
 
         JAXRSSanityCheck.verifyPlatform();
@@ -61,6 +80,8 @@ public class WebUI {
     }
     
     protected void start() throws Exception {
+        
+        LOG.info("{} Version: {} Build: {}", getApplicationName(), implVersion, implBuild);
         
         String envHost = SystemUtils.getenv(IPFSClient.ENV_IPFS_GATEWAY_ADDR, "127.0.0.1");
         String envPort = SystemUtils.getenv(IPFSClient.ENV_IPFS_GATEWAY_PORT, "8080");
@@ -91,7 +112,7 @@ public class WebUI {
         server.start();
     }
 
-    protected HttpHandler createHttpHandler(URI gatewayURI, Blockchain blockchain, JAXRSClient jaxrsClient) {
+    protected HttpHandler createHttpHandler(URI gatewayURI, Blockchain blockchain, JAXRSClient jaxrsClient) throws IOException {
         return new ContentHandler(jaxrsClient, blockchain, gatewayURI);
     }
 }

@@ -53,8 +53,12 @@ docker exec -it webui tail -f -n 100 debug.log
 This assumes you have the Blockchain and IPFS instances already running on your host
 
 ```
+# Testnet: 18332
+# Regtest: 18443
+
 export CNAME=webui
 export LOCALIP=192.168.178.20
+export RPCPORT=18443
 export LABEL=Mary
 
 docker rm -f $CNAME
@@ -64,7 +68,7 @@ docker run --detach \
     --env IPFS_GATEWAY_ADDR=$LOCALIP \
     --env IPFS_GATEWAY_PORT=8080 \
     --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \
-    --env BLOCKCHAIN_JSONRPC_PORT=18332 \
+    --env BLOCKCHAIN_JSONRPC_PORT=$RPCPORT \
     --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
     --env NESSUS_WEBUI_LABEL=$LABEL \

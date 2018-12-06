@@ -24,6 +24,7 @@ import static io.nessus.ipfs.jaxrs.JAXRSConstants.ENV_NESSUS_JAXRS_PORT;
  */
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
@@ -32,6 +33,9 @@ import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
@@ -65,16 +69,30 @@ public class JAXRSApplication extends Application {
     private static final Logger LOG = LoggerFactory.getLogger(JAXRSApplication.class);
 
     static final JAXRSConfig config;
+    static final String implVersion;
+    static final String implBuild;
+    
     static {
+        
         String jaxrsAddr = SystemUtils.getenv(ENV_NESSUS_JAXRS_ADDR, PortProvider.getHost());
         int jaxrsPort = Integer.parseInt(SystemUtils.getenv(ENV_NESSUS_JAXRS_PORT, "" + PortProvider.getPort()));
         config = new JAXRSConfig(jaxrsAddr, jaxrsPort);
+        
+        try (InputStream ins = JAXRSApplication.class.getResourceAsStream("/" + JarFile.MANIFEST_NAME)) {
+            Manifest manifest = new Manifest(ins);
+            Attributes attribs = manifest.getMainAttributes();
+            implVersion = attribs.getValue("Implementation-Version");
+            implBuild = attribs.getValue("Implementation-Build");
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     private final ContentManager contentManager;
 
     private static JAXRSApplication INSTANCE;
     private static JAXRSServer jaxrsServer;
+
 
     public static void main(String[] args) throws Exception {
 
@@ -89,6 +107,8 @@ public class JAXRSApplication extends Application {
     }
 
     public static JAXRSServer serverStart() throws Exception {
+        
+        LOG.info("Nessus Version: {} Build: {}", implVersion, implBuild);
         
         IPFSClient ipfsClient = ipfsClient();
         LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
@@ -105,7 +125,7 @@ public class JAXRSApplication extends Application {
 
         jaxrsServer = new JAXRSServer(undertowServer, config);
         LOG.info("Nessus JAXRS: {}",  jaxrsServer.getRootURL());
-
+        
         return jaxrsServer;
     }
 
