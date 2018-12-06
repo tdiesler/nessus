@@ -28,19 +28,28 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.nessus.ipfs.FHandle;
 
 public class SFHandle {
 
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private String cid;
     private String owner;
-    private String txId;
     private String path;
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private String txId;
     private boolean encrypted;
     private boolean available;
+    
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private boolean expired;
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private int attempts;
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private Long elapsed;
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private List<SFHandle> children = new ArrayList<>();
 
     public SFHandle() {
