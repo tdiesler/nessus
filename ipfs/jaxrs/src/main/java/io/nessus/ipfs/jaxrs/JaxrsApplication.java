@@ -54,19 +54,20 @@ import io.nessus.ipfs.ContentManager.ContentManagerConfig;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.impl.DefaultContentManager;
 import io.nessus.ipfs.impl.DefaultIPFSClient;
+import io.nessus.utils.AssertArgument;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 
 @ApplicationPath("/nessus")
-public class JAXRSApplication extends Application {
+public class JaxrsApplication extends Application {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JAXRSApplication.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JaxrsApplication.class);
 
     static final String implVersion;
     static final String implBuild;
     
     static {
-        try (InputStream ins = JAXRSApplication.class.getResourceAsStream("/" + JarFile.MANIFEST_NAME)) {
+        try (InputStream ins = JaxrsApplication.class.getResourceAsStream("/" + JarFile.MANIFEST_NAME)) {
             Manifest manifest = new Manifest(ins);
             Attributes attribs = manifest.getMainAttributes();
             implVersion = attribs.getValue("Implementation-Version");
@@ -76,57 +77,50 @@ public class JAXRSApplication extends Application {
         }
     }
 
-    private static JAXRSApplication INSTANCE;
+    private static JaxrsConfig config;
     private static JAXRSServer jaxrsServer;
 
-    private final JAXRSConfig config;
-    private final ContentManager cntManager;
+    static JaxrsApplication INSTANCE;
+    final ContentManager cntManager;
 
-    public JAXRSApplication() throws Exception {
-        this(new JAXRSConfig());
+    public JaxrsApplication() throws Exception {
+        this(config);
+    }
+        
+    public JaxrsApplication(JaxrsConfig config) throws Exception {
+        AssertArgument.assertNotNull(config,  "Null config");
+        
+        LOG.info("Nessus Version: {} Build: {}", implVersion, implBuild);
+        
+        URL bcUrl = config.getBlockchainUrl();
+        Class<Blockchain> bcImpl = config.getBlockchainImpl();
+        Blockchain blockchain = BlockchainFactory.getBlockchain(bcUrl, bcImpl);
+        JaxrsClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
+        
+        MultiAddress ipfsAddr = config.getIpfsAddress();
+        IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
+        LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
+        LOG.info("IPFS Version: {}",  ipfsClient.version());
+
+        ContentManagerConfig mgrConfig = new ContentManagerConfig(blockchain, ipfsClient);
+        cntManager = new DefaultContentManager(mgrConfig);
+        
+        INSTANCE = this;
     }
 
-    public JAXRSApplication(JAXRSConfig config) throws Exception {
-        this.config = config;
+    public static JAXRSServer serverStart(JaxrsConfig config) throws Exception {
         
+        JaxrsSanityCheck.verifyPlatform();
+        JaxrsApplication.config = config;
+
         ResteasyProviderFactory providerFactory = ResteasyProviderFactory.getInstance();
         providerFactory.registerProvider(GeneralSecurityExceptionMapper.class);
         providerFactory.registerProvider(RuntimeExceptionMapper.class);
         providerFactory.registerProvider(IOExceptionMapper.class);
         
-        URL bcUrl = config.getBlockchainUrl();
-        Class<Blockchain> bcImpl = config.getBlockchainImpl();
-        Blockchain blockchain = BlockchainFactory.getBlockchain(bcUrl, bcImpl);
-        
-        MultiAddress ipfsAddr = config.getIpfsAddress();
-        IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
-        
-        ContentManagerConfig mgrConfig = new ContentManagerConfig(blockchain, ipfsClient);
-        cntManager = new DefaultContentManager(mgrConfig);
-
-        INSTANCE = this;
-    }
-
-    public JAXRSConfig getJAXRSConfig() {
-        return config;
-    }
-    
-    public JAXRSServer serverStart() throws Exception {
-        
-        JAXRSSanityCheck.verifyPlatform();
-
-        LOG.info("Nessus Version: {} Build: {}", implVersion, implBuild);
-        
-        IPFSClient ipfsClient = cntManager.getIPFSClient();
-        LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
-        LOG.info("IPFS Version: {}",  ipfsClient.version());
-
-        Blockchain blockchain = cntManager.getBlockchain();
-        JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
-        
         Builder builder = Undertow.builder().addHttpListener(config.jaxrsPort, config.jaxrsHost);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
-        undertowServer.deploy(JAXRSApplication.class);
+        undertowServer.deploy(JaxrsApplication.class);
 
         jaxrsServer = new JAXRSServer(undertowServer, config);
         LOG.info("Nessus JAXRS: {}",  jaxrsServer.getRootURL());
@@ -142,34 +136,26 @@ public class JAXRSApplication extends Application {
         }
     }
 
-    static JAXRSApplication getInstance() {
-        return INSTANCE;
-    }
-
-    public ContentManager getCntManager() {
-        return cntManager;
-    }
-
     @Override
     public Set<Object> getSingletons() {
         HashSet<Object> singletons = new HashSet<Object>();
-        Collections.addAll(singletons, config, cntManager);
+        Collections.addAll(singletons, cntManager);
         return singletons;
     }
 
     @Override
     public Set<Class<?>> getClasses() {
         HashSet<Class<?>> classes = new HashSet<Class<?>>();
-        classes.add(JAXRSResource.class);
+        classes.add(JaxrsResource.class);
         return classes;
     }
 
     public static class JAXRSServer {
 
-        final JAXRSConfig options;
+        final JaxrsConfig options;
         final UndertowJaxrsServer server;
 
-        JAXRSServer(UndertowJaxrsServer server, JAXRSConfig options) {
+        JAXRSServer(UndertowJaxrsServer server, JaxrsConfig options) {
             this.options = options;
             this.server = server;
         }

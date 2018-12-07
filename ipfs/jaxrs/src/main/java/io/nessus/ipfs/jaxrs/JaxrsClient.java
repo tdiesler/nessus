@@ -46,16 +46,16 @@ import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
-public class JAXRSClient implements JAXRSEndpoint {
+public class JaxrsClient implements JaxrsEndpoint {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JAXRSClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JaxrsClient.class);
 
     final Client client = ClientBuilder.newClient();
     final URL jaxrsUrl;
 
     static Long networkVersion;
     
-    public JAXRSClient(URL jaxrsUrl) {
+    public JaxrsClient(URL jaxrsUrl) {
         this.jaxrsUrl = jaxrsUrl;
     }
 
@@ -85,54 +85,55 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public String registerAddress(String rawAddr) throws IOException {
+    public AddrHandle registerAddress(String addr) throws IOException {
 
         WebTarget target = client.target(generateURL("/regaddr"))
-                .queryParam("addr", rawAddr);
+                .queryParam("addr", addr);
 
         Response res = processResponse(target.request().get(Response.class));
-        String encKey = res.readEntity(String.class);
+        AddrHandle ahandle = res.readEntity(AddrHandle.class);
         
-        LOG.info("/regaddr {} => {}", rawAddr, encKey);
+        LOG.info("/regaddr {} => {}", addr, ahandle);
 
-        return encKey;
+        return ahandle;
     }
 
     @Override
-    public String findAddressRegistation(String rawAddr) throws IOException {
+    public List<AddrHandle> findAddressInfo(String label, String addr) throws IOException {
 
-        WebTarget target = client.target(generateURL("/findkey"))
-                .queryParam("addr", rawAddr);
+        WebTarget target = client.target(generateURL("/addrinfo"));
+        if (label != null) target = target.queryParam("label", label);
+        if (addr != null) target = target.queryParam("addr", addr);
+
+        Response res = processResponse(target.request().get(Response.class));
+        List<AddrHandle> result = Arrays.asList(res.readEntity(AddrHandle[].class));
+
+        LOG.info("/addrinfo {} {} => {}", label, addr, result);
+
+        return result;
+    }
+
+    @Override
+    public AddrHandle unregisterAddress(String addr) throws IOException {
+
+        WebTarget target = client.target(generateURL("/rmaddr"))
+                .queryParam("addr", addr);
 
         Response res = processResponse(target.request().get(Response.class));
         if (Status.NO_CONTENT.getStatusCode() == res.getStatus()) return null;
 
-        String encKey = res.readEntity(String.class);
-        LOG.info("/findkey {} => {}", rawAddr, encKey);
+        AddrHandle ahandle = res.readEntity(AddrHandle.class);
+        LOG.info("/rmaddr {} => {}", addr, ahandle);
 
-        return encKey;
+        return ahandle;
     }
 
     @Override
-    public String unregisterAddress(String rawAddr) throws IOException {
-
-        WebTarget target = client.target(generateURL("/rmaddr"))
-                .queryParam("addr", rawAddr);
-
-        Response res = processResponse(target.request().get(Response.class));
-        String encKey = res.readEntity(String.class);
-        
-        LOG.info("/rmaddr {} => {}", rawAddr, encKey);
-
-        return encKey;
-    }
-
-    @Override
-    public SFHandle addIpfsContent(String rawAddr, String relPath, URL srcUrl) throws IOException {
+    public SFHandle addIpfsContent(String addr, String relPath, URL srcUrl) throws IOException {
         AssertArgument.assertTrue(relPath != null || srcUrl != null, "Path or URL must be given");
 
         WebTarget target = client.target(generateURL("/addipfs"))
-                .queryParam("addr", rawAddr);
+                .queryParam("addr", addr);
         
         if (relPath != null) target = target.queryParam("path", relPath);
         if (srcUrl != null) target = target.queryParam("url", srcUrl);
@@ -146,10 +147,10 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public SFHandle addIpfsContent(String rawAddr, String relPath, InputStream input) throws IOException {
+    public SFHandle addIpfsContent(String addr, String relPath, InputStream input) throws IOException {
 
         WebTarget target = client.target(generateURL("/addipfs"))
-                .queryParam("addr", rawAddr)
+                .queryParam("addr", addr)
                 .queryParam("path", relPath);
 
         Response res = processResponse(target.request().post(Entity.entity(input, MediaType.APPLICATION_OCTET_STREAM), Response.class));
@@ -161,10 +162,10 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public SFHandle getIpfsContent(String rawAddr, String cid, String relPath, Long timeout) throws IOException {
+    public SFHandle getIpfsContent(String addr, String cid, String relPath, Long timeout) throws IOException {
 
         WebTarget target = client.target(generateURL("/getipfs"))
-                .queryParam("addr", rawAddr)
+                .queryParam("addr", addr)
                 .queryParam("path", relPath)
                 .queryParam("timeout", timeout)
                 .queryParam("cid", cid);
@@ -178,10 +179,10 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public SFHandle sendIpfsContent(String rawAddr, String cid, String rawTarget, Long timeout) throws IOException {
+    public SFHandle sendIpfsContent(String addr, String cid, String rawTarget, Long timeout) throws IOException {
 
         WebTarget target = client.target(generateURL("/sendipfs"))
-                .queryParam("addr", rawAddr)
+                .queryParam("addr", addr)
                 .queryParam("target", rawTarget)
                 .queryParam("cid", cid)
                 .queryParam("timeout", timeout);
@@ -195,77 +196,77 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     @Override
-    public List<SFHandle> findIpfsContent(String rawAddr, Long timeout) throws IOException {
+    public List<SFHandle> findIpfsContent(String addr, Long timeout) throws IOException {
 
         WebTarget target = client.target(generateURL("/findipfs"))
-                .queryParam("addr", rawAddr)
+                .queryParam("addr", addr)
                 .queryParam("timeout", timeout);
 
         Response res = processResponse(target.request().get(Response.class));
 
         List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
-        LOG.info("/findipfs {} => {} files", rawAddr, result.size());
+        LOG.info("/findipfs {} => {} files", addr, result.size());
 
         return result;
     }
 
     @Override
-    public List<String> unregisterIpfsContent(String rawAddr, List<String> cids) throws IOException {
+    public List<String> unregisterIpfsContent(String addr, List<String> cids) throws IOException {
 
         WebTarget target = client.target(generateURL("/rmipfs"))
-                .queryParam("addr", rawAddr)
+                .queryParam("addr", addr)
                 .queryParam("cid", cids.toArray());
 
         Response res = processResponse(target.request().get(Response.class));
 
         List<String> result = Arrays.asList(res.readEntity(String[].class));
-        LOG.info("/rmipfs {} {} => {}", rawAddr, cids, result);
+        LOG.info("/rmipfs {} {} => {}", addr, cids, result);
 
         return result;
     }
 
     @Override
-    public List<SFHandle> findLocalContent(String rawAddr, String path) throws IOException {
+    public List<SFHandle> findLocalContent(String addr, String path) throws IOException {
 
         WebTarget target = client.target(generateURL("/findlocal"))
-                .queryParam("addr", rawAddr);
+                .queryParam("addr", addr);
 
         if (path != null) target = target.queryParam("path", path);
         
         Response res = processResponse(target.request().get(Response.class));
 
         List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
-        LOG.info("/findlocal {} => {} files", rawAddr, result.size());
+        LOG.info("/findlocal {} => {} files", addr, result.size());
 
         return result;
     }
 
     @Override
-    public InputStream getLocalContent(String rawAddr, String path) throws IOException {
+    public InputStream getLocalContent(String addr, String path) throws IOException {
 
         WebTarget target = client.target(generateURL("/getlocal"))
-                .queryParam("addr", rawAddr)
+                .queryParam("addr", addr)
                 .queryParam("path", path);
 
         Response res = processResponse(target.request().get(Response.class));
 
         InputStream content = res.readEntity(InputStream.class);
-        LOG.info("/getlocal {} {}", rawAddr, path);
+        LOG.info("/getlocal {} {}", addr, path);
 
         return content;
     }
 
     @Override
-    public boolean removeLocalContent(String rawAddr, String path) throws IOException {
+    public boolean removeLocalContent(String addr, String path) throws IOException {
 
         WebTarget target = client.target(generateURL("/rmlocal"))
-                .queryParam("addr", rawAddr)
+                .queryParam("addr", addr)
                 .queryParam("path", path);
 
         Response res = processResponse(target.request().get(Response.class));
 
         Boolean removed = res.readEntity(Boolean.class);
-        LOG.info("/rmlocal {} {} => {}", rawAddr, path, removed);
+        LOG.info("/rmlocal {} {} => {}", addr, path, removed);
 
         return removed;
     }

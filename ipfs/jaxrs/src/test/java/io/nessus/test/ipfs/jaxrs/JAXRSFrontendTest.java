@@ -38,29 +38,29 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.jaxrs.JAXRSApplication;
-import io.nessus.ipfs.jaxrs.JAXRSApplication.JAXRSServer;
-import io.nessus.ipfs.jaxrs.JAXRSClient;
-import io.nessus.ipfs.jaxrs.JAXRSConfig;
+import io.nessus.ipfs.jaxrs.AddrHandle;
+import io.nessus.ipfs.jaxrs.JaxrsApplication;
+import io.nessus.ipfs.jaxrs.JaxrsApplication.JAXRSServer;
+import io.nessus.ipfs.jaxrs.JaxrsClient;
+import io.nessus.ipfs.jaxrs.JaxrsConfig;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.utils.FileUtils;
 
 public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
     static JAXRSServer server;
-    static JAXRSClient client;
+    static JaxrsClient client;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
 
         AbstractJAXRSTest.beforeClass();
 
-        JAXRSConfig config = new JAXRSConfig.Builder().bcport(18443).build();
-        JAXRSApplication appl = new JAXRSApplication(config);
-        server = appl.serverStart();
+        JaxrsConfig config = new JaxrsConfig.Builder().bcport(18443).build();
+        server = JaxrsApplication.serverStart(config);
 
         URL jaxrsUrl = config.getJaxrsUrl();
-        client = new JAXRSClient(jaxrsUrl);
+        client = new JaxrsClient(jaxrsUrl);
     }
 
     @AfterClass
@@ -97,23 +97,24 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Register Bob's public encryption key
 
-        String encKey = client.registerAddress(addrBob.getAddress());
-        Assert.assertNotNull(encKey);
+        AddrHandle ahBob = client.registerAddress(addrBob.getAddress());
+        Assert.assertNotNull(ahBob.getEncKey());
 
         // Find Bob's pubKey registration
 
-        String wasKey = client.findAddressRegistation(addrBob.getAddress());
-        Assert.assertEquals(encKey, wasKey);
+        List<AddrHandle> addrs = client.findAddressInfo(null, addrBob.getAddress());
+        Assert.assertEquals(1, addrs.size());
+        Assert.assertEquals(ahBob.getEncKey(), addrs.get(0).getEncKey());
 
         // Register Mary's public encryption key
 
-        encKey = client.registerAddress(addrMary.getAddress());
-        Assert.assertNotNull(encKey);
+        AddrHandle ahMary = client.registerAddress(addrMary.getAddress());
+        Assert.assertNotNull(ahMary.getEncKey());
 
         // Find Mary's pubKey registration
 
-        wasKey = client.findAddressRegistation(addrMary.getAddress());
-        Assert.assertEquals(encKey, wasKey);
+        addrs = client.findAddressInfo(null, addrMary.getAddress());
+        Assert.assertEquals(ahMary.getEncKey(), addrs.get(0).getEncKey());
 
         // Add content to IPFS
 

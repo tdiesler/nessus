@@ -16,6 +16,11 @@
     <dependencies>
         <dependency>
             <groupId>io.nessus</groupId>
+            <artifactId>nessus-ipfs-jaxrs</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.nessus</groupId>
             <artifactId>nessus-ipfs-webui</artifactId>
             <version>${project.version}</version>
         </dependency>

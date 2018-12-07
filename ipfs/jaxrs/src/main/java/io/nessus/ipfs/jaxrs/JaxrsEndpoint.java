@@ -34,7 +34,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 @Path("/")
-public interface JAXRSEndpoint {
+public interface JaxrsEndpoint {
 
     /**
      * Register the given address with the system.
@@ -51,30 +51,45 @@ public interface JAXRSEndpoint {
      * 
      *      curl http://192.168.178.20:8081/nessus/regaddr?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
      *      
-     *      MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAExY/IQsYFnzFS8/QdFyCU5RNK7OkK79Fu7hvOKearR+4= 
+     *      {
+     *        "label": "Bob",
+     *        "address": "mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB",
+     *        "balance": 49.99992040,
+     *        "encKey": "MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAExY/IQsYFnzFS8/QdFyCU5RNK7OkK79Fu7hvOKearR+4=",
+     *        "watchOnly": false
+     *      }
      * 
-     * @return The public IPFS content encryption key
+     * @return A handle to the registered address
      */
     @GET
     @Path("/regaddr")
-    @Produces(MediaType.TEXT_PLAIN)
-    String registerAddress(@QueryParam("addr") String addr) throws GeneralSecurityException, IOException;
+    @Produces(MediaType.APPLICATION_JSON)
+    AddrHandle registerAddress(@QueryParam("addr") String addr) throws GeneralSecurityException, IOException;
 
     /**
-     * Find the registration for the given address.
+     * Get address registration details.
      * 
      * Example:
      * 
-     *      curl http://192.168.178.20:8081/nessus/findkey?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
+     *      curl http://192.168.178.20:8081/nessus/addrinfo?label=Bob
      *      
-     *      MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAExY/IQsYFnzFS8/QdFyCU5RNK7OkK79Fu7hvOKearR+4= 
+     *      [{
+     *        "label": "Bob",
+     *        "address": "mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB",
+     *        "balance": 49.99992040,
+     *        "encKey": "MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAExY/IQsYFnzFS8/QdFyCU5RNK7OkK79Fu7hvOKearR+4=",
+     *        "watchOnly": false
+     *      }]
+     * 
      *       
-     * @return The public IPFS content encryption key or null
+     * @param label An optional filter for a specific label
+     * @param addr An optional filter for a specific address 
+     * @return A list of address handles
      */
     @GET
-    @Path("/findkey")
+    @Path("/addrinfo")
     @Produces(MediaType.APPLICATION_JSON)
-    String findAddressRegistation(@QueryParam("addr") String addr) throws IOException;
+    List<AddrHandle> findAddressInfo(@QueryParam("label") String label, @QueryParam("addr") String addr) throws IOException;
 
     /**
      * Unegister the given address from the system.
@@ -87,14 +102,20 @@ public interface JAXRSEndpoint {
      * 
      *      curl http://192.168.178.20:8081/nessus/rmaddr?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
      *      
-     *      MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAExY/IQsYFnzFS8/QdFyCU5RNK7OkK79Fu7hvOKearR+4= 
+     *      {
+     *        "label": "Bob",
+     *        "address": "mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB",
+     *        "balance": 49.99992040,
+     *        "encKey": "MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAExY/IQsYFnzFS8/QdFyCU5RNK7OkK79Fu7hvOKearR+4=",
+     *        "watchOnly": false
+     *      }
      *  
-     * @return The public IPFS content encryption key or null
+     * @return A handle to the unregistered address
      */
     @GET
     @Path("/rmaddr")
-    @Produces(MediaType.TEXT_PLAIN)
-    String unregisterAddress(@QueryParam("addr") String addr) throws IOException;
+    @Produces(MediaType.APPLICATION_JSON)
+    AddrHandle unregisterAddress(@QueryParam("addr") String addr) throws IOException;
     
     /**
      * Add IPFS content from the given input stream.

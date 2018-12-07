@@ -11,16 +11,19 @@ import io.nessus.BlockchainFactory;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.utils.SystemUtils;
 
-public final class JAXRSConfig {
+public final class JaxrsConfig {
 
     private static final String DEFAULT_IPFS_ADDR = "/ip4/127.0.0.1/tcp/5001";
+    
     private static final String DEFAULT_BLOCKCHAIN_IMPL = "io.nessus.bitcoin.BitcoinBlockchain";
+    
     private static final String DEFAULT_BLOCKCHAIN_URL = "http://127.0.0.1:18332";
     private static final String DEFAULT_BLOCKCHAIN_HOST = "127.0.0.1";
     private static final int DEFAULT_BLOCKCHAIN_PORT = 18332;
     private static final String DEFAULT_BLOCKCHAIN_USER = "rpcusr";
     private static final String DEFAULT_BLOCKCHAIN_PASSWORD = "rpcpass";
-    private static final String DEFAULT_NESSUS_JAXRS_HOST = "127.0.0.1";
+    
+    private static final String DEFAULT_NESSUS_JAXRS_HOST = "0.0.0.0";
     private static final int DEFAULT_NESSUS_JAXRS_PORT = 8081;
 
     @Option(name = "--ipfs", usage = "The IPFS API address")
@@ -50,10 +53,10 @@ public final class JAXRSConfig {
     @Option(name = "--port", usage = "The Nessus JAXRS port")
     int jaxrsPort = DEFAULT_NESSUS_JAXRS_PORT;
 
-    public JAXRSConfig() {
+    public JaxrsConfig() {
     }
     
-    private JAXRSConfig(String ipfsAddr, String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass, String jaxrsHost, int jaxrsPort) {
+    private JaxrsConfig(String ipfsAddr, String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass, String jaxrsHost, int jaxrsPort) {
         this.ipfsAddr = ipfsAddr;
         this.bcUrl = bcUrl;
         this.bcImpl = bcImpl;
@@ -80,16 +83,16 @@ public final class JAXRSConfig {
             return new URL(bcUrl);
         
         if (DEFAULT_BLOCKCHAIN_HOST.equals(bcHost))
-            bcHost = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_ADDR, bcHost);
+            bcHost = SystemUtils.getenv(JaxrsConstants.ENV_BLOCKCHAIN_JSONRPC_ADDR, bcHost);
         
         if (DEFAULT_BLOCKCHAIN_PORT == bcPort)
-            bcPort = Integer.parseInt(SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_PORT, "" + bcPort));
+            bcPort = Integer.parseInt(SystemUtils.getenv(JaxrsConstants.ENV_BLOCKCHAIN_JSONRPC_PORT, "" + bcPort));
         
         if (DEFAULT_BLOCKCHAIN_USER.equals(bcUser))
-            bcUser = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_USER, bcUser);
+            bcUser = SystemUtils.getenv(JaxrsConstants.ENV_BLOCKCHAIN_JSONRPC_USER, bcUser);
         
         if (DEFAULT_BLOCKCHAIN_PASSWORD.equals(bcPass))
-            bcPass = SystemUtils.getenv(JAXRSConstants.ENV_BLOCKCHAIN_JSONRPC_PASS, bcPass);
+            bcPass = SystemUtils.getenv(JaxrsConstants.ENV_BLOCKCHAIN_JSONRPC_PASS, bcPass);
         
         return new URL(String.format("http://%s:%s@%s:%s", bcUser, bcPass, bcHost, bcPort));   
     }
@@ -99,17 +102,17 @@ public final class JAXRSConfig {
         if (DEFAULT_BLOCKCHAIN_IMPL.equals(bcImpl)) {
             bcImpl = SystemUtils.getenv(BlockchainFactory.BLOCKCHAIN_CLASS_NAME, bcImpl);
         }
-        ClassLoader loader = JAXRSConfig.class.getClassLoader();
+        ClassLoader loader = JaxrsConfig.class.getClassLoader();
         return (Class<Blockchain>) loader.loadClass(bcImpl);
     }
 
     public URL getJaxrsUrl() throws MalformedURLException {
         
         if (DEFAULT_NESSUS_JAXRS_HOST.equals(bcHost))
-            jaxrsHost = SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_ADDR, jaxrsHost);
+            jaxrsHost = SystemUtils.getenv(JaxrsConstants.ENV_NESSUS_JAXRS_ADDR, jaxrsHost);
         
         if (DEFAULT_NESSUS_JAXRS_PORT == jaxrsPort)
-            jaxrsPort = Integer.parseInt(SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_PORT, "" + jaxrsPort));
+            jaxrsPort = Integer.parseInt(SystemUtils.getenv(JaxrsConstants.ENV_NESSUS_JAXRS_PORT, "" + jaxrsPort));
         
         return new URL(String.format("http://%s:%s/nessus", jaxrsHost, jaxrsPort));   
     }
@@ -171,8 +174,8 @@ public final class JAXRSConfig {
             return this;
         }
         
-        public JAXRSConfig build() {
-            return new JAXRSConfig(ipfsAddr, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, jaxrsHost, jaxrsPort);
+        public JaxrsConfig build() {
+            return new JaxrsConfig(ipfsAddr, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, jaxrsHost, jaxrsPort);
         }
     }
 }

@@ -29,6 +29,7 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.QueryParam;
 
@@ -36,26 +37,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Network;
+import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 
-public class JAXRSResource implements JAXRSEndpoint {
+public class JaxrsResource implements JaxrsEndpoint {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JAXRSResource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JaxrsResource.class);
 
-    final ContentManager cntmgr;
+    private final ContentManager cntmgr;
     
-    public JAXRSResource() throws IOException {
+    public JaxrsResource() throws IOException {
 
-        JAXRSApplication app = JAXRSApplication.getInstance();
-        cntmgr = app.getCntManager();
+        // [TODO] Inject this propperly
+        cntmgr = JaxrsApplication.INSTANCE.cntManager;
     }
 
     @Override
-    public String registerAddress(String addr) throws GeneralSecurityException {
+    public AddrHandle registerAddress(String addr) throws GeneralSecurityException {
 
         assertBlockchainNetworkAvailable();
         
@@ -63,27 +65,40 @@ public class JAXRSResource implements JAXRSEndpoint {
         PublicKey pubKey = cntmgr.registerAddress(owner);
         String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
         
-        LOG.info("/regaddr {} => {}", owner, encKey);
+        AddrHandle ahandle = createAddrHandle(owner, encKey);
+        LOG.info("/regaddr {} => {}", owner, ahandle);
 
-        return encKey;
+        return ahandle;
     }
 
     @Override
-    public String findAddressRegistation(String addr) {
+    public List<AddrHandle> findAddressInfo(String label, String addr) {
 
         assertBlockchainNetworkAvailable();
         
-        Address owner = assertWalletAddress(addr);
-        PublicKey pubKey = cntmgr.findAddressRegistation(owner);
-        String encKey = pubKey != null ? Base64.getEncoder().encodeToString(pubKey.getEncoded()) : null;
+        Address owner = addr != null ? assertWalletAddress(addr) : null;
         
-        LOG.info("/findkey {} => {}", owner, encKey);
+        Wallet wallet = cntmgr.getBlockchain().getWallet();
+        List<AddrHandle> info = wallet.getAddresses().stream()
+                .filter(a -> !a.getLabels().contains(Wallet.LABEL_CHANGE))
+                .filter(a -> owner == null || a.equals(owner))
+                .filter(a -> label == null || a.getLabels().contains(label))
+                .map(a -> {
+                    PublicKey pubKey = cntmgr.findAddressRegistation(a);
+                    String encKey = pubKey != null ? Base64.getEncoder().encodeToString(pubKey.getEncoded()) : null;
+                    AddrHandle ahandle = createAddrHandle(a, encKey);
+                    return ahandle;
+                })
+                .collect(Collectors.toList());
 
-        return encKey;
+        
+        LOG.info("/addrinfo {} {} => {}", label, addr, info);
+
+        return info;
     }
 
     @Override
-    public String unregisterAddress(String addr) {
+    public AddrHandle unregisterAddress(String addr) {
 
         assertBlockchainNetworkAvailable();
         
@@ -91,9 +106,10 @@ public class JAXRSResource implements JAXRSEndpoint {
         PublicKey pubKey = cntmgr.unregisterAddress(owner);
         String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
         
-        LOG.info("/rmaddr {} => {}", owner, encKey);
+        AddrHandle ahandle = createAddrHandle(owner, encKey);
+        LOG.info("/rmaddr {} => {}", owner, ahandle);
 
-        return encKey;
+        return ahandle;
     }
 
     @Override
@@ -247,12 +263,17 @@ public class JAXRSResource implements JAXRSEndpoint {
 
     private void assertBlockchainNetworkAvailable() {
         Network network = cntmgr.getBlockchain().getNetwork();
-        JAXRSClient.assertBlockchainNetworkAvailable(network);
+        JaxrsClient.assertBlockchainNetworkAvailable(network);
     }
 
     private Address assertWalletAddress(String rawaddr) {
         Address addr = cntmgr.getBlockchain().getWallet().findAddress(rawaddr);
         AssertState.assertNotNull(addr, "Unknown address: " + addr);
         return addr;
+    }
+    
+    private AddrHandle createAddrHandle(Address addr, String encKey) {
+        Wallet wallet = cntmgr.getBlockchain().getWallet();
+        return new AddrHandle(addr, encKey, wallet.getBalance(addr));
     }
 }

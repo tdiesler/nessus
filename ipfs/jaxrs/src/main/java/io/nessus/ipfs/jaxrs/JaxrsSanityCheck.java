@@ -22,7 +22,7 @@ package io.nessus.ipfs.jaxrs;
 
 import io.nessus.cipher.CipherSanityCheck;
 
-public class JAXRSSanityCheck {
+public class JaxrsSanityCheck {
 
     public static void main(String[] args) throws Exception {
 

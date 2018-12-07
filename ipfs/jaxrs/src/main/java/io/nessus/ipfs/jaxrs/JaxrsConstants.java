@@ -1,7 +1,5 @@
 package io.nessus.ipfs.jaxrs;
 
-import io.nessus.ipfs.IPFSClient;
-
 /*-
  * #%L
  * Nessus :: IPFS :: JAXRS
@@ -22,7 +20,9 @@ import io.nessus.ipfs.IPFSClient;
  * #L%
  */
 
-public class JAXRSConstants {
+import io.nessus.ipfs.IPFSClient;
+
+public class JaxrsConstants {
 
     public static final String ENV_IPFS_JSONRPC_ADDR = IPFSClient.ENV_IPFS_JSONRPC_ADDR;
     public static final String ENV_IPFS_JSONRPC_PORT = IPFSClient.ENV_IPFS_JSONRPC_PORT;

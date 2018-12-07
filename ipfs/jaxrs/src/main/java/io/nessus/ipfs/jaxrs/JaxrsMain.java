@@ -3,11 +3,11 @@ package io.nessus.ipfs.jaxrs;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 
-public class JAXRSMain {
+public class JaxrsMain {
 
     public static void main(String[] args) throws Exception {
 
-        JAXRSConfig config = new JAXRSConfig();
+        JaxrsConfig config = new JaxrsConfig();
         CmdLineParser parser = new CmdLineParser(config);
         
         try {
@@ -17,7 +17,6 @@ public class JAXRSMain {
             throw ex;
         }
         
-        JAXRSApplication appl = new JAXRSApplication(config);
-        appl.serverStart();
+        JaxrsApplication.serverStart(config);
     }
 }

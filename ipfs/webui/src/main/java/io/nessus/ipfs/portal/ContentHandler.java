@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -56,9 +55,11 @@ import io.nessus.Blockchain;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.jaxrs.JAXRSClient;
+import io.nessus.ipfs.jaxrs.AddrHandle;
+import io.nessus.ipfs.jaxrs.JaxrsClient;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.ipfs.portal.TreeData.TreeNode;
+import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
 import io.nessus.utils.SystemUtils;
@@ -76,7 +77,7 @@ public class ContentHandler implements HttpHandler {
     final Network network;
     final Wallet wallet;
 
-    final JAXRSClient client;
+    final JaxrsClient client;
     final VelocityEngine ve;
     final URI gatewayUrl;
 
@@ -85,8 +86,8 @@ public class ContentHandler implements HttpHandler {
 
     // The last executable job
     private Future<Address> lastJob;
-    
-    ContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
+
+    ContentHandler(JaxrsClient client, Blockchain blockchain, URI gatewayURI) {
         this.blockchain = blockchain;
         this.gatewayUrl = gatewayURI;
         this.client = client;
@@ -98,9 +99,10 @@ public class ContentHandler implements HttpHandler {
         ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
         ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
         ve.init();
-        
+
         executorService = Executors.newFixedThreadPool(1, new ThreadFactory() {
             AtomicInteger count = new AtomicInteger();
+
             public Thread newThread(Runnable run) {
                 return new Thread(run, "webui-pool-" + count.incrementAndGet());
             }
@@ -111,7 +113,7 @@ public class ContentHandler implements HttpHandler {
     public void handleRequest(HttpServerExchange exchange) throws Exception {
 
         ByteBuffer content = null;
-        
+
         String path = exchange.getRelativePath();
         if (path.startsWith("/portal")) {
             content = dynamicContent(exchange);
@@ -141,17 +143,17 @@ public class ContentHandler implements HttpHandler {
                 LOG.info("Last import job still running ...");
             }
         }
-        
+
         String tmplPath = null;
         VelocityContext context = new VelocityContext();
         context.put("implVersion", WebUI.implVersion);
         context.put("implBuild", WebUI.implBuild);
 
         try {
-            
+
             // Assert Blockchain availability
             assertBlockchainAvailable();
-            
+
             if (relPath.startsWith("/portal/addtxt")) {
                 actAddIpfsText(exchange, context);
             }
@@ -227,10 +229,11 @@ public class ContentHandler implements HttpHandler {
             else if (tmplPath == null) {
                 tmplPath = pageHome(context);
             }
-            
-        } catch (RuntimeException rte) {
-            
-            tmplPath = pageError(context, rte);
+
+        } catch (Exception ex) {
+
+            LOG.error("Error", ex);
+            tmplPath = pageError(context, ex);
         }
 
         if (tmplPath != null) {
@@ -268,7 +271,7 @@ public class ContentHandler implements HttpHandler {
         String label = qparams.get("label").getFirst();
 
         AssertState.assertTrue(lastJob == null || lastJob.isDone(), "Last import job is not yet done");
-            
+
         lastJob = executorService.submit(new Callable<Address>() {
 
             @Override
@@ -307,12 +310,12 @@ public class ContentHandler implements HttpHandler {
     }
 
     private void actUnregisterAddress(HttpServerExchange exchange, VelocityContext context) throws Exception {
-        
+
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
 
         client.unregisterAddress(rawAddr);
-        
+
         redirectHomePage(exchange);
     }
 
@@ -376,14 +379,14 @@ public class ContentHandler implements HttpHandler {
     }
 
     private void actUnregisterIpfs(HttpServerExchange exchange, VelocityContext context) throws Exception {
-        
+
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
         Deque<String> deque = qparams.get("cids");
         String[] cids = deque.toArray(new String[deque.size()]);
 
         client.unregisterIpfsContent(rawAddr, Arrays.asList(cids));
-        
+
         redirectFileList(exchange, rawAddr);
     }
 
@@ -413,27 +416,29 @@ public class ContentHandler implements HttpHandler {
         redirectFileList(exchange, rawAddr);
     }
 
-    private String pageError(VelocityContext context, RuntimeException rte) {
+    private String pageError(VelocityContext context, Throwable th) {
+
+        String errmsg = th.getMessage();
+        if (errmsg.length() == 0) 
+            errmsg = th.toString();
         
-        String errmsg = rte.getMessage();
-        if (rte instanceof BitcoinRPCException) {
-            errmsg = ((BitcoinRPCException) rte).getRPCError().getMessage();
+        if (th instanceof BitcoinRPCException) {
+            errmsg = ((BitcoinRPCException) th).getRPCError().getMessage();
             errmsg = "Blockchain not available: " + errmsg;
         }
-        
+
         context.put("errmsg", errmsg);
-        
+
         return "templates/portal-error.vm";
     }
 
     private String pageIpfsAdd(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
+        String addr = qparams.get("addr").getFirst();
 
-        Address addr = wallet.findAddress(rawAddr);
-        AddressDTO paddr = addressDTO(addr, true);
-        context.put("addr", paddr);
+        AddrHandle ahandle = findAddressInfo(addr);
+        context.put("addr", ahandle);
 
         return "templates/portal-add.vm";
     }
@@ -441,54 +446,50 @@ public class ContentHandler implements HttpHandler {
     private String pageIpfsGet(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
+        String addr = qparams.get("addr").getFirst();
         String path = qparams.get("path").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        Address addr = wallet.findAddress(rawAddr);
-        AddressDTO paddr = addressDTO(addr, true);
-        SFHandle fhandle = new SFHandle(cid, rawAddr, path, true, true);
+        AddrHandle ahandle = findAddressInfo(addr);
+        SFHandle fhandle = new SFHandle(cid, addr, path, true, true);
         context.put("gatewayUrl", gatewayUrl);
-        context.put("addr", paddr);
+        context.put("addr", ahandle);
         context.put("file", fhandle);
 
-        context.put("treeDataLocal", getTreeData(client.findLocalContent(addr.getAddress(), null), null));
-        
+        context.put("treeDataLocal", getTreeData(client.findLocalContent(addr, null), null));
+
         return "templates/portal-get.vm";
     }
 
     private String pageIpfsList(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
+        String addr = qparams.get("addr").getFirst();
 
-        Address addr = wallet.findAddress(rawAddr);
-        String pubKey = findAddressRegistation(rawAddr);
-        AddressDTO paddr = addressDTO(addr, pubKey != null);
-        
-        context.put("addr", paddr);
+        AddrHandle ahandle = findAddressInfo(addr);
+        context.put("addr", ahandle);
         context.put("gatewayUrl", gatewayUrl);
 
-        List<AddressDTO> toaddrs = findAddresses(true, true).stream()
-                .filter(a -> !addr.equals(a.addr))
+        List<AddrHandle> toaddrs = client.findAddressInfo(null, null).stream()
+                .filter(ah -> !ah.getAddress().equals(addr))
+                .filter(ah -> ah.getEncKey() != null)
                 .collect(Collectors.toList());
 
         Boolean nosend = toaddrs.isEmpty();
-        
-        context.put("treeDataIpfs", getTreeData(client.findIpfsContent(rawAddr, null), nosend));
-        context.put("treeDataLocal", getTreeData(client.findLocalContent(rawAddr, null), nosend));
-        
+
+        context.put("treeDataIpfs", getTreeData(client.findIpfsContent(addr, null), nosend));
+        context.put("treeDataLocal", getTreeData(client.findLocalContent(addr, null), nosend));
+
         return "templates/portal-list.vm";
     }
 
     private String pageQRCode(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
+        String addr = qparams.get("addr").getFirst();
 
-        Address addr = wallet.findAddress(rawAddr);
-        AddressDTO paddr = addressDTO(addr, false);
-        context.put("addr", paddr);
+        AddrHandle ahandle = findAddressInfo(addr);
+        context.put("addr", ahandle);
 
         return "templates/portal-qr.vm";
     }
@@ -496,27 +497,27 @@ public class ContentHandler implements HttpHandler {
     private String pageIpfsSend(HttpServerExchange exchange, VelocityContext context) throws Exception {
 
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
-        String rawAddr = qparams.get("addr").getFirst();
+        String addr = qparams.get("addr").getFirst();
         String relPath = qparams.get("path").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        Address addr = wallet.findAddress(rawAddr);
-
-        List<AddressDTO> toaddrs = findAddresses(true, true).stream()
-                .filter(a -> !addr.equals(a.addr))
+        AddrHandle ahandle = findAddressInfo(addr);
+        List<AddrHandle> toaddrs = client.findAddressInfo(null, null).stream()
+                .filter(ah -> !ah.getAddress().equals(addr))
+                .filter(ah -> ah.getEncKey() != null)
                 .collect(Collectors.toList());
 
         context.put("gatewayUrl", gatewayUrl);
         context.put("toaddrs", toaddrs);
-        context.put("addr", addressDTO(addr, true));
-        context.put("file", new SFHandle(cid, rawAddr, relPath, true, true));
+        context.put("addr", ahandle);
+        context.put("file", new SFHandle(cid, addr, relPath, true, true));
 
         return "templates/portal-send.vm";
     }
 
     private String pageHome(VelocityContext context) throws Exception {
 
-        List<AddressDTO> addrs = findAddresses(false, false);
+        List<AddrHandle> addrs = client.findAddressInfo(null, null);
 
         String envLabel = SystemUtils.getenv(WebUI.ENV_NESSUS_WEBUI_LABEL, "Bob");
         context.put("envLabel", envLabel);
@@ -526,53 +527,52 @@ public class ContentHandler implements HttpHandler {
     }
 
     private TreeData getTreeData(List<SFHandle> fhandles, Boolean nosend) {
-        
+
         TreeData tree = new TreeData();
         Map<Path, TreeNode> nodes = new LinkedHashMap<>();
-        
+
         for (SFHandle sfh : fhandles) {
             createTreeNode(tree, nodes, sfh, nosend);
         }
-        
+
         return tree;
     }
 
     private TreeNode createTreeNode(TreeData tree, Map<Path, TreeNode> nodes, SFHandle sfh, Boolean nosend) {
-        
+
         Path path = Paths.get(sfh.getPath());
         String cid = sfh.getCid();
-        
+
         Path ppath = path.getParent();
         TreeNode parent = nodes.get(ppath);
-        
+
         TreeNode node = new TreeNode(parent, sfh);
-        if (nosend != null) node.getData().put("nosend", nosend);
-        if (cid != null) node.getData().put("gatewayUrl", gatewayUrl);
+        if (nosend != null)
+            node.getData().put("nosend", nosend);
+        if (cid != null)
+            node.getData().put("gatewayUrl", gatewayUrl);
         nodes.put(path, node);
 
         for (SFHandle child : sfh.getChildren()) {
             createTreeNode(tree, nodes, child, nosend);
         }
-        
+
         if (parent == null) {
             tree.addNode(node);
         } else {
             parent.addChild(node);
         }
-        
+
         return node;
     }
-    
-    private List<AddressDTO> findAddresses(boolean requireLabel, boolean requireRegistered) {
 
-        List<AddressDTO> addrs = wallet.getAddresses().stream()
-                .filter(a -> !a.getLabels().contains(Wallet.LABEL_CHANGE))
-                .filter(a -> !requireLabel || !a.getLabels().isEmpty())
-                .map(a -> addressDTO(a, findAddressRegistation(a.getAddress()) != null))
-                .filter(a -> !requireRegistered || a.registered)
-                .collect(Collectors.toList());
-
-        return addrs;
+    private AddrHandle findAddressInfo(String addr) throws IOException {
+        AssertArgument.assertNotNull(addr, "Null addr");
+        AddrHandle ahandle = client.findAddressInfo(null, addr).stream()
+                .filter(ah -> ah.getAddress().equals(addr))
+                .findFirst().orElse(null);
+        AssertState.assertNotNull(ahandle, "Cannot get address handle for: " + addr);
+        return ahandle;
     }
 
     private void redirectHomePage(HttpServerExchange exchange) throws Exception {
@@ -584,27 +584,13 @@ public class ContentHandler implements HttpHandler {
         handler.handleRequest(exchange);
     }
 
-    private AddressDTO addressDTO(Address addr, boolean registered) {
-        BigDecimal balance = wallet.getBalance(addr);
-        return new AddressDTO(addr, balance, registered);
-    }
-
     private ByteBuffer staticContent(HttpServerExchange exchange) throws IOException {
         String path = exchange.getRelativePath();
         return getResource(path);
     }
 
-    private String findAddressRegistation(String rawAddr) {
-        try {
-            return client.findAddressRegistation(rawAddr);
-        } catch (IOException ex) {
-            LOG.error("Error finding address registration", ex);
-            return null;
-        }
-    }
-
     private void assertBlockchainAvailable() {
-        JAXRSClient.assertBlockchainNetworkAvailable(network);
+        JaxrsClient.assertBlockchainNetworkAvailable(network);
     }
 
     private ByteBuffer getResource(String resname) throws IOException {
@@ -621,44 +607,5 @@ public class ContentHandler implements HttpHandler {
             len = is.read(bytes);
         }
         return ByteBuffer.wrap(baos.toByteArray());
-    }
-
-    public static class AddressDTO {
-
-        public final Address addr;
-        public final BigDecimal balance;
-        public final boolean registered;
-
-        private AddressDTO(Address addr, BigDecimal balance, boolean registered) {
-            this.addr = addr;
-            this.registered = registered;
-            this.balance = balance;
-        }
-
-        public String getLabel() {
-            List<String> labels = addr.getLabels();
-            return labels.size() > 0 ? labels.get(0) : "";
-        }
-
-        public String getAddress() {
-            return addr.getAddress();
-        }
-
-        public BigDecimal getBalance() {
-            return balance;
-        }
-
-        public boolean isRegistered() {
-            return registered;
-        }
-
-        public boolean isWatchOnly() {
-            return addr.isWatchOnly();
-        }
-
-        @Override
-        public String toString() {
-            return String.format("[addr=%s, ro=%b, label=%s, reg=%b, bal=%.4f]", getAddress(), isWatchOnly(), getLabel(), isRegistered(), getBalance());
-        }
     }
 }
