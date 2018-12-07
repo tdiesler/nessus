@@ -33,12 +33,12 @@ import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class ExtendedContentManager extends DefaultContentManager {
 
-    public ExtendedContentManager(Config config) {
+    public ExtendedContentManager(ContentManagerConfig config) {
         super(config);
     }
 
     @Override
-    public Config getConfig() {
+    public ContentManagerConfig getConfig() {
         return super.getConfig();
     }
 

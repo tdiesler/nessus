@@ -24,7 +24,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
-import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -52,12 +51,12 @@ public class JAXRSClient implements JAXRSEndpoint {
     private static final Logger LOG = LoggerFactory.getLogger(JAXRSClient.class);
 
     final Client client = ClientBuilder.newClient();
-    final URI urlRoot;
+    final URL jaxrsUrl;
 
     static Long networkVersion;
     
-    public JAXRSClient(URI urlRoot) {
-        this.urlRoot = urlRoot;
+    public JAXRSClient(URL jaxrsUrl) {
+        this.jaxrsUrl = jaxrsUrl;
     }
 
     public static void logBlogchainNetworkAvailable(Network network) {
@@ -317,6 +316,6 @@ public class JAXRSClient implements JAXRSEndpoint {
     }
 
     private String generateURL(String path) {
-        return urlRoot + path;
+        return jaxrsUrl + path;
     }
 }

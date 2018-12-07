@@ -61,22 +61,16 @@ public class DefaultIPFSClient implements IPFSClient {
     private final ExecutorService executorService;
     
     public DefaultIPFSClient() {
-        this(null, null);
+        this(SystemUtils.getenv(ENV_IPFS_JSONRPC_ADDR, "127.0.0.1"), Integer.parseInt(SystemUtils.getenv(ENV_IPFS_JSONRPC_PORT, "5001")));
     }
     
     public DefaultIPFSClient(String host, Integer port) {
+        this(new MultiAddress("/ip4/" + host + "/tcp/" + port));
+    }
+
+    public DefaultIPFSClient(MultiAddress addr) {
+        this.addr = addr;
         
-        if (host == null) {
-            String envvar = SystemUtils.getenv(ENV_IPFS_JSONRPC_ADDR, "127.0.0.1");
-            host = envvar;
-        }
-            
-        if (port == null) {
-            String envvar = SystemUtils.getenv(ENV_IPFS_JSONRPC_PORT, "5001");
-            port = Integer.parseInt(envvar);
-        }
-        
-        addr = new MultiAddress("/ip4/" + host + "/tcp/" + port);
         try {
             ipfs = new IPFS(addr);
         } catch (RuntimeException ex) {

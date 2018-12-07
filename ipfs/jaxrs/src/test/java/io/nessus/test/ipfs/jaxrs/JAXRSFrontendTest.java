@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.net.URI;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -40,9 +40,10 @@ import org.junit.Test;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.jaxrs.JAXRSApplication;
 import io.nessus.ipfs.jaxrs.JAXRSApplication.JAXRSServer;
-import io.nessus.utils.FileUtils;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
+import io.nessus.ipfs.jaxrs.JAXRSConfig;
 import io.nessus.ipfs.jaxrs.SFHandle;
+import io.nessus.utils.FileUtils;
 
 public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
@@ -54,11 +55,12 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         AbstractJAXRSTest.beforeClass();
 
-        server = JAXRSApplication.serverStart();
+        JAXRSConfig config = new JAXRSConfig.Builder().bcport(18443).build();
+        JAXRSApplication appl = new JAXRSApplication(config);
+        server = appl.serverStart();
 
-        int port = server.getJAXRSConfig().getPort();
-        String host = server.getJAXRSConfig().getHost();
-        client = new JAXRSClient(new URI(String.format("http://%s:%d/nessus", host, port)));
+        URL jaxrsUrl = config.getJaxrsUrl();
+        client = new JAXRSClient(jaxrsUrl);
     }
 
     @AfterClass

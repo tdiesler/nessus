@@ -40,7 +40,7 @@ import org.junit.Test;
 
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.ContentManager.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.NessusUserFault;
 import io.nessus.ipfs.impl.DefaultContentManager.FHeader;
@@ -244,7 +244,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void findTiming() throws Exception {
 
-        createContentManager(new Config(blockchain, ipfsClient)
+        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
@@ -261,7 +261,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void spendFileRegs() throws Exception {
 
-        createContentManager(new Config(blockchain, ipfsClient)
+        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
@@ -292,7 +292,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void findNonExisting() throws Exception {
 
-        createContentManager(new Config(blockchain, ipfsClient)
+        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
@@ -309,7 +309,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         
         // SET A BREAKPOINT HERE AND CONTINUE WITH A NEW IPFS INSTANCE
         
-        createContentManager(new Config(blockchain, ipfsClient)
+        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
@@ -370,7 +370,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
         }
         
-        createContentManager(new Config(blockchain, ipfsClient).replaceExisting());
+        createContentManager(new ContentManagerConfig(blockchain, ipfsClient).replaceExisting());
 
         // Verify that we now can get to an existing path
         fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);

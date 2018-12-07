@@ -51,7 +51,7 @@ public class JAXRSResource implements JAXRSEndpoint {
     public JAXRSResource() throws IOException {
 
         JAXRSApplication app = JAXRSApplication.getInstance();
-        cntmgr = app.getContentManager();
+        cntmgr = app.getCntManager();
     }
 
     @Override

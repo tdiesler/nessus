@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>io.nessus</groupId>
-            <artifactId>nessus-bitcoin</artifactId>
+            <artifactId>nessus-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -29,6 +29,12 @@
         </dependency>
         
         <!-- Test -->
+        <dependency>
+            <groupId>io.nessus</groupId>
+            <artifactId>nessus-bitcoin</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

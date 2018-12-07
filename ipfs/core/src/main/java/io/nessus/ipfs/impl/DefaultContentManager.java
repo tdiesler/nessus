@@ -108,7 +108,7 @@ public class DefaultContentManager implements ContentManager {
     public static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
     public static final int DEFAULT_IPFS_THREADS = 12;
 
-    protected final Config config;
+    protected final ContentManagerConfig config;
     protected final IPFSClient ipfsClient;
     protected final Blockchain blockchain;
     protected final Network network;
@@ -130,7 +130,7 @@ public class DefaultContentManager implements ContentManager {
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
     private final IPFSFileCache filecache = new IPFSFileCache();
     
-    public DefaultContentManager(Config config) {
+    public DefaultContentManager(ContentManagerConfig config) {
         this.config = config.makeImmutable();
 
         ipfsClient = config.getIpfsClient();
@@ -152,7 +152,7 @@ public class DefaultContentManager implements ContentManager {
         });
     }
 
-    public Config getConfig() {
+    public ContentManagerConfig getConfig() {
         return config;
     }
 

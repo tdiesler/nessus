@@ -121,7 +121,7 @@ public interface ContentManager {
     boolean removeLocalContent(Address owner, Path path) throws IOException;
 
 
-    public class Config {
+    public class ContentManagerConfig {
 
         private final Blockchain blockchain;
         private final IPFSClient ipfsClient;
@@ -133,7 +133,7 @@ public interface ContentManager {
         
         private boolean mutable = true;
         
-        public Config(Blockchain blockchain, IPFSClient ipfsClient) {
+        public ContentManagerConfig(Blockchain blockchain, IPFSClient ipfsClient) {
             this.blockchain = blockchain;
             this.ipfsClient = ipfsClient;
         }
@@ -166,37 +166,37 @@ public interface ContentManager {
             return replaceExisting;
         }
 
-        public Config ipfsTimeout(long ipfsTimeout) {
+        public ContentManagerConfig ipfsTimeout(long ipfsTimeout) {
             assertMutable();
             this.ipfsTimeout = ipfsTimeout;
             return this;
         }
 
-        public Config ipfsAttempts(int ipfsAttempts) {
+        public ContentManagerConfig ipfsAttempts(int ipfsAttempts) {
             assertMutable();
             this.ipfsAttempts = ipfsAttempts;
             return this;
         }
 
-        public Config ipfsThreads(int ipfsThreads) {
+        public ContentManagerConfig ipfsThreads(int ipfsThreads) {
             assertMutable();
             this.ipfsThreads = ipfsThreads;
             return this;
         }
 
-        public Config rootPath(Path rootPath) {
+        public ContentManagerConfig rootPath(Path rootPath) {
             assertMutable();
             this.rootPath = rootPath;
             return this;
         }
 
-        public Config replaceExisting() {
+        public ContentManagerConfig replaceExisting() {
             assertMutable();
             this.replaceExisting = true;
             return this;
         }
 
-        public Config makeImmutable() {
+        public ContentManagerConfig makeImmutable() {
             mutable = false;
             return this;
         }

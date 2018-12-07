@@ -13,7 +13,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.ContentManager.Config;
+import io.nessus.ipfs.ContentManager.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
 
 public class BasicWorkflowTest extends AbstractWorkflowTest {
@@ -24,7 +24,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
     @Test
     public void basicWorkflow() throws Exception {
         
-        createContentManager(new Config(blockchain, ipfsClient)
+        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
                 .ipfsTimeout(timeout)
                 .ipfsAttempts(attempts));
         
