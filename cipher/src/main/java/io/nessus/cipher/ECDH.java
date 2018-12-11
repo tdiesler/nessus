@@ -46,9 +46,7 @@ public class ECDH {
     private final KeyPairGenerator kpgen;
     
     static {
-        if (Security.getProvider("BC") == null) {
-            Security.addProvider(new BouncyCastleProvider());
-        }
+        Security.addProvider(new BouncyCastleProvider());
     }
     
     public ECDH() throws GeneralSecurityException {

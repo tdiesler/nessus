@@ -26,6 +26,7 @@
         <version.bouncycastle>1.59</version.bouncycastle>
         <version.fasterxml.jackson>2.9.5</version.fasterxml.jackson>
         <version.ipfs>v1.2.2</version.ipfs>
+        <version.ipfs.multihash>v1.1.0</version.ipfs.multihash>
         <version.io.undertow>2.0.15.Final</version.io.undertow>
         <version.jboss.resteasy>3.6.2.Final</version.jboss.resteasy>
         <version.junit>4.11</version.junit>
@@ -77,6 +78,11 @@
                 <artifactId>java-ipfs-api</artifactId>
                 <version>${version.ipfs}</version>
             </dependency>
+        	<dependency>
+        		<groupId>com.github.multiformats</groupId>
+        		<artifactId>java-multihash</artifactId>
+        		<version>${version.ipfs.multihash}</version>
+        	</dependency>
             <dependency>
                 <groupId>io.undertow</groupId>
                 <artifactId>undertow-core</artifactId>
@@ -245,22 +251,17 @@
 
     <repositories>
         <repository>
-            <id>central</id>
-            <name>Central Repository</name>
-            <url>http://repo.maven.apache.org/maven2</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
             <id>jboss-thirdparty-repository</id>
             <name>JBoss Thirdparty Releases</name>
-            <!-- url>https://repository.jboss.org/nexus/content/repositories/thirdparty-releases/</url -->
             <url>https://repository.jboss.org/nexus/service/local/repositories/thirdparty-releases/content/</url>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
         </repository>
+	    <repository>
+	        <id>jitpack.io</id>
+	        <url>https://jitpack.io</url>
+	    </repository>
     </repositories>
     
 </project>

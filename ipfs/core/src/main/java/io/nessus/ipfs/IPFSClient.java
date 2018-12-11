@@ -43,6 +43,10 @@ public interface IPFSClient {
 
     String addSingle(Path path) throws IOException;
 
+    String addSingle(InputStream input) throws IOException;
+
+    String addSingle(byte[] bytes) throws IOException;
+
     InputStream cat(String cid) throws IOException;
 
     Future<Path> get(String cid, Path outdir);

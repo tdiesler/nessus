@@ -1,5 +1,7 @@
 package io.nessus.ipfs.impl;
 
+import java.io.ByteArrayOutputStream;
+
 /*-
  * #%L
  * Nessus :: IPFS :: Core
@@ -41,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import io.ipfs.api.IPFS;
 import io.ipfs.api.MerkleNode;
 import io.ipfs.api.NamedStreamable.FileWrapper;
+import io.ipfs.api.NamedStreamable.ByteArrayWrapper;
 import io.ipfs.multiaddr.MultiAddress;
 import io.ipfs.multihash.Multihash;
 import io.nessus.ipfs.IPFSClient;
@@ -99,6 +102,7 @@ public class DefaultIPFSClient implements IPFSClient {
     @Override
     public List<String> add(Path path) throws IOException {
         List<MerkleNode> parts = ipfs().add(new FileWrapper(path.toFile()));
+        AssertState.assertTrue(parts.size() > 0, "No content added");
         return parts.stream().map(mn -> mn.hash.toBase58()).collect(Collectors.toList());
     }
 
@@ -106,7 +110,22 @@ public class DefaultIPFSClient implements IPFSClient {
     public String addSingle(Path path) throws IOException {
         AssertArgument.assertTrue(path.toFile().isFile(), "Not a file: " + path);
         List<String> cids = add(path);
-        return cids.size() > 0 ? cids.get(0) : null;
+        AssertState.assertTrue(cids.size() > 0, "No content added");
+        return cids.get(0);
+    }
+
+    @Override
+    public String addSingle(InputStream input) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        return addSingle(baos.toByteArray());
+    }
+
+    @Override
+    public String addSingle(byte[] bytes) throws IOException {
+        List<MerkleNode> parts = ipfs().add(new ByteArrayWrapper(bytes));
+        AssertState.assertTrue(parts.size() > 0, "No content added");
+        String cid = parts.stream().map(mn -> mn.hash.toBase58()).findFirst().get();
+        return cid;
     }
 
     @Override

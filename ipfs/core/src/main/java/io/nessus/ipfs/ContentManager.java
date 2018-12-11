@@ -51,7 +51,7 @@ public interface ContentManager {
      * 
      * @return An Eliptic Curve public key
      */
-    PublicKey registerAddress(Address addr) throws GeneralSecurityException;
+    PublicKey registerAddress(Address addr) throws GeneralSecurityException, IOException;
 
     /**
      * Find the registered key for a given address.

@@ -1,4 +1,4 @@
-package io.nessus.cipher;
+package io.nessus.cipher.utils;
 
 import java.security.GeneralSecurityException;
 
@@ -29,8 +29,10 @@ import java.security.Security;
 import java.util.Base64;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.util.Arrays;
 
+import io.nessus.AbstractAddress;
+import io.nessus.Wallet.Address;
+import io.nessus.cipher.ECIESCipher;
 import io.nessus.utils.AssertState;
 
 public class CipherSanityCheck {
@@ -46,51 +48,40 @@ public class CipherSanityCheck {
 
         // Generate an AES secret
         
-        AESCipher aes = new AESCipher();
-        byte[] encBytes = aes.getSecretKey().getEncoded();
+        byte[] encBytes = AESUtils.newSecretKey().getEncoded();
         String encSecret = Base64.getEncoder().encodeToString(encBytes);
         
         // Generate a deterministic key pair using EC
 
         // This is a Bitcoin priv key in WIF
-        String privKey = "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2";
-        byte[] seed = Arrays.reverse(privKey.getBytes());
+        Address auxAddr = getTestAddress();
         
-        ECIESCipher ecies = new ECIESCipher();
-        KeyPair keyPair = ecies.generateKeyPair(seed);
+        KeyPair keyPair = ECIESUtils.getKeyPair(auxAddr);
         PublicKey pubKey = keyPair.getPublic();
         PrivateKey pivKey = keyPair.getPrivate();
 
         // Verify that the EC public key is deterministic
         
         final String encPubKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-        AssertState.assertEquals("MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAEoQu96WAI2FFlR+6F5AEkvomjkHSPHo4owSut2em3FP8=", encPubKey);
+        AssertState.assertEquals("MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAEYtzTFMrUdiyYkmsTzP1fAgDmMEzvzuvo3Wp+Eya1JU8=", encPubKey);
         AssertState.assertEquals(56, pubKey.getEncoded().length);
         
-        pubKey = new PublicKey() {
+        pubKey = ECIESUtils.decodePublicKey(encPubKey);
 
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public String getFormat() {
-                return "X.509";
-            }
-
-            @Override
-            public byte[] getEncoded() {
-                return Base64.getDecoder().decode(encPubKey);
-            }
-
-            @Override
-            public String getAlgorithm() {
-                return "EC";
-            }
-        };
-
-        byte[] ciphertext = ecies.encrypt(pubKey, encBytes);
-        byte[] decrypted = ecies.decrypt(pivKey, ciphertext);
+        ECIESCipher ecipher = new ECIESCipher();
+        byte[] ciphertext = ecipher.encrypt(pubKey, encBytes);
+        byte[] decrypted = ecipher.decrypt(pivKey, ciphertext);
 
         String encResult = Base64.getEncoder().encodeToString(decrypted);
         AssertState.assertEquals(encSecret, encResult);
+    }
+
+    private static Address getTestAddress() {
+        Address addrBob = new AbstractAddress("n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE") {
+            public String getPrivKey() {
+                return "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2";
+            }
+        };
+        return addrBob;
     }
 }

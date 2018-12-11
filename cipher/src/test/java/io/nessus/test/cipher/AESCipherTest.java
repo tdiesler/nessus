@@ -21,6 +21,8 @@ package io.nessus.test.cipher;
  */
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 
@@ -28,31 +30,179 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.nessus.cipher.AESCipher;
-import io.nessus.utils.StreamUtils;
+import io.nessus.cipher.utils.AESUtils;
 
-public class AESCipherTest {
+public class AESCipherTest extends AbstractCipherTest {
 
     @Test
-    public void testAES() throws Exception {
-
-        InputStream userInput = getClass().getResourceAsStream("/userfile.txt");
-
-        AESCipher cipher = new AESCipher();
-        SecretKey encToken = cipher.getSecretKey();
-
-        // ENCRYPT
-
-        InputStream secretMessage = cipher.encrypt(encToken, null, userInput);
-
-        // Verify that the encryption token can be reconstructed
-        String encoded = cipher.encodeSecretKey(encToken);
-        encToken = cipher.decodeSecretKey(encoded);
+    public void testNewKeyEveryTime() throws Exception {
         
-        // DECRYPT
+        List<String> tokens = new ArrayList<>();
+        List<String> secmsgs = new ArrayList<>();
         
-        InputStream plainMessage = cipher.decrypt(encToken, null, secretMessage);
+        int count = 3;
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            SecretKey secKey = AESUtils.newSecretKey();
+            tokens.add(AESUtils.encodeKey(secKey));
+            InputStream ins = asStream(text);
+            InputStream secIns = acipher.encrypt(secKey, ins);
+            secmsgs.add(encode(secIns));
+        }
         
-        String result = new String (StreamUtils.toBytes(plainMessage));
-        Assert.assertEquals("The quick brown fox jumps over the lazy dog", result);
+        // Note, this gives a new encryption token every time
+        
+        Assert.assertEquals(count, tokens.stream()
+                .peek(tok -> LOG.info(tok))
+                .distinct().count());
+        
+        // Note, this gives a new different secret message every time
+        
+        Assert.assertEquals(count, secmsgs.stream()
+                .peek(tok -> LOG.info(tok))
+                .distinct().count());
+        
+        List<String> results = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            SecretKey secKey = AESUtils.decodeSecretKey(tokens.get(i));
+            InputStream secIns = asStream(decode(secmsgs.get(i)));
+            InputStream msgIns = acipher.decrypt(secKey, secIns);
+            results.add(asString(msgIns));
+        }
+        
+        // Verify that the result is always the same
+        
+        Assert.assertEquals(1, results.stream()
+                .peek(msg -> LOG.info(msg))
+                .distinct().count());
+        
+        Assert.assertEquals(text, results.get(0));
+    }
+
+    @Test
+    public void testKeyReuse() throws Exception {
+        
+        SecretKey secKey = AESUtils.newSecretKey();
+        String token = AESUtils.encodeKey(secKey);
+        LOG.info(token);
+        
+        List<String> secmsgs = new ArrayList<>();
+        
+        int count = 3;
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            InputStream ins = asStream(text);
+            InputStream secIns = acipher.encrypt(secKey, ins);
+            secmsgs.add(encode(secIns));
+        }
+        
+        // Note, this gives a new different secret message every time
+        
+        Assert.assertEquals(count, secmsgs.stream()
+                .peek(tok -> LOG.info(tok))
+                .distinct().count());
+        
+        List<String> results = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            secKey = AESUtils.decodeSecretKey(token);
+            InputStream secIns = asStream(decode(secmsgs.get(i)));
+            InputStream msgIns = acipher.decrypt(secKey, secIns);
+            results.add(asString(msgIns));
+        }
+        
+        // Verify that the result is always the same
+        
+        Assert.assertEquals(1, results.stream()
+                .peek(msg -> LOG.info(msg))
+                .distinct().count());
+        
+        Assert.assertEquals(text, results.get(0));
+    }
+
+    @Test
+    public void testContentBasedIV() throws Exception {
+        
+        SecretKey secKey = AESUtils.newSecretKey();
+        String token = AESUtils.encodeKey(secKey);
+        LOG.info(token);
+        
+        List<String> secmsgs = new ArrayList<>();
+        
+        int count = 3;
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            InputStream ins = asStream(text);
+            byte[] iv = AESUtils.getIV(cid, addrBob);
+            InputStream secIns = acipher.encrypt(secKey, iv, ins, null);
+            secmsgs.add(encode(secIns));
+        }
+        
+        // Note, this gives the same secret message every time
+        
+        Assert.assertEquals(1, secmsgs.stream()
+                .peek(tok -> LOG.info(tok))
+                .distinct().count());
+        
+        List<String> results = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            secKey = AESUtils.decodeSecretKey(token);
+            InputStream secIns = asStream(decode(secmsgs.get(i)));
+            InputStream msgIns = acipher.decrypt(secKey, secIns);
+            results.add(asString(msgIns));
+        }
+        
+        // Verify that the result is always the same
+        
+        Assert.assertEquals(1, results.stream()
+                .peek(msg -> LOG.info(msg))
+                .distinct().count());
+        
+        Assert.assertEquals(text, results.get(0));
+    }
+
+    @Test
+    public void testDeterministicKey() throws Exception {
+        
+        SecretKey secKey = AESUtils.getSecretKey(addrBob);
+        String token = AESUtils.encodeKey(secKey);
+        
+        Assert.assertEquals("QEhNQVGOVs1gRbDIM6qtew==", token);
+        
+        List<String> secmsgs = new ArrayList<>();
+        
+        int count = 3;
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            InputStream ins = asStream(text);
+            byte[] iv = AESUtils.getIV(cid, addrBob);
+            InputStream secIns = acipher.encrypt(secKey, iv, ins, null);
+            secmsgs.add(encode(secIns));
+        }
+        
+        // Note, this gives the same secret message every time
+        
+        Assert.assertEquals(1, secmsgs.stream()
+                .peek(tok -> LOG.info(tok))
+                .distinct().count());
+        
+        List<String> results = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            AESCipher acipher = new AESCipher();
+            secKey = AESUtils.decodeSecretKey(token);
+            InputStream secIns = asStream(decode(secmsgs.get(i)));
+            InputStream msgIns = acipher.decrypt(secKey, secIns);
+            results.add(asString(msgIns));
+        }
+        
+        // Verify that the result is always the same
+        
+        Assert.assertEquals(1, results.stream()
+                .peek(msg -> LOG.info(msg))
+                .distinct().count());
+        
+        Assert.assertEquals(text, results.get(0));
     }
 }

@@ -1,5 +1,8 @@
 package io.nessus.cipher.utils;
 
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+
 /*-
  * #%L
  * Nessus :: Cipher
@@ -21,26 +24,44 @@ package io.nessus.cipher.utils;
  */
 
 import java.security.SecureRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Base64;
 
-import io.nessus.utils.AssertState;
+import org.bouncycastle.util.Arrays;
+
+import io.nessus.Wallet.Address;
+import io.nessus.utils.AssertArgument;
 
 @SuppressWarnings("serial") 
 public class DeterministicRandom extends SecureRandom {
     
-    final byte[] bytes;
-    final AtomicBoolean used = new AtomicBoolean();
+    private final MessageDigest md;
+    private byte[] input;
     
-    public DeterministicRandom(byte[] bytes) {
-        this.bytes = bytes;
+    public DeterministicRandom(Address addr) throws GeneralSecurityException {
+        AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
+        
+        md = MessageDigest.getInstance("SHA-256");
+        input = md.digest(Base64.getDecoder().decode(addr.getPrivKey()));
+    }
+
+    public DeterministicRandom(byte[] digest) throws GeneralSecurityException {
+        this.md = MessageDigest.getInstance("SHA-256");
+        this.input = digest;
     }
 
     @Override
     public void nextBytes(byte[] buffer) {
-        AssertState.assertFalse(used.getAndSet(true), "Generator can only be used once");
-        AssertState.assertTrue(buffer.length <= bytes.length, "Insufficient number of bytes");
-        for (int i = 0; i < buffer.length; i++) {
-            buffer[i] = bytes[i];
+        
+        int idx = 0;
+        byte[] seed = Arrays.clone(input);
+        while (seed.length < buffer.length) {
+            idx = (idx + 3) % input.length;
+            byte[] head = Arrays.copyOfRange(input, 0, idx);
+            byte[] tail = Arrays.copyOfRange(input, idx, input.length);
+            input = Arrays.concatenate(tail, head);
+            seed = Arrays.concatenate(seed, md.digest(input));
         }
+        
+        System.arraycopy(seed, 0, buffer, 0, buffer.length);
     }
 }

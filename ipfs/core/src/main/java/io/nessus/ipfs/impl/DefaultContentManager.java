@@ -29,6 +29,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
@@ -54,6 +55,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.Callable;
@@ -72,6 +74,7 @@ import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
 import io.nessus.Network;
@@ -84,6 +87,8 @@ import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.ECIESCipher;
+import io.nessus.cipher.utils.AESUtils;
+import io.nessus.cipher.utils.ECIESUtils;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
@@ -165,7 +170,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public PublicKey registerAddress(Address addr) throws GeneralSecurityException {
+    public PublicKey registerAddress(Address addr) throws GeneralSecurityException, IOException {
         AssertArgument.assertNotNull(addr, "Null addr");
         
         assertArgumentHasLabel(addr);
@@ -179,11 +184,21 @@ public class DefaultContentManager implements ContentManager {
 
         // Store the EC key, which is derived from the privKey
 
-        KeyPair keyPair = getECKeyPair(addr);
+        KeyPair keyPair = ECIESUtils.getKeyPair(addr);
         pubKey = keyPair.getPublic();
         
-        byte[] keyBytes = pubKey.getEncoded();
-        byte[] data = bcdata.createPubKeyData(keyBytes);
+        List<String> labels = addr.getLabels();
+        AssertState.assertTrue(labels.size() < 2, "Multiple labels: " + labels);
+        
+        Properties props = new Properties();
+        props.setProperty("Label", labels.get(0));
+        props.setProperty("Address", addr.getAddress());
+        props.setProperty("PublicKey", ECIESUtils.encodeKey(pubKey));
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        props.store(new OutputStreamWriter(baos), null);
+        
+        String cid = ipfsClient.addSingle(baos.toByteArray());
+        byte[] data = bcdata.createAddrData(Multihash.fromBase58(cid));
 
         // Send a Tx to record the OP_RETURN data
 
@@ -194,7 +209,7 @@ public class DefaultContentManager implements ContentManager {
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
-        String label = addr.getLabels().get(0);
+        String label = labels.get(0);
         List<UTXO> utxos = wallet.selectUnspent(label, spendAmount.add(feePerKB));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
@@ -214,7 +229,7 @@ public class DefaultContentManager implements ContentManager {
 
         String txId = wallet.sendTx(tx);
 
-        LOG.info("Register PubKey: {} => Tx {}", addr.getAddress(), txId);
+        LOG.info("Register PubKey: {} => Tx {} => {}", addr.getAddress(), txId, cid);
 
         tx = wallet.getTransaction(txId);
         int vout = tx.outputs().size() - 2;
@@ -1115,23 +1130,6 @@ public class DefaultContentManager implements ContentManager {
         return addrs;
     }
 
-    private KeyPair getECKeyPair(Address addr) throws GeneralSecurityException {
-        
-        assertArgumentHasPrivateKey(addr);
-
-        // Decode the priv key as base64 (even though it might be WIF encoded)
-        byte[] rawKey = Base64.getDecoder().decode(addr.getPrivKey());
-
-        // Reverse the bytes to ignore possible constant coin prefix 
-        byte[] seed = org.bouncycastle.util.Arrays.reverse(rawKey);
-
-        // Derive the corresponding deterministic EC key pair  
-        ECIESCipher cipher = new ECIESCipher();
-        KeyPair keyPair = cipher.generateKeyPair(seed);
-
-        return keyPair;
-    }
-
     private BigDecimal getUTXOAmount(List<UTXO> utxos) {
         BigDecimal result = BigDecimal.ZERO;
         for (UTXO utxo : utxos) {
@@ -1144,8 +1142,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(!fhandle.isEncrypted(), "File already encrypted: " + fhandle);
         
         // Get the AES secret key
-        AESCipher acipher = new AESCipher();
-        SecretKey secKey = acipher.getSecretKey();
+        SecretKey secKey = AESUtils.newSecretKey();
 
         ECIESCipher cipher = new ECIESCipher();
         byte[] encKey = cipher.encrypt(pubKey, secKey.getEncoded());
@@ -1213,7 +1210,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(fhandle, "Null fhandle");
 
         Address owner = fhandle.getOwner();
-        KeyPair keyPair = getECKeyPair(owner);
+        KeyPair keyPair = ECIESUtils.getKeyPair(owner);
         PrivateKey privKey = keyPair.getPrivate();
         
         Path tmpDir = createTempDir();
@@ -1259,7 +1256,7 @@ public class DefaultContentManager implements ContentManager {
                     
                     AESCipher acipher = new AESCipher();
                     String encoded = Base64.getEncoder().encodeToString(token);
-                    SecretKey secKey = acipher.decodeSecretKey(encoded);
+                    SecretKey secKey = AESUtils.decodeSecretKey(encoded);
 
                     // Read Base64 encoded content
                     String base64Encoded = new BufferedReader(fr).readLine();
@@ -1321,17 +1318,27 @@ public class DefaultContentManager implements ContentManager {
         TxOutput out0 = outs.get(outs.size() - 2);
         TxOutput out1 = outs.get(outs.size() - 1);
 
-        // Expect OP_PUB_KEY
+        // Expect OP_ADDR_DATA
         byte[] txdata = out1.getData();
-        byte[] keyBytes = bcdata.extractPubKeyData(txdata);
+        Multihash cid = bcdata.extractAddrData(txdata);
         Address outAddr = wallet.findAddress(out0.getAddress());
-        if (keyBytes != null && outAddr != null) {
+        if (cid != null && outAddr != null) {
 
             // Not owned by the given address
             if (owner != null && !owner.equals(outAddr)) return null;
             
-            pubKey = new PublicECKey(keyBytes); 
-            LOG.debug("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), outAddr, pubKey });
+            Properties props = new Properties();
+            try {
+                InputStream input = ipfsClient.cat(cid.toBase58());
+                props.load(input);
+            } catch (IOException ex) {
+                throw new IllegalStateException(ex);
+            }
+            
+            String encKey = props.getProperty("PublicKey");
+            pubKey = ECIESUtils.decodePublicKey(encKey);
+            
+            LOG.debug("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), cid, pubKey });
         }
 
         return pubKey;
@@ -1568,51 +1575,6 @@ public class DefaultContentManager implements ContentManager {
         }
     }
     
-    @SuppressWarnings("serial")
-    static class PublicECKey implements PublicKey {
-        
-        final byte[] keyBytes;
-        final String encKey;
-
-        PublicECKey(byte[] keyBytes) {
-            this.keyBytes = keyBytes;
-            this.encKey = Base64.getEncoder().encodeToString(keyBytes);
-            
-        }
-
-        @Override
-        public String getFormat() {
-            return "X.509";
-        }
-
-        @Override
-        public byte[] getEncoded() {
-            return keyBytes;
-        }
-
-        @Override
-        public String getAlgorithm() {
-            return "EC";
-        }
-
-        @Override
-        public int hashCode() {
-            return Arrays.hashCode(keyBytes);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (!(obj instanceof PublicECKey)) return false;
-            PublicECKey other = (PublicECKey) obj;
-            return Arrays.equals(keyBytes, other.keyBytes);
-        }
-        
-        public String toString() {
-            return encKey;
-        }
-    }
-    
     static class IPFSFileCache {
         
         private final Map<String, FHandle> filecache = Collections.synchronizedMap(new LinkedHashMap<>());
@@ -1741,7 +1703,7 @@ public class DefaultContentManager implements ContentManager {
     
     static class BCData {
         
-        static final byte OP_PUB_KEY = 0x10;
+        static final byte OP_ADDR_DATA = 0x10;
         static final byte OP_FILE_DATA = 0x20;
         static final byte OP_RETURN = 0x6A; 
         
@@ -1751,17 +1713,18 @@ public class DefaultContentManager implements ContentManager {
             OP_PREFIX = fhid.PREFIX;
         }
 
-        byte[] createPubKeyData(byte[] pubKey) {
-            return buffer(OP_PUB_KEY, pubKey.length + 1).put((byte) pubKey.length).put(pubKey).array();
+        byte[] createAddrData(Multihash cid) {
+            byte[] bytes = cid.toBytes();
+            return buffer(OP_ADDR_DATA, bytes.length + 1).put((byte) bytes.length).put(bytes).array();
         }
 
-        byte[] extractPubKeyData(byte[] txdata) {
-            if (extractOpCode(txdata) != OP_PUB_KEY)
+        Multihash extractAddrData(byte[] txdata) {
+            if (extractOpCode(txdata) != OP_ADDR_DATA)
                 return null;
             byte[] data = extractData(txdata);
             int len = data[0];
             data = Arrays.copyOfRange(data, 1, 1 + len);
-            return data;
+            return new Multihash(data);
         }
 
         byte[] createFileData(FHandle fhandle) {

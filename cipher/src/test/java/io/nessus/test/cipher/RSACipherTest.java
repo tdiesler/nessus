@@ -1,27 +1,6 @@
 package io.nessus.test.cipher;
 
 import java.io.InputStream;
-
-/*-
- * #%L
- * Nessus :: Cipher
- * %%
- * Copyright (C) 2018 Nessus
- * %%
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * #L%
- */
-
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -31,10 +10,10 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.nessus.cipher.ECIESCipher;
-import io.nessus.cipher.utils.ECIESUtils;
+import io.nessus.cipher.RSACipher;
+import io.nessus.cipher.utils.RSAUtils;
 
-public class ECIESCipherTest extends AbstractCipherTest {
+public class RSACipherTest extends AbstractCipherTest {
 
     @Test
     public void testNewKeyEveryTime() throws Exception {
@@ -44,8 +23,8 @@ public class ECIESCipherTest extends AbstractCipherTest {
         
         int count = 3;
         for (int i = 0; i < count; i++) {
-            ECIESCipher acipher = new ECIESCipher();
-            KeyPair keyPair = ECIESUtils.newKeyPair();
+            RSACipher acipher = new RSACipher();
+            KeyPair keyPair = RSAUtils.newKeyPair();
             keys.add(keyPair);
             InputStream ins = asStream(text);
             PublicKey pubKey = keyPair.getPublic();
@@ -67,7 +46,7 @@ public class ECIESCipherTest extends AbstractCipherTest {
         
         List<String> results = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            ECIESCipher acipher = new ECIESCipher();
+            RSACipher acipher = new RSACipher();
             PrivateKey privKey = keys.get(i).getPrivate();
             InputStream secIns = asStream(decode(secmsgs.get(i)));
             InputStream msgIns = acipher.decrypt(privKey, secIns);
@@ -86,7 +65,7 @@ public class ECIESCipherTest extends AbstractCipherTest {
     @Test
     public void testKeyReuse() throws Exception {
         
-        KeyPair keyPair = ECIESUtils.newKeyPair();
+        KeyPair keyPair = RSAUtils.newKeyPair();
         PublicKey pubKey = keyPair.getPublic();
         String token = encode(pubKey.getEncoded());
         LOG.info(token);
@@ -95,21 +74,21 @@ public class ECIESCipherTest extends AbstractCipherTest {
         
         int count = 3;
         for (int i = 0; i < count; i++) {
-            ECIESCipher acipher = new ECIESCipher();
+            RSACipher acipher = new RSACipher();
             InputStream ins = asStream(text);
             InputStream secIns = acipher.encrypt(pubKey, ins);
             secmsgs.add(encode(secIns));
         }
         
-        // Note, this gives a new different secret message every time
+        // Note, this gives the same secret message every time
         
-        Assert.assertEquals(count, secmsgs.stream()
+        Assert.assertEquals(1, secmsgs.stream()
                 .peek(tok -> LOG.info(tok))
                 .distinct().count());
         
         List<String> results = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            ECIESCipher acipher = new ECIESCipher();
+            RSACipher acipher = new RSACipher();
             PrivateKey privKey = keyPair.getPrivate();
             InputStream secIns = asStream(decode(secmsgs.get(i)));
             InputStream msgIns = acipher.decrypt(privKey, secIns);
@@ -129,33 +108,33 @@ public class ECIESCipherTest extends AbstractCipherTest {
     @Test
     public void testDeterministicKey() throws Exception {
         
-        KeyPair keyPair = ECIESUtils.getKeyPair(addrBob);
+        KeyPair keyPair = RSAUtils.getKeyPair(addrBob);
         PublicKey pubKey = keyPair.getPublic();
         String token = encode(pubKey.getEncoded());
         LOG.info(token);
         
-        Assert.assertEquals("MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAEYtzTFMrUdiyYkmsTzP1fAgDmMEzvzuvo3Wp+Eya1JU8=", token);
-        Assert.assertEquals(76, token.length());
+        Assert.assertEquals("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmir1erWjwdkKmedgYVK2N+NyQp7iwPKbWFWdalXP+0nW+q4pzAkNNkPlumpsbSwCaEsI7T2Lt6V+uxOTu0zSTfQ2mWb5LYcO7OulXHLLwoTstOBefaTxVBl28Yk8F5DDyzzUuqz2S46ZyxcnSiWuVM9q9bqA8F2vP4tYUwnoe5gLGesJrtUdZlCt+mcKg4lHw2AcD3juGj88/GLz4WVg0QL+ySILOAncrYYxzVOzy8lqs3u/JCeVyxKzBB/clGHVx0Ek6MWaxB2OaW1CMdZD+ZZ32dHfsTfR9hHJisE2/8SMbY4EwroIbZegm6O0OKMeTQ1N7ugZpEdkPNlVhqRNowIDAQAB", token);
+        Assert.assertEquals(392, token.length());
         
         List<String> secmsgs = new ArrayList<>();
         
         int count = 3;
         for (int i = 0; i < count; i++) {
-            ECIESCipher acipher = new ECIESCipher();
+            RSACipher acipher = new RSACipher();
             InputStream ins = asStream(text);
             InputStream secIns = acipher.encrypt(pubKey, ins);
             secmsgs.add(encode(secIns));
         }
         
-        // Note, this gives a new different secret message every time
+        // Note, this gives the same secret message every time
         
-        Assert.assertEquals(count, secmsgs.stream()
+        Assert.assertEquals(1, secmsgs.stream()
                 .peek(tok -> LOG.info(tok))
                 .distinct().count());
         
         List<String> results = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            ECIESCipher acipher = new ECIESCipher();
+            RSACipher acipher = new RSACipher();
             PrivateKey privKey = keyPair.getPrivate();
             InputStream secIns = asStream(decode(secmsgs.get(i)));
             InputStream msgIns = acipher.decrypt(privKey, secIns);

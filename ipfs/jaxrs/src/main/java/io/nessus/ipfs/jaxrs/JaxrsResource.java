@@ -57,7 +57,7 @@ public class JaxrsResource implements JaxrsEndpoint {
     }
 
     @Override
-    public AddrHandle registerAddress(String addr) throws GeneralSecurityException {
+    public AddrHandle registerAddress(String addr) throws GeneralSecurityException, IOException {
 
         assertBlockchainNetworkAvailable();
         
