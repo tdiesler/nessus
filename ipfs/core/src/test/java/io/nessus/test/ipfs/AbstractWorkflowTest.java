@@ -91,8 +91,8 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     @Before
     public void before() throws Exception {
 
-        addrBob = wallet.getAddress(LABEL_BOB);
-        addrMary = wallet.getAddress(LABEL_MARY);
+        addrBob = wallet.findAddress(ADDRESS_BOB);
+        addrMary = wallet.findAddress(ADDRESS_MARY);
         
         wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
         wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
@@ -168,6 +168,14 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
         FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
         return fhandle;
+    }
+
+    List<FHandle> flatFileTree(FHandle fh, List<FHandle> result) {
+        result.add(fh);
+        for (FHandle ch : fh.getChildren()) {
+            flatFileTree(ch, result);
+        }
+        return result;
     }
 
     List<FHandle> awaitFileAvailability(List<FHandle> fhandles, int count, boolean assertAvailable) throws Exception {

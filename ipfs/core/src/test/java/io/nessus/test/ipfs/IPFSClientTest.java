@@ -149,7 +149,6 @@ public class IPFSClientTest {
         Assert.assertTrue(path.resolve("index.html").toFile().isFile());
     }
 
-
     @Test
     public void getInvalidIPFSPath() throws Exception {
         
@@ -165,5 +164,28 @@ public class IPFSClientTest {
             Throwable cause = ex.getCause();
             Assert.assertTrue(cause instanceof IPFSException);
         }
+    }
+
+    @Test
+    public void onlyHash() throws Exception {
+        
+        /*
+        $ ipfs add -r --only-hash ipfs/core/src/test/resources/contentA
+        added QmctTBqcHf1A3uQhrTZgSqzV8Yh7nD9ud1tkPF58DPJFbw contentA/file03.txt
+        added QmQrDwzQzvBSJaAyz9VFWKB8vjhYtjTUWBEBmkYuGtjQW3 contentA/subA/file01.txt
+        added QmbEsRMKVUSjUYenh4gvw4UcqUGRGTGC7D221eU4ffpxLa contentA/subB/subC/file02.txt
+        added QmUUcAcMN9PXJwzEJHEZA3EgL8MiJZUbftg5dfrPCDK6YB contentA/subA
+        added QmT5zhCnhR73e8LnMs59j4tfn8TPH6kgL9ajiULsUJ9q6K contentA/subB/subC
+        added QmP2oWphFGtPasCDXurRaxHZsq6NHnD2kd5Tt5H1NTEqSn contentA/subB
+        added QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8 contentA
+        */
+        String HASH = "QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8";
+        
+        // add --only-hash
+        
+        Path path = Paths.get("src/test/resources/contentA");
+        List<String> cids = client.add(path, false, true);
+        Assert.assertEquals(7, cids.size());
+        Assert.assertEquals(HASH, cids.get(6));
     }
 }

@@ -22,14 +22,15 @@ package io.nessus.test.ipfs;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -39,12 +40,12 @@ import org.junit.Before;
 import org.junit.Test;
 
 import io.nessus.Wallet;
-import io.nessus.Wallet.Address;
 import io.nessus.ipfs.ContentManager.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.NessusUserFault;
 import io.nessus.ipfs.impl.DefaultContentManager.FHeader;
 import io.nessus.utils.FileUtils;
+import io.nessus.utils.StreamUtils;
 import io.nessus.utils.TimeUtils;
 
 public class ContentManagerTest extends AbstractWorkflowTest {
@@ -56,7 +57,6 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     public void before() throws Exception {
         super.before();
         
-        Address addrBob = wallet.getAddress(LABEL_BOB);
         PublicKey pubKey = cntmgr.findAddressRegistation(addrBob);
         
         if (pubKey == null) {
@@ -70,7 +70,6 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void unregisterAddress() throws Exception {
 
-        Address addrBob = wallet.getAddress(LABEL_BOB);
         PublicKey pubKey = cntmgr.findAddressRegistation(addrBob);
         
         PublicKey resKey = cntmgr.unregisterAddress(addrBob);
@@ -83,8 +82,6 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void unregisterIPFS() throws Exception {
 
-        Address addrBob = wallet.getAddress(LABEL_BOB);
-        
         InputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
         FHandle fhA = cntmgr.addIpfsContent(addrBob, Paths.get("kermit.txt"), input);
         
@@ -105,19 +102,23 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void simpleAdd() throws Exception {
 
-        Path path = Paths.get("contentA/subA/file01.txt");
+        Path path = Paths.get("contentC/userfile.txt");
         cntmgr.removeLocalContent(addrBob, path);
         
         FHandle fhres = cntmgr.findLocalContent(addrBob, path);
         Assert.assertNull(fhres);
         
-        InputStream input = new ByteArrayInputStream("file 01".getBytes());
-        fhres = cntmgr.addIpfsContent(addrBob, path, input);
+        InputStream ins = getClass().getResourceAsStream("/" + path);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        StreamUtils.copyStream(ins, baos);
+        
+        ins = new ByteArrayInputStream(baos.toByteArray());
+        fhres = cntmgr.addIpfsContent(addrBob, path, ins);
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertTrue(fhres.isEncrypted());
         
         String cid = fhres.getCid();
-        Assert.assertNotNull(cid);
+        Assert.assertEquals("QmUcygEYHUMENET59niod3Kb1YXhKoNDVpuyFLGnASA2Nt", cid);
 
         // Expect to find the local content
         fhres = cntmgr.findLocalContent(addrBob, path);
@@ -140,41 +141,53 @@ public class ContentManagerTest extends AbstractWorkflowTest {
 
         // Verify local content
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
-        Assert.assertEquals("file 01", new BufferedReader(rd).readLine());
+        Assert.assertEquals(new String(baos.toByteArray()), new BufferedReader(rd).readLine());
     }
 
     @Test
     public void multipleAdd() throws Exception {
 
+        // Remove the local content
+        
         Path path = Paths.get("contentA");
         cntmgr.removeLocalContent(addrBob, path);
+        
+        // Verify that the local content got removed
         
         FHandle fhres = cntmgr.findLocalContent(addrBob, path);
         Assert.assertNull(fhres);
         
+        // Copy test resources to local content
+
         Path srcPath = Paths.get("src/test/resources/contentA");
         Path dstPath = cntmgr.getPlainPath(addrBob).resolve("contentA");
         FileUtils.recursiveCopy(srcPath, dstPath);
         
+        // Verify that the local content can be found
+        
         fhres = cntmgr.findLocalContent(addrBob, path);
         Assert.assertTrue(fhres.isAvailable());
+        
+        // Add local content to IPFS
         
         fhres = cntmgr.addIpfsContent(addrBob, path);
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertTrue(fhres.isEncrypted());
         
         String cid = fhres.getCid();
-        Assert.assertNotNull(cid);
+		Assert.assertEquals("QmXxz5PKhS691jqjCzu9U1wrH95gYzPQLEtwab3YzED3x1", cid);
         
-        // Expect to find the local content
-        fhres = cntmgr.findLocalContent(addrBob, path);
-        Assert.assertTrue(fhres.isAvailable());
+        List<FHandle> fhandles = flatFileTree(fhres, new ArrayList<>());
+        fhandles.forEach(fh -> LOG.info("{}", fh));
+        Assert.assertEquals(7, fhandles.size());
         
         // Clear the file cache & local file
+        
         cntmgr.clearFileCache();
         cntmgr.removeLocalContent(addrBob, path);
         
         // Find the IPFS tree
+        
         fhres = findIpfsContent(addrBob, cid, null);
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertTrue(fhres.isEncrypted());
@@ -184,11 +197,13 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertEquals(cid + "/file03.txt", fhres.getChildren().get(2).getCid());
         
         // Get the file from IPFS
+        
         fhres = cntmgr.getIpfsContent(addrBob, cid, null, null);
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertEquals(3, fhres.getChildren().size());
 
         // Verify local content
+        
         path = Paths.get("contentA/subA/file01.txt");
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
         Assert.assertEquals("file 01", new BufferedReader(rd).readLine());

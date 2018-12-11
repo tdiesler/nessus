@@ -28,6 +28,7 @@ import java.util.Base64;
 
 import org.bouncycastle.util.Arrays;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
 import io.nessus.utils.AssertArgument;
 
@@ -35,31 +36,37 @@ import io.nessus.utils.AssertArgument;
 public class DeterministicRandom extends SecureRandom {
     
     private final MessageDigest md;
-    private byte[] input;
+    private byte[] digest;
     
     public DeterministicRandom(Address addr) throws GeneralSecurityException {
-        AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
-        
-        md = MessageDigest.getInstance("SHA-256");
-        input = md.digest(Base64.getDecoder().decode(addr.getPrivKey()));
+    	this (addr, null);
     }
 
-    public DeterministicRandom(byte[] digest) throws GeneralSecurityException {
-        this.md = MessageDigest.getInstance("SHA-256");
-        this.input = digest;
+    public DeterministicRandom(Address addr, Multihash cid) throws GeneralSecurityException {
+		AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
+        
+        md = MessageDigest.getInstance("SHA-256");
+        
+        String input = addr.getPrivKey() + (cid != null ? cid.toBase58() : "");
+        digest = md.digest(Base64.getDecoder().decode(input));
+    }
+
+    public DeterministicRandom(byte[] input) throws GeneralSecurityException {
+        md = MessageDigest.getInstance("SHA-256");
+        digest = md.digest(input);
     }
 
     @Override
     public void nextBytes(byte[] buffer) {
         
         int idx = 0;
-        byte[] seed = Arrays.clone(input);
+        byte[] seed = Arrays.clone(digest);
         while (seed.length < buffer.length) {
-            idx = (idx + 3) % input.length;
-            byte[] head = Arrays.copyOfRange(input, 0, idx);
-            byte[] tail = Arrays.copyOfRange(input, idx, input.length);
-            input = Arrays.concatenate(tail, head);
-            seed = Arrays.concatenate(seed, md.digest(input));
+            idx = (idx + 3) % digest.length;
+            byte[] head = Arrays.copyOfRange(digest, 0, idx);
+            byte[] tail = Arrays.copyOfRange(digest, idx, digest.length);
+            digest = Arrays.concatenate(tail, head);
+            seed = Arrays.concatenate(seed, md.digest(digest));
         }
         
         System.arraycopy(seed, 0, buffer, 0, buffer.length);

@@ -64,12 +64,19 @@ public class AESUtils {
      * Create an AES secret key derived from the owner's private key.
      */
     public static SecretKey getSecretKey(Address addr) throws GeneralSecurityException {
+        return getSecretKey(addr, null);
+    }
+
+    /**
+     * Create an AES secret key derived from the owner's private key and some content id.
+     */
+    public static SecretKey getSecretKey(Address addr, Multihash cid) throws GeneralSecurityException {
         
         // Use a pseudo random generated 128 bit key
-        SecureRandom pseudoRandom = new DeterministicRandom(addr);
+        SecureRandom secrnd = new DeterministicRandom(addr, cid);
         
         byte[] key = new byte[16];
-        pseudoRandom.nextBytes(key);
+        secrnd.nextBytes(key);
         
         return new SecretKeySpec(key, "AES");
     }

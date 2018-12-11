@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -280,27 +281,49 @@ public class JaxrsClient implements JaxrsEndpoint {
 
             String line = new BufferedReader(new StringReader(stackTrace)).readLine();
             
-            String message, errorType;
+            String errMessage, errType;
             int colIdx = line.indexOf(':');
             if (colIdx > 0) {
-                errorType = line.substring(0, colIdx);
-                message = line.substring(colIdx + 2);
+                errType = line.substring(0, colIdx);
+                errMessage = line.substring(colIdx + 2);
             } else {
-                errorType = line;
-                message = "";
+                errType = line;
+                errMessage = "";
             } 
 
-            if (NessusUserFault.class.getName().equals(errorType)) {
+            if (NessusUserFault.class.getName().equals(errType)) {
                 
-                throw new NessusUserFault(message);
+                throw new NessusUserFault(errMessage);
                 
-            } else if (NessusException.class.getName().equals(errorType)) {
+            } else if (NessusException.class.getName().equals(errType)) {
                 
-                throw new NessusException(message);
+                throw new NessusException(errMessage);
+                
+            } else if (IOException.class.getName().equals(errType)) {
+                
+                throw new IOException(errMessage);
                 
             } else {
                 
-                throw new IllegalStateException(message);
+                Throwable errInst = null;
+                try {
+                    ClassLoader loader = JaxrsClient.class.getClassLoader();
+                    Class<?> extype = loader.loadClass(errType);
+                    Constructor<?> ctor = extype.getConstructor(String.class);
+                    errInst = (Throwable) ctor.newInstance(errMessage);
+                } catch (Exception ex) {
+                    LOG.error("Cannot load server error: " + line);
+                }
+                
+                if (errInst instanceof RuntimeException) {
+                    throw (RuntimeException) errInst;
+                }
+
+                if (errInst != null) {
+                    throw new IllegalStateException(errInst);
+                }
+                
+                throw new IllegalStateException(errMessage);
             }
 
         } else if (status == Status.NO_CONTENT) {

@@ -101,13 +101,23 @@ public class DefaultIPFSClient implements IPFSClient {
 
     @Override
     public List<String> add(Path path) throws IOException {
-        List<MerkleNode> parts = ipfs().add(new FileWrapper(path.toFile()));
+        return add(path, false, false);
+    }
+
+    @Override
+    public List<String> add(Path path, boolean wrap, boolean hashOnly) throws IOException {
+        List<MerkleNode> parts = ipfs().add(new FileWrapper(path.toFile()), wrap, hashOnly);
         AssertState.assertTrue(parts.size() > 0, "No content added");
         return parts.stream().map(mn -> mn.hash.toBase58()).collect(Collectors.toList());
     }
 
     @Override
     public String addSingle(Path path) throws IOException {
+        return addSingle(path, false, false);
+    }
+
+    @Override
+    public String addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException {
         AssertArgument.assertTrue(path.toFile().isFile(), "Not a file: " + path);
         List<String> cids = add(path);
         AssertState.assertTrue(cids.size() > 0, "No content added");

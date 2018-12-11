@@ -2,10 +2,13 @@ package io.nessus.cipher.utils;
 
 import java.security.GeneralSecurityException;
 import java.security.Key;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.KeyPairGeneratorSpi;
@@ -48,6 +51,22 @@ public class RSAUtils {
     public static String encodeKey(Key key) {
         byte[] rawKey = key.getEncoded();
         return Base64.getEncoder().encodeToString(rawKey);
+    }
+
+    /**
+     * Decode public key from the given base64 encoded string
+     * 
+     * Note, this requiers unlimited security policies
+     */
+    public static PublicKey decodePublicKey(String encKey) throws GeneralSecurityException {
+        byte[] keyBytes = Base64.getDecoder().decode(encKey);
+        return decodePublicKey(keyBytes);
+    }
+
+    static PublicKey decodePublicKey(byte[] keyBytes) throws GeneralSecurityException {
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return keyFactory.generatePublic(keySpec);
     }
 
     private static KeyPair generateKeyPairInternal(SecureRandom secrnd) throws GeneralSecurityException {

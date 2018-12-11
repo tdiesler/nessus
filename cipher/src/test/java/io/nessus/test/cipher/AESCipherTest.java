@@ -166,10 +166,10 @@ public class AESCipherTest extends AbstractCipherTest {
     @Test
     public void testDeterministicKey() throws Exception {
         
-        SecretKey secKey = AESUtils.getSecretKey(addrBob);
+        SecretKey secKey = AESUtils.getSecretKey(addrBob, cid);
         String token = AESUtils.encodeKey(secKey);
         
-        Assert.assertEquals("QEhNQVGOVs1gRbDIM6qtew==", token);
+        Assert.assertEquals("QXqjvsbKAU2Moc+6sWk/4A==", token);
         
         List<String> secmsgs = new ArrayList<>();
         

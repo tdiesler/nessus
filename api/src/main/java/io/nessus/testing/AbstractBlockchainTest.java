@@ -45,6 +45,9 @@ public abstract class AbstractBlockchainTest {
     public static final String LABEL_MARY = "Mary";
     public static final String LABEL_SINK = "Sink";
     
+    public static final String ADDRESS_BOB = "n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE";
+    public static final String ADDRESS_MARY = "mm2PoHeFncAStYeZJSSTa4bmUVXRa3L6PL";
+    
     protected static void importAddresses(Wallet wallet, Class<?> configSource) throws IOException {
         
         URL configURL = configSource.getResource("/initial-import.json");

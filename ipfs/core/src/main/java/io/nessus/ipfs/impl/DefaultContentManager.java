@@ -86,9 +86,9 @@ import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.AESCipher;
-import io.nessus.cipher.ECIESCipher;
+import io.nessus.cipher.RSACipher;
 import io.nessus.cipher.utils.AESUtils;
-import io.nessus.cipher.utils.ECIESUtils;
+import io.nessus.cipher.utils.RSAUtils;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
@@ -184,7 +184,7 @@ public class DefaultContentManager implements ContentManager {
 
         // Store the EC key, which is derived from the privKey
 
-        KeyPair keyPair = ECIESUtils.getKeyPair(addr);
+        KeyPair keyPair = RSAUtils.getKeyPair(addr);
         pubKey = keyPair.getPublic();
         
         List<String> labels = addr.getLabels();
@@ -193,7 +193,7 @@ public class DefaultContentManager implements ContentManager {
         Properties props = new Properties();
         props.setProperty("Label", labels.get(0));
         props.setProperty("Address", addr.getAddress());
-        props.setProperty("PublicKey", ECIESUtils.encodeKey(pubKey));
+        props.setProperty("PublicKey", RSAUtils.encodeKey(pubKey));
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         props.store(new OutputStreamWriter(baos), null);
         
@@ -341,9 +341,6 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(input, "Null input");
         
         assertArgumentHasPrivateKey(owner);
-        
-        PublicKey pubKey = findAddressRegistation(owner);
-        AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
         
         boolean replaceExisting = config.isReplaceExisting();
         Path plainPath = assertValidPlainPath(owner, dstPath);
@@ -1141,52 +1138,64 @@ public class DefaultContentManager implements ContentManager {
     private FHandle encrypt(FHandle fhandle, PublicKey pubKey) throws IOException, GeneralSecurityException {
         AssertArgument.assertTrue(!fhandle.isEncrypted(), "File already encrypted: " + fhandle);
         
-        // Get the AES secret key
-        SecretKey secKey = AESUtils.newSecretKey();
-
-        ECIESCipher cipher = new ECIESCipher();
-        byte[] encKey = cipher.encrypt(pubKey, secKey.getEncoded());
-        String secToken = Base64.getEncoder().encodeToString(encKey);
+        AESCipher aes = new AESCipher();
+        RSACipher rsa = new RSACipher();
         
-        // Create the target file handle
-        fhandle = new FHBuilder(fhandle)
-                .secretToken(secToken)
-                .build();
+        // Get the CID for the plain content
+        // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
+        List<String> cids = ipfsClient.add(fhandle.getFilePath(), false, true);
+        AssertState.assertTrue(cids.size() > 0, "Cannot obtain content ids for: " + fhandle);
+        Multihash cid = Multihash.fromBase58(cids.get(cids.size() - 1));
+        
+        // Get the AES secret key for the entire tree
+        Address owner = fhandle.getOwner();
+        SecretKey secKey = AESUtils.getSecretKey(owner, cid);
+        
+        // Encrypt the AES secret key
+        KeyPair keyPair = RSAUtils.getKeyPair(owner);
+        byte[] tokBytes = rsa.encrypt(keyPair.getPublic(), secKey.getEncoded());
+        String secToken = Base64.getEncoder().encodeToString(tokBytes);
 
         Path tmpDir = createTempDir();
         FHandle fhres = FHandle.walkTree(fhandle, new Visitor() {
 
             @Override
-            public FHandle visit(FHandle fhandle) throws IOException {
+            public FHandle visit(FHandle fhaux) throws IOException, GeneralSecurityException {
 
-                Path path = fhandle.getPath();
+                Path path = fhaux.getPath();
                 Path tmpPath = tmpDir.resolve(path);
                 tmpPath.getParent().toFile().mkdirs();
                 
-                FHandle fhres = new FHBuilder(fhandle.getRoot())
+                FHandle fhres = new FHBuilder(fhaux.getRoot())
                         .findChild(path)
                         .url(tmpPath.toUri().toURL())
+                        .secretToken(secToken)
                         .build();
                 
                 if (fhres.hasChildren()) 
                     return fhres;
                 
-                File srcFile = fhandle.getFilePath().toFile();
+                File srcFile = fhaux.getFilePath().toFile();
                 AssertState.assertTrue(srcFile.isFile(), "Cannot obtain source file: " + srcFile);
+                
+                // Get the CID for the plain content
+                // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
+                String encid = ipfsClient.addSingle(fhaux.getFilePath(), false, true);
+                Multihash cid = Multihash.fromBase58(encid);
+                
+                // Create a content based AES key & IV
+                byte[] iv = AESUtils.getIV(cid, owner);
                 
                 try (FileWriter fw = new FileWriter(tmpPath.toFile())) {
                     
-                    // Writhe the file header
+                    // Write the file header
                     writeHeader(fhres, fw);
                     
                     try (InputStream ins = new FileInputStream(srcFile)) {
                         
                         // Encrypt the file content
-                        AESCipher acipher = new AESCipher();
-                        InputStream encrypted = acipher.encrypt(secKey, ins);
+                        InputStream encrypted = aes.encrypt(secKey, iv, ins, null);
                         
-                        // Hex encode the encrypted content
-                        // [TODO] provide a stream based hex encoder
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         StreamUtils.copyStream(encrypted, baos);
                         String base64Encoded = Base64.getEncoder().encodeToString(baos.toByteArray());
@@ -1209,8 +1218,11 @@ public class DefaultContentManager implements ContentManager {
     protected FHandle decrypt(FHandle fhandle, Path dstPath, boolean storePlain) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(fhandle, "Null fhandle");
 
+        AESCipher aes = new AESCipher();
+        RSACipher rsa = new RSACipher();
+        
         Address owner = fhandle.getOwner();
-        KeyPair keyPair = ECIESUtils.getKeyPair(owner);
+        KeyPair keyPair = RSAUtils.getKeyPair(owner);
         PrivateKey privKey = keyPair.getPrivate();
         
         Path tmpDir = createTempDir();
@@ -1250,13 +1262,9 @@ public class DefaultContentManager implements ContentManager {
                         fr.read();
                     }
                     
-                    ECIESCipher cipher = new ECIESCipher();
                     byte[] encToken = Base64.getDecoder().decode(header.token);
-                    byte[] token = cipher.decrypt(privKey, encToken);
-                    
-                    AESCipher acipher = new AESCipher();
-                    String encoded = Base64.getEncoder().encodeToString(token);
-                    SecretKey secKey = AESUtils.decodeSecretKey(encoded);
+                    byte[] token = rsa.decrypt(privKey, encToken);
+                    SecretKey secKey = AESUtils.decodeSecretKey(token);
 
                     // Read Base64 encoded content
                     String base64Encoded = new BufferedReader(fr).readLine();
@@ -1264,7 +1272,7 @@ public class DefaultContentManager implements ContentManager {
                     ByteArrayInputStream ins = new ByteArrayInputStream(encBytes);
                     
                     // Decrypt the file content
-                    InputStream decrypted = acipher.decrypt(secKey, ins);
+                    InputStream decrypted = aes.decrypt(secKey, ins);
                     
                     // [TODO] How is it possible that the tmp file already exists?
                     Path tmpFile = tmpDir.resolve(fhres.getPath());
@@ -1329,14 +1337,16 @@ public class DefaultContentManager implements ContentManager {
             
             Properties props = new Properties();
             try {
-                InputStream input = ipfsClient.cat(cid.toBase58());
+                
+            	InputStream input = ipfsClient.cat(cid.toBase58());
                 props.load(input);
-            } catch (IOException ex) {
+                
+                String encKey = props.getProperty("PublicKey");
+                pubKey = RSAUtils.decodePublicKey(encKey);
+                
+            } catch (IOException | GeneralSecurityException ex) {
                 throw new IllegalStateException(ex);
             }
-            
-            String encKey = props.getProperty("PublicKey");
-            pubKey = ECIESUtils.decodePublicKey(encKey);
             
             LOG.debug("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), cid, pubKey });
         }
@@ -1430,11 +1440,11 @@ public class DefaultContentManager implements ContentManager {
     private FHeader writeHeader(FHandle fhandle, Writer pw) throws IOException {
         
         String owner = fhandle.getOwner().getAddress();
-        String encToken = fhandle.getRoot().getSecretToken();
+        String encToken = fhandle.getSecretToken();
         
         LOG.debug("IPFS token: {}", encToken);
         
-        FHeader header = new FHeader(fhid.VERSION_STRING, fhandle.getPath(), owner, encToken, -1);
+        FHeader header = new FHeader(fhid.VERSION_STRING, fhandle.getPath(), owner, fhandle.getSecretToken(), -1);
         header.write(fhid, pw);
         
         return header;

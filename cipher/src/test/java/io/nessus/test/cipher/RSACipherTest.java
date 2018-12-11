@@ -115,6 +115,11 @@ public class RSACipherTest extends AbstractCipherTest {
         
         Assert.assertEquals("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmir1erWjwdkKmedgYVK2N+NyQp7iwPKbWFWdalXP+0nW+q4pzAkNNkPlumpsbSwCaEsI7T2Lt6V+uxOTu0zSTfQ2mWb5LYcO7OulXHLLwoTstOBefaTxVBl28Yk8F5DDyzzUuqz2S46ZyxcnSiWuVM9q9bqA8F2vP4tYUwnoe5gLGesJrtUdZlCt+mcKg4lHw2AcD3juGj88/GLz4WVg0QL+ySILOAncrYYxzVOzy8lqs3u/JCeVyxKzBB/clGHVx0Ek6MWaxB2OaW1CMdZD+ZZ32dHfsTfR9hHJisE2/8SMbY4EwroIbZegm6O0OKMeTQ1N7ugZpEdkPNlVhqRNowIDAQAB", token);
         Assert.assertEquals(392, token.length());
+
+        // Recreate the public key from its encoded form 
+        
+        PublicKey pubKeyB = RSAUtils.decodePublicKey(token);
+        Assert.assertEquals(pubKey, pubKeyB);
         
         List<String> secmsgs = new ArrayList<>();
         
@@ -122,7 +127,7 @@ public class RSACipherTest extends AbstractCipherTest {
         for (int i = 0; i < count; i++) {
             RSACipher acipher = new RSACipher();
             InputStream ins = asStream(text);
-            InputStream secIns = acipher.encrypt(pubKey, ins);
+            InputStream secIns = acipher.encrypt(pubKeyB, ins);
             secmsgs.add(encode(secIns));
         }
         

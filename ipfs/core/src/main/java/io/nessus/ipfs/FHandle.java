@@ -29,6 +29,7 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -172,17 +173,17 @@ public class FHandle {
     } 
     
     public interface Visitor {
-        FHandle visit(FHandle fhandle) throws IOException;
+        FHandle visit(FHandle fhandle) throws IOException, GeneralSecurityException;
     }
     
-    public static FHandle walkTree (FHandle fhandle, Visitor visitor) throws IOException {
+    public static FHandle walkTree (FHandle fhandle, Visitor visitor) throws IOException, GeneralSecurityException {
         FHandle fhroot = fhandle.getRoot();
         FHReference fhref = new FHReference(fhroot);
         walkTreeRecursive(fhref, fhroot.getPath(), visitor);
         return fhref.getFHandle();
     }
     
-    private static boolean walkTreeRecursive(FHReference fhref, Path path, Visitor visitor) throws IOException {
+    private static boolean walkTreeRecursive(FHReference fhref, Path path, Visitor visitor) throws IOException, GeneralSecurityException {
         
         FHandle fhroot = fhref.getFHandle();
         FHandle fhchild = fhroot.findChild(path);

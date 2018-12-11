@@ -41,7 +41,11 @@ public interface IPFSClient {
     
     List<String> add(Path path) throws IOException;
 
+    List<String> add(Path path, boolean wrap, boolean hashOnly) throws IOException;
+    
     String addSingle(Path path) throws IOException;
+
+    String addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException;
 
     String addSingle(InputStream input) throws IOException;
 
