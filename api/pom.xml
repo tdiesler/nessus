@@ -19,7 +19,7 @@
         </dependency>
         <dependency>
             <groupId>wf.bitcoin</groupId>
-            <artifactId>JavaBitcoindRpcClient</artifactId>
+            <artifactId>bitcoin-rpc-client</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
