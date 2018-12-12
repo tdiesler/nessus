@@ -46,14 +46,10 @@ import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.ipfs.multiaddr.MultiAddress;
 import io.nessus.Blockchain;
-import io.nessus.BlockchainFactory;
 import io.nessus.ipfs.ContentManager;
-import io.nessus.ipfs.ContentManager.ContentManagerConfig;
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.impl.DefaultContentManager;
-import io.nessus.ipfs.impl.DefaultIPFSClient;
+import io.nessus.ipfs.core.DefaultContentManager;
 import io.nessus.utils.AssertArgument;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
@@ -92,19 +88,15 @@ public class JaxrsApplication extends Application {
         
         LOG.info("Nessus Version: {} Build: {}", implVersion, implBuild);
         
-        URL bcUrl = config.getBlockchainUrl();
-        Class<Blockchain> bcImpl = config.getBlockchainImpl();
-        Blockchain blockchain = BlockchainFactory.getBlockchain(bcUrl, bcImpl);
+        cntManager = new DefaultContentManager(config);
+        
+        Blockchain blockchain = cntManager.getBlockchain();
         JaxrsClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
-        MultiAddress ipfsAddr = config.getIpfsAddress();
-        IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
+        IPFSClient ipfsClient = cntManager.getIpfsClient();
         LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
         LOG.info("IPFS Version: {}",  ipfsClient.version());
 
-        ContentManagerConfig mgrConfig = new ContentManagerConfig(blockchain, ipfsClient);
-        cntManager = new DefaultContentManager(mgrConfig);
-        
         INSTANCE = this;
     }
 

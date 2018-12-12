@@ -42,18 +42,16 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 
 import io.nessus.Blockchain;
-import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.bitcoin.BitcoinBlockchain;
-import io.nessus.ipfs.ContentManager.ContentManagerConfig;
+import io.nessus.ipfs.Config;
+import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.impl.DefaultContentManager;
-import io.nessus.ipfs.impl.DefaultIPFSClient;
-import io.nessus.ipfs.impl.ExtendedContentManager;
+import io.nessus.ipfs.core.DefaultContentManager;
+import io.nessus.ipfs.core.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 import io.nessus.utils.FileUtils;
 
@@ -71,12 +69,17 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
     @BeforeClass
     public static void abstractBeforeClass() throws Exception {
         
-        blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
+        Config config = new ConfigBuilder()
+        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+        		.build();
+        
+        cntmgr = new ExtendedContentManager(config);
+        
+        ipfsClient = cntmgr.getIpfsClient();
+        
+        blockchain = cntmgr.getBlockchain();
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
-        
-        ipfsClient = new DefaultIPFSClient();
-        cntmgr = new ExtendedContentManager(new ContentManagerConfig(blockchain, ipfsClient));
         
         importAddresses(wallet, AbstractWorkflowTest.class);
         
@@ -115,7 +118,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         network.generate(1);
     }
 
-    DefaultContentManager createContentManager(ContentManagerConfig config) {
+    DefaultContentManager createContentManager(Config config) {
         LOG.info("");
         return cntmgr = new ExtendedContentManager(config);
     }

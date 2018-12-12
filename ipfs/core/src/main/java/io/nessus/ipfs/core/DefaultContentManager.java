@@ -1,4 +1,4 @@
-package io.nessus.ipfs.impl;
+package io.nessus.ipfs.core;
 
 /*-
  * #%L
@@ -82,15 +82,16 @@ import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.RSACipher;
 import io.nessus.cipher.utils.AESUtils;
 import io.nessus.cipher.utils.RSAUtils;
+import io.nessus.ipfs.Config;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.FHandle.FHReference;
 import io.nessus.ipfs.FHandle.Visitor;
-import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.IPFSNotFoundException;
 import io.nessus.ipfs.IPFSTimeoutException;
-import io.nessus.ipfs.MerkleNotFoundException;
+import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.NessusUserFault;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
@@ -102,11 +103,7 @@ public class DefaultContentManager implements ContentManager {
 
     static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
 
-    public static final long DEFAULT_IPFS_TIMEOUT = 6000; // 6 sec
-    public static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
-    public static final int DEFAULT_IPFS_THREADS = 12;
-
-    protected final ContentManagerConfig config;
+    protected final Config config;
     protected final IPFSClient ipfsClient;
     protected final Blockchain blockchain;
     protected final Network network;
@@ -128,8 +125,8 @@ public class DefaultContentManager implements ContentManager {
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
     private final IPFSFileCache filecache = new IPFSFileCache();
     
-    public DefaultContentManager(ContentManagerConfig config) {
-        this.config = config.makeImmutable();
+    public DefaultContentManager(Config config) {
+    	this.config = config;
 
         ipfsClient = config.getIpfsClient();
         blockchain = config.getBlockchain();
@@ -150,7 +147,7 @@ public class DefaultContentManager implements ContentManager {
         });
     }
 
-    public ContentManagerConfig getConfig() {
+    public Config getConfig() {
         return config;
     }
 
@@ -158,7 +155,7 @@ public class DefaultContentManager implements ContentManager {
         return blockchain;
     }
     
-    public IPFSClient getIPFSClient() {
+    public IPFSClient getIpfsClient() {
         return ipfsClient;
     }
 
@@ -327,9 +324,9 @@ public class DefaultContentManager implements ContentManager {
         
         assertArgumentHasPrivateKey(owner);
         
-        boolean replaceExisting = config.isReplaceExisting();
+        boolean fileOverwrite = config.isOverwrite();
         Path plainPath = assertValidPlainPath(owner, dstPath);
-        NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
+        NessusUserFault.assertTrue(fileOverwrite || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
         
         plainPath.getParent().toFile().mkdirs();
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
@@ -721,7 +718,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     Path getRootPath() {
-        Path rootPath = config.getRootPath();
+        Path rootPath = config.getDataDir();
         rootPath.toFile().mkdirs();
         return rootPath;
     }
@@ -1283,9 +1280,9 @@ public class DefaultContentManager implements ContentManager {
             dstPath = dstPath != null ? dstPath : fhandle.getPath();
             AssertArgument.assertTrue(!dstPath.isAbsolute(), "Given path must be relative: " + dstPath);
             
-            boolean replaceExisting = config.isReplaceExisting();
+            boolean fileOverwrite = config.isOverwrite();
             Path plainPath = assertValidPlainPath(owner, dstPath);
-            NessusUserFault.assertTrue(replaceExisting || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
+            NessusUserFault.assertTrue(fileOverwrite || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
             
             Path tmpPath = fhres.getFilePath();
             plainPath.getParent().toFile().mkdirs();
@@ -1523,7 +1520,7 @@ public class DefaultContentManager implements ContentManager {
                 LOG.info("{}: {}", logPrefix("timeout", attempt),  fhres);
             }
             
-            else if (ex instanceof MerkleNotFoundException) {
+            else if (ex instanceof IPFSNotFoundException) {
                 
                 fhres = new FHBuilder(fhres)
                         .expired(true)

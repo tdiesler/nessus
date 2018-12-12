@@ -20,6 +20,8 @@ package io.nessus.test.ipfs;
  * #L%
  */
 
+import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -40,11 +42,12 @@ import org.junit.Before;
 import org.junit.Test;
 
 import io.nessus.Wallet;
-import io.nessus.ipfs.ContentManager.ContentManagerConfig;
+import io.nessus.ipfs.Config;
+import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.NessusUserFault;
-import io.nessus.ipfs.impl.FHeader;
-import io.nessus.ipfs.impl.FHeaderValues;
+import io.nessus.ipfs.core.FHeader;
+import io.nessus.ipfs.core.FHeaderValues;
 import io.nessus.utils.FileUtils;
 import io.nessus.utils.StreamUtils;
 import io.nessus.utils.TimeUtils;
@@ -261,9 +264,13 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void findTiming() throws Exception {
 
-        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
+		Config config = new ConfigBuilder()
+        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+                .ipfsAttempts(attempts)
                 .ipfsTimeout(timeout)
-                .ipfsAttempts(attempts));
+        		.build();
+        
+        createContentManager(config);
         
         Date start = new Date();
         addIpfsContent(addrBob, getTestPath(100), "test100_" + start.getTime());
@@ -278,9 +285,13 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void spendFileRegs() throws Exception {
 
-        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
+		Config config = new ConfigBuilder()
+        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+                .ipfsAttempts(attempts)
                 .ipfsTimeout(timeout)
-                .ipfsAttempts(attempts));
+        		.build();
+        
+        createContentManager(config);
         
         cntmgr.removeLocalContent(addrBob, Paths.get("contentA"));
         
@@ -309,9 +320,13 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     @Test
     public void findNonExisting() throws Exception {
 
-        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
+		Config config = new ConfigBuilder()
+        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+                .ipfsAttempts(attempts)
                 .ipfsTimeout(timeout)
-                .ipfsAttempts(attempts));
+        		.build();
+        
+        createContentManager(config);
         
         List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
         if (fhandles.isEmpty()) {
@@ -326,9 +341,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         
         // SET A BREAKPOINT HERE AND CONTINUE WITH A NEW IPFS INSTANCE
         
-        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
-                .ipfsTimeout(timeout)
-                .ipfsAttempts(attempts));
+        createContentManager(config);
         
         fhandles = cntmgr.findIpfsContent(addrBob, null);
         fhandles.forEach(fh -> LOG.info("{}", fh));
@@ -387,7 +400,12 @@ public class ContentManagerTest extends AbstractWorkflowTest {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
         }
         
-        createContentManager(new ContentManagerConfig(blockchain, ipfsClient).replaceExisting());
+		Config config = new ConfigBuilder()
+        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+        		.overwrite(true)
+        		.build();
+        
+        createContentManager(config);
 
         // Verify that we now can get to an existing path
         fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);

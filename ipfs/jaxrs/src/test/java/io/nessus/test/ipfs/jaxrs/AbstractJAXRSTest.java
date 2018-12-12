@@ -31,17 +31,14 @@ import org.junit.BeforeClass;
 
 import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
-import io.nessus.BlockchainFactory;
 import io.nessus.Network;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.bitcoin.BitcoinBlockchain;
+import io.nessus.ipfs.Config;
+import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.ContentManager.ContentManagerConfig;
-import io.nessus.ipfs.impl.DefaultIPFSClient;
-import io.nessus.ipfs.impl.ExtendedContentManager;
+import io.nessus.ipfs.core.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
@@ -49,7 +46,7 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
     protected static ExtendedContentManager cntmgr;
     protected static Blockchain blockchain;
     protected static Network network;
-    protected static AbstractWallet wallet;
+    protected static Wallet wallet;
 
     protected static Address addrBob;
     protected static Address addrMary;
@@ -57,12 +54,15 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
 
-        blockchain = BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
-        wallet = (AbstractWallet) blockchain.getWallet();
+        Config config = new ConfigBuilder()
+        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+        		.build();
+        
+        cntmgr = new ExtendedContentManager(config);
+        
+        blockchain = cntmgr.getBlockchain();
         network = blockchain.getNetwork();
-
-        IPFSClient ipfsClient = new DefaultIPFSClient();
-        cntmgr = new ExtendedContentManager(new ContentManagerConfig(blockchain, ipfsClient));
+        wallet = blockchain.getWallet();
 
         importAddresses(wallet, AbstractJAXRSTest.class);
 
@@ -73,8 +73,9 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
     @AfterClass
     public static void afterClass() throws Exception {
 
-        wallet.redeemChange(LABEL_BOB, addrBob);
-        wallet.redeemChange(LABEL_MARY, addrMary);
+    	AbstractWallet absw = (AbstractWallet) wallet;
+    	absw.redeemChange(LABEL_BOB, addrBob);
+    	absw.redeemChange(LABEL_MARY, addrMary);
     }
 
     protected void redeemLockedUtxos(Address addr) {

@@ -31,12 +31,6 @@ import io.ipfs.multiaddr.MultiAddress;
 
 public interface IPFSClient {
 
-    public static final String ENV_IPFS_JSONRPC_ADDR = "IPFS_JSONRPC_ADDR";
-    public static final String ENV_IPFS_JSONRPC_PORT = "IPFS_JSONRPC_PORT";
-    
-    public static final String ENV_IPFS_GATEWAY_ADDR = "IPFS_GATEWAY_ADDR";
-    public static final String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
-    
     MultiAddress getAPIAddress();
     
     List<String> add(Path path) throws IOException;

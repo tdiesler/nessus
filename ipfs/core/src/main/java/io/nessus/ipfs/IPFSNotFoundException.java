@@ -21,13 +21,13 @@ package io.nessus.ipfs;
  */
 
 @SuppressWarnings("serial")
-public class MerkleNotFoundException extends IPFSException {
+public class IPFSNotFoundException extends IPFSException {
 
-    public MerkleNotFoundException(String message) {
+    public IPFSNotFoundException(String message) {
         super(message);
     }
     
-    public MerkleNotFoundException(String message, Throwable cause) {
+    public IPFSNotFoundException(String message, Throwable cause) {
         super(message, cause);
     }
 }

@@ -1,4 +1,7 @@
-package io.nessus.ipfs.impl;
+package io.nessus.ipfs.core;
+
+import static io.nessus.ipfs.Config.ENV_IPFS_JSONRPC_ADDR;
+import static io.nessus.ipfs.Config.ENV_IPFS_JSONRPC_PORT;
 
 import java.io.ByteArrayOutputStream;
 
@@ -42,12 +45,12 @@ import org.slf4j.LoggerFactory;
 
 import io.ipfs.api.IPFS;
 import io.ipfs.api.MerkleNode;
-import io.ipfs.api.NamedStreamable.FileWrapper;
 import io.ipfs.api.NamedStreamable.ByteArrayWrapper;
+import io.ipfs.api.NamedStreamable.FileWrapper;
 import io.ipfs.multiaddr.MultiAddress;
 import io.ipfs.multihash.Multihash;
-import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.IPFSClient;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;

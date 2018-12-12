@@ -1,4 +1,4 @@
-package io.nessus.ipfs.impl;
+package io.nessus.ipfs.core;
 
 /*-
  * #%L
@@ -27,17 +27,18 @@ import java.security.PublicKey;
 
 import io.nessus.UTXO;
 import io.nessus.Wallet.Address;
+import io.nessus.ipfs.Config;
 import io.nessus.ipfs.FHandle;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class ExtendedContentManager extends DefaultContentManager {
 
-    public ExtendedContentManager(ContentManagerConfig config) {
+    public ExtendedContentManager(Config config) {
         super(config);
     }
 
     @Override
-    public ContentManagerConfig getConfig() {
+    public Config getConfig() {
         return super.getConfig();
     }
 

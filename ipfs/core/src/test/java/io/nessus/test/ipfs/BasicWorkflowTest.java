@@ -1,5 +1,7 @@
 package io.nessus.test.ipfs;
 
+import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -13,7 +15,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.ContentManager.ContentManagerConfig;
+import io.nessus.ipfs.Config;
+import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
 
 public class BasicWorkflowTest extends AbstractWorkflowTest {
@@ -24,9 +27,13 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
     @Test
     public void basicWorkflow() throws Exception {
         
-        createContentManager(new ContentManagerConfig(blockchain, ipfsClient)
+		Config config = new ConfigBuilder()
+        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+                .ipfsAttempts(attempts)
                 .ipfsTimeout(timeout)
-                .ipfsAttempts(attempts));
+        		.build();
+        
+        createContentManager(config);
         
         // Register the public encryption keys
         

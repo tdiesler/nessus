@@ -24,17 +24,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.util.List;
 
 import io.nessus.Blockchain;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.impl.DefaultContentManager;
-import io.nessus.utils.AssertState;
 
 public interface ContentManager {
+
+    static final long DEFAULT_IPFS_TIMEOUT = 6000; // 6 sec
+    static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
+    static final int DEFAULT_IPFS_THREADS = 12;
 
     /**
      * Get the Blockchain
@@ -44,7 +45,7 @@ public interface ContentManager {
     /**
      * Get the IPFS client
      */
-    IPFSClient getIPFSClient();
+    IPFSClient getIpfsClient();
     
     /**
      * Register a public address.
@@ -119,95 +120,4 @@ public interface ContentManager {
      * Remove a plain file content from local storage.  
      */
     boolean removeLocalContent(Address owner, Path path) throws IOException;
-
-
-    public class ContentManagerConfig {
-
-        private final Blockchain blockchain;
-        private final IPFSClient ipfsClient;
-        private long ipfsTimeout = DefaultContentManager.DEFAULT_IPFS_TIMEOUT;
-        private int ipfsAttempts = DefaultContentManager.DEFAULT_IPFS_ATTEMPTS;
-        private int ipfsThreads = DefaultContentManager.DEFAULT_IPFS_THREADS;
-        private Path rootPath = Paths.get(System.getProperty("user.home"), ".nessus");
-        private boolean replaceExisting;
-        
-        private boolean mutable = true;
-        
-        public ContentManagerConfig(Blockchain blockchain, IPFSClient ipfsClient) {
-            this.blockchain = blockchain;
-            this.ipfsClient = ipfsClient;
-        }
-
-        public Blockchain getBlockchain() {
-            return blockchain;
-        }
-
-        public IPFSClient getIpfsClient() {
-            return ipfsClient;
-        }
-
-        public long getIpfsTimeout() {
-            return ipfsTimeout;
-        }
-
-        public int getIpfsAttempts() {
-            return ipfsAttempts;
-        }
-
-        public int getIpfsThreads() {
-            return ipfsThreads;
-        }
-
-        public Path getRootPath() {
-            return rootPath;
-        }
-
-        public boolean isReplaceExisting() {
-            return replaceExisting;
-        }
-
-        public ContentManagerConfig ipfsTimeout(long ipfsTimeout) {
-            assertMutable();
-            this.ipfsTimeout = ipfsTimeout;
-            return this;
-        }
-
-        public ContentManagerConfig ipfsAttempts(int ipfsAttempts) {
-            assertMutable();
-            this.ipfsAttempts = ipfsAttempts;
-            return this;
-        }
-
-        public ContentManagerConfig ipfsThreads(int ipfsThreads) {
-            assertMutable();
-            this.ipfsThreads = ipfsThreads;
-            return this;
-        }
-
-        public ContentManagerConfig rootPath(Path rootPath) {
-            assertMutable();
-            this.rootPath = rootPath;
-            return this;
-        }
-
-        public ContentManagerConfig replaceExisting() {
-            assertMutable();
-            this.replaceExisting = true;
-            return this;
-        }
-
-        public ContentManagerConfig makeImmutable() {
-            mutable = false;
-            return this;
-        }
-        
-        private void assertMutable() {
-            AssertState.assertTrue(mutable, "Immutable config");
-        }
-        
-        public String toString() {
-            return String.format("[rootPath=%s, timeout=%s, attempts=%s, threads=%s, replace=%b]", 
-                    rootPath, ipfsTimeout, ipfsAttempts, ipfsThreads, replaceExisting);
-        }
-    }
 }

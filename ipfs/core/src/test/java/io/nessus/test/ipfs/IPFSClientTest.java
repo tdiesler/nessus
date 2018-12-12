@@ -37,7 +37,7 @@ import org.junit.Test;
 
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
-import io.nessus.ipfs.impl.DefaultIPFSClient;
+import io.nessus.ipfs.core.DefaultIPFSClient;
 import io.nessus.utils.StreamUtils;
 
 /**

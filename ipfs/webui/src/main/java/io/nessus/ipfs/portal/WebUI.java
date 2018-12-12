@@ -13,8 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
-import io.nessus.BlockchainFactory;
-import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.Config;
 import io.nessus.ipfs.jaxrs.JaxrsClient;
 import io.nessus.ipfs.jaxrs.JaxrsConfig;
 import io.nessus.ipfs.jaxrs.JaxrsSanityCheck;
@@ -72,13 +71,11 @@ public class WebUI {
         
         LOG.info("{} Version: {} Build: {}", getApplicationName(), implVersion, implBuild);
         
-        URL bcUrl = config.getBlockchainUrl();
-        Class<Blockchain> bcImpl = config.getBlockchainImpl();
-        blockchain = BlockchainFactory.getBlockchain(bcUrl, bcImpl);
+        blockchain = config.getBlockchain();
         JaxrsClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
-        String envHost = SystemUtils.getenv(IPFSClient.ENV_IPFS_GATEWAY_ADDR, "127.0.0.1");
-        String envPort = SystemUtils.getenv(IPFSClient.ENV_IPFS_GATEWAY_PORT, "8080");
+        String envHost = SystemUtils.getenv(Config.ENV_IPFS_GATEWAY_ADDR, "127.0.0.1");
+        String envPort = SystemUtils.getenv(Config.ENV_IPFS_GATEWAY_PORT, "8080");
         gatewayUrl = new URL(String.format("http://%s:%s/ipfs", envHost, envPort));
         LOG.info("IPFS Gateway: {}", gatewayUrl);
 
