@@ -29,17 +29,11 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.Reader;
-import java.io.Writer;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -55,7 +49,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.Callable;
@@ -118,7 +111,7 @@ public class DefaultContentManager implements ContentManager {
     protected final Blockchain blockchain;
     protected final Network network;
     protected final Wallet wallet;
-    protected final FHeaderIdentity fhid;
+    protected final FHeaderValues fhvals;
     private final BCData bcdata;
 
     // Executor service for async IPFS get operations
@@ -143,8 +136,8 @@ public class DefaultContentManager implements ContentManager {
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
         
-        fhid = getFHeaderId();
-        bcdata = new BCData(fhid);
+        fhvals = getFHeaderValues();
+        bcdata = new BCData(fhvals);
         
         LOG.info("{}{}", getClass().getSimpleName(), config);
         
@@ -187,17 +180,9 @@ public class DefaultContentManager implements ContentManager {
         KeyPair keyPair = RSAUtils.getKeyPair(addr);
         pubKey = keyPair.getPublic();
         
-        List<String> labels = addr.getLabels();
-        AssertState.assertTrue(labels.size() < 2, "Multiple labels: " + labels);
+        AddrRegistration areg = new AddrRegistration(fhvals, addr, pubKey);
+        String cid = areg.addIpfsContent(ipfsClient);
         
-        Properties props = new Properties();
-        props.setProperty("Label", labels.get(0));
-        props.setProperty("Address", addr.getAddress());
-        props.setProperty("PublicKey", RSAUtils.encodeKey(pubKey));
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        props.store(new OutputStreamWriter(baos), null);
-        
-        String cid = ipfsClient.addSingle(baos.toByteArray());
         byte[] data = bcdata.createAddrData(Multihash.fromBase58(cid));
 
         // Send a Tx to record the OP_RETURN data
@@ -209,7 +194,7 @@ public class DefaultContentManager implements ContentManager {
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
-        String label = labels.get(0);
+        String label = areg.getLabel();
         List<UTXO> utxos = wallet.selectUnspent(label, spendAmount.add(feePerKB));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
@@ -731,8 +716,8 @@ public class DefaultContentManager implements ContentManager {
         return ((RpcClientSupport) blockchain).getRpcClient();
     }
 
-    protected FHeaderIdentity getFHeaderId() {
-        return new FHeaderIdentity("Nessus", "1.0");
+    protected FHeaderValues getFHeaderValues() {
+        return new FHeaderValues("Nessus", "1.0");
     }
 
     Path getRootPath() {
@@ -972,10 +957,9 @@ public class DefaultContentManager implements ContentManager {
         AssertState.assertTrue(fullPath.toFile().isFile(), "Cannot find IPFS content at: " + fullPath);
         
         try (FileReader fr = new FileReader(fullPath.toFile())) {
-            BufferedReader br = new BufferedReader(fr);
 
-            FHeader header = readFHeader(br);
-            Address owner = getAddress(header.owner);
+            FHeader header = FHeader.fromReader(fhvals, fr);
+            Address owner = findAddress(header.owner);
             String encToken = header.token;
             Path path = header.path;
             
@@ -1121,7 +1105,7 @@ public class DefaultContentManager implements ContentManager {
         return fhandle;
     }
 
-    private Address getAddress(String rawAddr) {
+    private Address findAddress(String rawAddr) {
         Address addrs = wallet.findAddress(rawAddr);
         AssertState.assertNotNull(addrs, "Address not known to this wallet: " + rawAddr);
         return addrs;
@@ -1189,7 +1173,8 @@ public class DefaultContentManager implements ContentManager {
                 try (FileWriter fw = new FileWriter(tmpPath.toFile())) {
                     
                     // Write the file header
-                    writeHeader(fhres, fw);
+                    FHeader header = FHeader.fromFHandle(fhvals, fhres);
+                    header.write(fw);
                     
                     try (InputStream ins = new FileInputStream(srcFile)) {
                         
@@ -1250,8 +1235,7 @@ public class DefaultContentManager implements ContentManager {
                 
                 FHeader header;
                 try (FileReader fr = new FileReader(srcFile)) {
-                    header = readFHeader(fr);
-                    AssertState.assertEquals(fhid.VERSION_STRING, header.version);
+                    header = FHeader.fromReader(fhvals, fr);
                 }
                 
                 // Read the content
@@ -1335,14 +1319,13 @@ public class DefaultContentManager implements ContentManager {
             // Not owned by the given address
             if (owner != null && !owner.equals(outAddr)) return null;
             
-            Properties props = new Properties();
+            AddrRegistration areg;
             try {
                 
-            	InputStream input = ipfsClient.cat(cid.toBase58());
-                props.load(input);
-                
-                String encKey = props.getProperty("PublicKey");
-                pubKey = RSAUtils.decodePublicKey(encKey);
+            	areg = AddrRegistration.fromIpfs(ipfsClient, wallet, fhvals, cid);
+            	AssertState.assertEquals(outAddr, areg.getAddress());
+            	
+            	pubKey = areg.getPubKey();
                 
             } catch (IOException | GeneralSecurityException ex) {
                 throw new IllegalStateException(ex);
@@ -1433,23 +1416,6 @@ public class DefaultContentManager implements ContentManager {
         return bcdata.isOurs(txdata);
     }
 
-    protected FHeader readFHeader(Reader rd) throws IOException {
-        return FHeader.create(fhid, rd);
-    }
-
-    private FHeader writeHeader(FHandle fhandle, Writer pw) throws IOException {
-        
-        String owner = fhandle.getOwner().getAddress();
-        String encToken = fhandle.getSecretToken();
-        
-        LOG.debug("IPFS token: {}", encToken);
-        
-        FHeader header = new FHeader(fhid.VERSION_STRING, fhandle.getPath(), owner, fhandle.getSecretToken(), -1);
-        header.write(fhid, pw);
-        
-        return header;
-    }
-    
     // Make sure the total amount in the utxos is > required fees
     private List<UTXO> addMoreUtxoIfRequired(Address addr, List<UTXO> utxos) {
         
@@ -1611,173 +1577,6 @@ public class DefaultContentManager implements ContentManager {
         FHandle remove(String cid) {
             LOG.debug("Cache remove: {}", cid);
             return filecache.remove(cid);
-        }
-    }
-    
-    public static class FHeaderIdentity {
-        
-        public final String PREFIX;
-        public final String VERSION;
-        public final String VERSION_STRING;
-        public final String FILE_HEADER_END;
-        
-        public FHeaderIdentity(String prefix, String version) {
-            this.PREFIX = prefix;
-            this.VERSION = version;
-            this.VERSION_STRING = PREFIX + "-Version: " + VERSION;
-            this.FILE_HEADER_END = PREFIX.toUpperCase() + "_HEADER_END";
-        }
-    }
-    
-    public static class FHeader {
-        
-        public final String version;
-        public final Path path;
-        public final String owner;
-        public final String token;
-        public final int length;
-        
-        FHeader(String version, Path path, String owner, String token, int length) {
-            AssertArgument.assertNotNull(version, "Null version");
-            AssertArgument.assertNotNull(path, "Null path");
-            AssertArgument.assertNotNull(owner, "Null owner");
-            AssertArgument.assertNotNull(token, "Null token");
-            AssertArgument.assertTrue(length != 0, "Invalid length: " + length);
-            this.version = version;
-            this.path = path;
-            this.owner = owner;
-            this.token = token;
-            this.length = length;
-        }
-
-        static FHeader create(FHeaderIdentity fhid, Reader rd) throws IOException {
-            BufferedReader br = new BufferedReader(rd);
-            
-            // First line is the version
-            String line = br.readLine();
-            AssertState.assertTrue(line.startsWith(fhid.VERSION_STRING), "Invalid version: " + line);
-            
-            String version = line;
-            Path path = null;
-            String owner = null;
-            String token = null;
-            
-            int length = line.length() + 1;
-
-            // Read more header lines
-            while (line != null) {
-                line = br.readLine();
-                if (line != null) {
-                    
-                    length += line.length() + 1;
-                    
-                    if (line.startsWith("Path: ")) {
-                        path = Paths.get(line.substring(6));
-                    } else if (line.startsWith("Owner: ")) {
-                        owner = line.substring(7);
-                    } else if (line.startsWith("Token: ")) {
-                        token = line.substring(7);
-                    } else if (line.startsWith(fhid.FILE_HEADER_END)) {
-                        line = null;
-                    }
-                }
-            }
-            
-            FHeader fheader = new FHeader(version, path, owner, token, length);
-            return fheader;
-        }
-
-        void write(FHeaderIdentity fhid, Writer wr) {
-            PrintWriter pw = new PrintWriter(wr);
-            
-            // First line is the version
-            pw.println(fhid.VERSION_STRING);
-            
-            // Second is the location
-            pw.println(String.format("Path: %s", path));
-            
-            // Then comes the owner
-            pw.println(String.format("Owner: %s", owner));
-            
-            // Then comes the encryption token in Base64
-            pw.println(String.format("Token: %s", token));
-            
-            // Then comes an end of header marker
-            pw.println(fhid.FILE_HEADER_END);
-        }
-        
-        public String toString() {
-            return String.format("[version=%s, owner=%s, path=%s, token=%s]", version, owner, path, token);
-        }
-    }
-    
-    static class BCData {
-        
-        static final byte OP_ADDR_DATA = 0x10;
-        static final byte OP_FILE_DATA = 0x20;
-        static final byte OP_RETURN = 0x6A; 
-        
-        final String OP_PREFIX;
-        
-        BCData(FHeaderIdentity fhid) {
-            OP_PREFIX = fhid.PREFIX;
-        }
-
-        byte[] createAddrData(Multihash cid) {
-            byte[] bytes = cid.toBytes();
-            return buffer(OP_ADDR_DATA, bytes.length + 1).put((byte) bytes.length).put(bytes).array();
-        }
-
-        Multihash extractAddrData(byte[] txdata) {
-            if (extractOpCode(txdata) != OP_ADDR_DATA)
-                return null;
-            byte[] data = extractData(txdata);
-            int len = data[0];
-            data = Arrays.copyOfRange(data, 1, 1 + len);
-            return new Multihash(data);
-        }
-
-        byte[] createFileData(FHandle fhandle) {
-            byte[] fid = fhandle.getCid().getBytes();
-            return buffer(OP_FILE_DATA, fid.length + 1).put((byte) fid.length).put(fid).array();
-        }
-
-        byte[] extractFileData(byte[] txdata) {
-            if (extractOpCode(txdata) != OP_FILE_DATA)
-                return null;
-            byte[] data = extractData(txdata);
-            int len = data[0];
-            data = Arrays.copyOfRange(data, 1, 1 + len);
-            return data;
-        }
-
-        boolean isOurs(byte[] txdata) {
-            byte[] prefix = OP_PREFIX.getBytes();
-            if (txdata[0] != OP_RETURN) return false;
-            if (txdata[1] != txdata.length - 2) return false;
-            byte[] aux = Arrays.copyOfRange(txdata, 2, 2 + prefix.length);
-            return Arrays.equals(prefix, aux);
-        }
-
-        byte extractOpCode(byte[] txdata) {
-            if (!isOurs(txdata)) return -1;
-            byte[] prefix = OP_PREFIX.getBytes();
-            byte opcode = txdata[prefix.length + 2];
-            return opcode;
-        }
-
-        private byte[] extractData(byte[] txdata) {
-            if (!isOurs(txdata)) return null;
-            byte[] prefix = OP_PREFIX.getBytes();
-            return Arrays.copyOfRange(txdata, 2 + prefix.length + 1, txdata.length);
-        }
-
-        private ByteBuffer buffer(byte op, int dlength) {
-            byte[] prefix = OP_PREFIX.getBytes();
-            ByteBuffer buffer = ByteBuffer.allocate(prefix.length + 1 + dlength);
-            buffer.put(prefix);
-            buffer.put(op);
-            return buffer;
         }
     }
 }

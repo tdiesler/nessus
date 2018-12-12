@@ -5,6 +5,7 @@ import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
@@ -53,11 +54,6 @@ public class RSAUtils {
         return Base64.getEncoder().encodeToString(rawKey);
     }
 
-    /**
-     * Decode public key from the given base64 encoded string
-     * 
-     * Note, this requiers unlimited security policies
-     */
     public static PublicKey decodePublicKey(String encKey) throws GeneralSecurityException {
         byte[] keyBytes = Base64.getDecoder().decode(encKey);
         return decodePublicKey(keyBytes);
@@ -70,9 +66,15 @@ public class RSAUtils {
     }
 
     private static KeyPair generateKeyPairInternal(SecureRandom secrnd) throws GeneralSecurityException {
+    	
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", "BC");
         KeyPairGeneratorSpi spi = (KeyPairGeneratorSpi) kpg;
         spi.initialize(2048, secrnd);
-        return kpg.generateKeyPair();
+        
+        KeyPair keyPair = kpg.generateKeyPair();
+        
+        // Normalize the key representation
+        PublicKey pubKey = decodePublicKey(encodeKey(keyPair.getPublic()));
+		return new KeyPair(pubKey, keyPair.getPrivate());
     }
 }

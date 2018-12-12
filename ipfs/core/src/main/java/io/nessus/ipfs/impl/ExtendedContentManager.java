@@ -21,7 +21,6 @@ package io.nessus.ipfs.impl;
  */
 
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
@@ -68,8 +67,8 @@ public class ExtendedContentManager extends DefaultContentManager {
     }
 
     @Override
-    public FHeaderIdentity getFHeaderId() {
-        return super.getFHeaderId();
+    public FHeaderValues getFHeaderValues() {
+        return super.getFHeaderValues();
     }
 
     @Override
@@ -85,11 +84,6 @@ public class ExtendedContentManager extends DefaultContentManager {
     @Override
     public FHandle getFHandleFromTx(Address owner, UTXO utxo) {
         return super.getFHandleFromTx(owner, utxo);
-    }
-
-    @Override
-    public FHeader readFHeader(Reader rd) throws IOException {
-        return super.readFHeader(rd);
     }
 
     @Override

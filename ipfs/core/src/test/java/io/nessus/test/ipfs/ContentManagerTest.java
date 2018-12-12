@@ -43,7 +43,8 @@ import io.nessus.Wallet;
 import io.nessus.ipfs.ContentManager.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.NessusUserFault;
-import io.nessus.ipfs.impl.DefaultContentManager.FHeader;
+import io.nessus.ipfs.impl.FHeader;
+import io.nessus.ipfs.impl.FHeaderValues;
 import io.nessus.utils.FileUtils;
 import io.nessus.utils.StreamUtils;
 import io.nessus.utils.TimeUtils;
@@ -242,8 +243,9 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Path srcPath = Paths.get("some space");
         FHandle fhandle = cntmgr.addIpfsContent(addrBob, srcPath, input);
         Path cryptPath = fhandle.getFilePath();
-        try (Reader rd = new FileReader(cryptPath.toFile())) {
-            FHeader fheader = cntmgr.readFHeader(rd);
+        try (Reader fr = new FileReader(cryptPath.toFile())) {
+        	FHeaderValues fhv = cntmgr.getFHeaderValues();
+            FHeader fheader = FHeader.fromReader(fhv, fr);
             Assert.assertEquals(srcPath, fheader.path);
         }
         Path destPath = Paths.get("some other");
