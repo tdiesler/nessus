@@ -5,7 +5,6 @@ import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
@@ -20,7 +19,9 @@ import io.nessus.utils.AssertArgument;
 
 public class RSAUtils {
 
-    static {
+    public static final int DEFAULT_STRENGTH = 2048;
+
+	static {
         Security.addProvider(new BouncyCastleProvider());
     }
     
@@ -28,27 +29,20 @@ public class RSAUtils {
      * Generate the key pair from a random source.
      */
     public static KeyPair newKeyPair() throws GeneralSecurityException {
-        
-        SecureRandom secrnd = new SecureRandom();
-        return generateKeyPairInternal(secrnd);
+        return generateKeyPairInternal(null, DEFAULT_STRENGTH);
     }
     
     /**
      * Derive the key pair from blockchain private key.
      */
-    public static KeyPair getKeyPair(Address addr) throws GeneralSecurityException {
-        AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
-
-        // Derive the corresponding deterministic EC key pair  
-        SecureRandom secrnd = new DeterministicRandom(addr);
-        KeyPair keyPair = generateKeyPairInternal(secrnd);
-
-        return keyPair;
+    public static KeyPair newKeyPair(Address addr) throws GeneralSecurityException {
+        return generateKeyPairInternal(addr, DEFAULT_STRENGTH);
     }
 
-    /**
-     * Encode the given key
-     */
+    public static KeyPair newKeyPair(Address addr, int strenght) throws GeneralSecurityException {
+        return generateKeyPairInternal(addr, strenght);
+    }
+
     public static String encodeKey(Key key) {
         byte[] rawKey = key.getEncoded();
         return Base64.getEncoder().encodeToString(rawKey);
@@ -65,11 +59,14 @@ public class RSAUtils {
         return keyFactory.generatePublic(keySpec);
     }
 
-    private static KeyPair generateKeyPairInternal(SecureRandom secrnd) throws GeneralSecurityException {
+    private static KeyPair generateKeyPairInternal(Address addr, int strenght) throws GeneralSecurityException {
+        AssertArgument.assertTrue(addr == null || addr.getPrivKey() != null, "Wallet does not control private key for: " + addr);
     	
+        SecureRandom secrnd = addr != null ? new DeterministicRandom(addr) : new SecureRandom();
+        
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", "BC");
         KeyPairGeneratorSpi spi = (KeyPairGeneratorSpi) kpg;
-        spi.initialize(2048, secrnd);
+        spi.initialize(strenght, secrnd);
         
         KeyPair keyPair = kpg.generateKeyPair();
         

@@ -166,7 +166,7 @@ public class AESCipherTest extends AbstractCipherTest {
     @Test
     public void testDeterministicKey() throws Exception {
         
-        SecretKey secKey = AESUtils.getSecretKey(addrBob, cid);
+        SecretKey secKey = AESUtils.newSecretKey(addrBob, cid);
         String token = AESUtils.encodeKey(secKey);
         
         Assert.assertEquals("QXqjvsbKAU2Moc+6sWk/4A==", token);
@@ -204,5 +204,15 @@ public class AESCipherTest extends AbstractCipherTest {
                 .distinct().count());
         
         Assert.assertEquals(text, results.get(0));
+    }
+
+    @Test
+    public void testKeyStrenght() throws Exception {
+        
+        SecretKey secKey = AESUtils.newSecretKey(addrBob, cid, 512);
+        String token = AESUtils.encodeKey(secKey);
+        LOG.info("{}", token);
+        
+        Assert.assertEquals(88, token.length());
     }
 }

@@ -104,11 +104,10 @@ public class RSACipherTest extends AbstractCipherTest {
         Assert.assertEquals(text, results.get(0));
     }
 
-
     @Test
     public void testDeterministicKey() throws Exception {
         
-        KeyPair keyPair = RSAUtils.getKeyPair(addrBob);
+        KeyPair keyPair = RSAUtils.newKeyPair(addrBob);
         PublicKey pubKey = keyPair.getPublic();
         String token = encode(pubKey.getEncoded());
         LOG.info(token);
@@ -153,5 +152,16 @@ public class RSACipherTest extends AbstractCipherTest {
                 .distinct().count());
         
         Assert.assertEquals(text, results.get(0));
+    }
+
+    @Test
+    public void testKeyStrenght() throws Exception {
+        
+        KeyPair keyPair = RSAUtils.newKeyPair(addrBob, 1024);
+        PublicKey pubKey = keyPair.getPublic();
+        String token = encode(pubKey.getEncoded());
+        LOG.info("{}", pubKey);
+        
+        Assert.assertEquals(216, token.length());
     }
 }

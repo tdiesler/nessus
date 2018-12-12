@@ -129,7 +129,7 @@ public class ECIESCipherTest extends AbstractCipherTest {
     @Test
     public void testDeterministicKey() throws Exception {
         
-        KeyPair keyPair = ECIESUtils.getKeyPair(addrBob);
+        KeyPair keyPair = ECIESUtils.newKeyPair(addrBob);
         PublicKey pubKey = keyPair.getPublic();
         String token = encode(pubKey.getEncoded());
         LOG.info(token);

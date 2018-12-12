@@ -20,65 +20,50 @@ import io.nessus.utils.AssertState;
 
 public class AESUtils {
 
+    public static final int DEFAULT_STRENGTH = 128;
+    
     static {
         Security.addProvider(new BouncyCastleProvider());
     }
     
     /**
-     * Encode the given key
-     */
-    public static String encodeKey(Key key) {
-        byte[] rawKey = key.getEncoded();
-        return Base64.getEncoder().encodeToString(rawKey);
-    }
-
-    /**
-     * Decode the given secret key
-     */
-    public static SecretKey decodeSecretKey(String encKey) {
-        byte[] rawKey = Base64.getDecoder().decode(encKey);
-        return decodeSecretKey(rawKey);
-    }
-
-    /**
-     * Decode the given secret key
-     */
-    public static SecretKey decodeSecretKey(byte[] rawKey) {
-        AssertArgument.assertTrue(rawKey.length == 16, "Expected 128 bit");
-        return new SecretKeySpec(rawKey, "AES");
-    }
-
-    /**
      * Generate the secret key from a random source.
      */
-    public static SecretKey newSecretKey() {
-
-        // Use a randomly generated 128 bit key
-        byte[] key = new byte[16];
-        new SecureRandom().nextBytes(key);
-        
-        return new SecretKeySpec(key, "AES");
+    public static SecretKey newSecretKey() throws GeneralSecurityException {
+        return generateSecretKeyInternal(null, null, DEFAULT_STRENGTH);
     }
     
     /**
      * Create an AES secret key derived from the owner's private key.
      */
-    public static SecretKey getSecretKey(Address addr) throws GeneralSecurityException {
-        return getSecretKey(addr, null);
+    public static SecretKey newSecretKey(Address addr) throws GeneralSecurityException {
+        return generateSecretKeyInternal(addr, null, DEFAULT_STRENGTH);
     }
 
     /**
      * Create an AES secret key derived from the owner's private key and some content id.
      */
-    public static SecretKey getSecretKey(Address addr, Multihash cid) throws GeneralSecurityException {
-        
-        // Use a pseudo random generated 128 bit key
-        SecureRandom secrnd = new DeterministicRandom(addr, cid);
-        
-        byte[] key = new byte[16];
-        secrnd.nextBytes(key);
-        
-        return new SecretKeySpec(key, "AES");
+    public static SecretKey newSecretKey(Address addr, Multihash cid) throws GeneralSecurityException {
+        return generateSecretKeyInternal(addr, cid, DEFAULT_STRENGTH);
+    }
+
+    public static SecretKey newSecretKey(Address addr, Multihash cid, int strength) throws GeneralSecurityException {
+        return generateSecretKeyInternal(addr, cid, strength);
+    }
+
+    public static String encodeKey(Key key) {
+        byte[] rawKey = key.getEncoded();
+        return Base64.getEncoder().encodeToString(rawKey);
+    }
+
+    public static SecretKey decodeSecretKey(String encKey) {
+        byte[] rawKey = Base64.getDecoder().decode(encKey);
+        return decodeSecretKey(rawKey);
+    }
+
+    public static SecretKey decodeSecretKey(byte[] rawKey) {
+        AssertArgument.assertTrue(rawKey.length == 16, "Expected 128 bit");
+        return new SecretKeySpec(rawKey, "AES");
     }
 
     /**
@@ -102,4 +87,23 @@ public class AESUtils {
         // NEVER REUSE THIS IV WITH SAME KEY
         return Arrays.copyOf(sha256, 12);
 	}
+
+    private static SecretKey generateSecretKeyInternal(Address addr, Multihash cid, int strenght) throws GeneralSecurityException {
+        AssertArgument.assertTrue(addr == null || addr.getPrivKey() != null, "Wallet does not control private key for: " + addr);
+        AssertArgument.assertTrue(strenght % 8 == 0, "Invalid stregth: " + strenght);
+    	
+        SecureRandom secrnd;
+        if (addr != null && cid != null) {
+        	secrnd = new DeterministicRandom(addr, cid);
+        } else if (addr != null) {
+        	secrnd = new DeterministicRandom(addr);
+        } else {
+        	secrnd = new SecureRandom();
+        }
+        
+        byte[] key = new byte[strenght / 8];
+        secrnd.nextBytes(key);
+        
+        return new SecretKeySpec(key, "AES");
+    }
 }

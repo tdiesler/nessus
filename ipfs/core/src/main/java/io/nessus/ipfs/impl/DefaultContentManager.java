@@ -177,7 +177,7 @@ public class DefaultContentManager implements ContentManager {
 
         // Store the EC key, which is derived from the privKey
 
-        KeyPair keyPair = RSAUtils.getKeyPair(addr);
+        KeyPair keyPair = RSAUtils.newKeyPair(addr);
         pubKey = keyPair.getPublic();
         
         AddrRegistration areg = new AddrRegistration(fhvals, addr, pubKey);
@@ -1133,10 +1133,10 @@ public class DefaultContentManager implements ContentManager {
         
         // Get the AES secret key for the entire tree
         Address owner = fhandle.getOwner();
-        SecretKey secKey = AESUtils.getSecretKey(owner, cid);
+        SecretKey secKey = AESUtils.newSecretKey(owner, cid);
         
         // Encrypt the AES secret key
-        KeyPair keyPair = RSAUtils.getKeyPair(owner);
+        KeyPair keyPair = RSAUtils.newKeyPair(owner);
         byte[] tokBytes = rsa.encrypt(keyPair.getPublic(), secKey.getEncoded());
         String secToken = Base64.getEncoder().encodeToString(tokBytes);
 
@@ -1207,7 +1207,7 @@ public class DefaultContentManager implements ContentManager {
         RSACipher rsa = new RSACipher();
         
         Address owner = fhandle.getOwner();
-        KeyPair keyPair = RSAUtils.getKeyPair(owner);
+        KeyPair keyPair = RSAUtils.newKeyPair(owner);
         PrivateKey privKey = keyPair.getPrivate();
         
         Path tmpDir = createTempDir();

@@ -56,7 +56,7 @@ public class CipherSanityCheck {
         // This is a Bitcoin priv key in WIF
         Address auxAddr = getTestAddress();
         
-        KeyPair keyPair = ECIESUtils.getKeyPair(auxAddr);
+        KeyPair keyPair = ECIESUtils.newKeyPair(auxAddr);
         PublicKey pubKey = keyPair.getPublic();
         PrivateKey pivKey = keyPair.getPrivate();
 

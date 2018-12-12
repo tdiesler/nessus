@@ -32,7 +32,7 @@ public class ECIESUtils {
     /**
      * Derive the key pair from blockchain private key.
      */
-    public static KeyPair getKeyPair(Address addr) throws GeneralSecurityException {
+    public static KeyPair newKeyPair(Address addr) throws GeneralSecurityException {
         SecureRandom secrnd = new DeterministicRandom(addr);
         return generateKeyPairInternal(secrnd);
     }
