@@ -28,26 +28,27 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 import io.ipfs.multiaddr.MultiAddress;
+import io.ipfs.multihash.Multihash;
 
 public interface IPFSClient {
 
     MultiAddress getAPIAddress();
     
-    List<String> add(Path path) throws IOException;
+    List<Multihash> add(Path path) throws IOException;
 
-    List<String> add(Path path, boolean wrap, boolean hashOnly) throws IOException;
+    List<Multihash> add(Path path, boolean wrap, boolean hashOnly) throws IOException;
     
-    String addSingle(Path path) throws IOException;
+    Multihash addSingle(Path path) throws IOException;
 
-    String addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException;
+    Multihash addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException;
 
-    String addSingle(InputStream input) throws IOException;
+    Multihash addSingle(InputStream input) throws IOException;
 
-    String addSingle(byte[] bytes) throws IOException;
+    Multihash addSingle(byte[] bytes) throws IOException;
 
-    InputStream cat(String cid) throws IOException;
+    InputStream cat(Multihash cid) throws IOException;
 
-    Future<Path> get(String cid, Path outdir);
+    Future<Path> get(Multihash cid, Path outdir);
 
     String version() throws IOException;
     

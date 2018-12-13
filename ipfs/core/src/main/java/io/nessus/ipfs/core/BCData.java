@@ -33,7 +33,7 @@ class BCData {
     }
 
     byte[] createFileData(FHandle fhandle) {
-        byte[] fid = fhandle.getCid().getBytes();
+        byte[] fid = fhandle.getCid().toBase58().getBytes();
         return buffer(OP_FILE_DATA, fid.length + 1).put((byte) fid.length).put(fid).array();
     }
 

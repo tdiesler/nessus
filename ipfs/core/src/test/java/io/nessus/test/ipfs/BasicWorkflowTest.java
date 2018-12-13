@@ -14,7 +14,7 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.nessus.Wallet.Address;
+import io.ipfs.multihash.Multihash;
 import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
@@ -36,9 +36,6 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         createContentManager(config);
         
         // Register the public encryption keys
-        
-        Address addrBob = wallet.getAddress(LABEL_BOB);
-        Address addrMary = wallet.getAddress(LABEL_MARY);
         
         PublicKey pubKeyBob = cntmgr.registerAddress(addrBob);
         assertKeyEquals(pubKeyBob, cntmgr.findAddressRegistation(addrBob));
@@ -79,7 +76,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Find IPFS content on blockchain
         
-        String cidBob = fhandle.getCid();
+        Multihash cidBob = fhandle.getCid();
         fhandle = findIpfsContent(addrBob, cidBob, null);
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
@@ -107,7 +104,7 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Find IPFS content on blockchain
         
-        String cidMary = fhandle.getCid();
+        Multihash cidMary = fhandle.getCid();
         fhandle = findIpfsContent(addrMary, cidMary, null);
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
@@ -131,30 +128,5 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         String encExp = Base64.getEncoder().encodeToString(exp.getEncoded());
         String encWas = Base64.getEncoder().encodeToString(was.getEncoded());
         Assert.assertEquals(encExp, encWas);
-    }
-    
-    @SuppressWarnings("serial")
-    static class KnownPubKey implements PublicKey {
-
-        final String encodedKey;
-        
-        KnownPubKey(String encodedKey) {
-            this.encodedKey = encodedKey;
-        }
-
-        @Override
-        public String getFormat() {
-            return "X.509";
-        }
-
-        @Override
-        public byte[] getEncoded() {
-            return Base64.getDecoder().decode(encodedKey);
-        }
-
-        @Override
-        public String getAlgorithm() {
-            return "EC";
-        }
     }
 }

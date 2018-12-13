@@ -28,6 +28,7 @@ import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.util.List;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.Blockchain;
 import io.nessus.Wallet.Address;
 
@@ -84,7 +85,7 @@ public interface ContentManager {
     /**
      * Get content from IPFS. 
      */
-    FHandle getIpfsContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException;
+    FHandle getIpfsContent(Address owner, Multihash cid, Path path, Long timeout) throws IOException, GeneralSecurityException;
     
     /**
      * Find registered IPFS content for a given address.
@@ -94,12 +95,12 @@ public interface ContentManager {
     /**
      * Send content to a target address via IPFS. 
      */
-    FHandle sendIpfsContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException;
+    FHandle sendIpfsContent(Address owner, Multihash cid, Address target, Long timeout) throws IOException, GeneralSecurityException;
 
     /**
      * Unregister a IPFS content.
      */
-    List<String> unregisterIpfsContent(Address owner, List<String> cids) throws IOException;
+    List<Multihash> unregisterIpfsContent(Address owner, List<Multihash> cids) throws IOException;
     
     /**
      * Show content of a plain file from local storage.  

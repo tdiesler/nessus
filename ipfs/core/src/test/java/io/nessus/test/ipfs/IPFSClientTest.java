@@ -27,16 +27,14 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.IPFSException;
 import io.nessus.ipfs.core.DefaultIPFSClient;
 import io.nessus.utils.StreamUtils;
 
@@ -54,9 +52,9 @@ public class IPFSClientTest {
         client = new DefaultIPFSClient();
         
         Path path = Paths.get("src/test/resources/html");
-        List<String> cids = client.add(path);
+        List<Multihash> cids = client.add(path);
         Assert.assertEquals(10, cids.size());
-        Assert.assertEquals("Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW", cids.get(9));
+        Assert.assertEquals("Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW", cids.get(9).toBase58());
     }
     
     @Test
@@ -69,13 +67,13 @@ public class IPFSClientTest {
     @Test
     public void basicOps() throws Exception {
         
-        String HASH = "QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6";
+    	Multihash HASH = Multihash.fromBase58("QmUD7uG5prAMHbcCfp4x1G1mMSpywcSMHTGpq62sbpDAg6");
         
         // add
         
         URL furl = getClass().getResource("/html/etc/userfile.txt");
         Path path = Paths.get(furl.getPath());
-        String resHash = client.addSingle(path);
+        Multihash resHash = client.addSingle(path);
         Assert.assertEquals(HASH, resHash);
 
         // cat 
@@ -92,12 +90,12 @@ public class IPFSClientTest {
     @Test
     public void binaryAddGet() throws Exception {
         
-        String HASH = "QmaMgvGJjZU511pzH1fSwh9RRnKckyujoRxVeDSEaEGM5N";
+        Multihash HASH = Multihash.fromBase58("QmaMgvGJjZU511pzH1fSwh9RRnKckyujoRxVeDSEaEGM5N");
         
         // add
         
         Path path = Paths.get("src/test/resources/html/img/logo.png");
-        String resHash = client.addSingle(path);
+        Multihash resHash = client.addSingle(path);
         Assert.assertEquals(HASH, resHash);
 
         // get 
@@ -108,12 +106,12 @@ public class IPFSClientTest {
     @Test
     public void binaryAddGetInSubDir() throws Exception {
         
-        String HASH = "QmYhaNnLGtFDEc559T9bVkqYqaXLGojMWDzVqjFZgrmnCi";
+        Multihash HASH = Multihash.fromBase58("QmYhaNnLGtFDEc559T9bVkqYqaXLGojMWDzVqjFZgrmnCi");
         
         // add
         
         Path path = Paths.get("src/test/resources/html/img");
-        List<String> cids = client.add(path);
+        List<Multihash> cids = client.add(path);
         Assert.assertEquals(2, cids.size());
         Assert.assertEquals(HASH, cids.get(1));
 
@@ -139,31 +137,14 @@ public class IPFSClientTest {
         added QmYhaNnLGtFDEc559T9bVkqYqaXLGojMWDzVqjFZgrmnCi html/img
         added Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW html
         */
-        String HASH = "Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW";
+        Multihash HASH = Multihash.fromBase58("Qme6hd6tYXTFb7bb7L3JZ5U6ygktpAHKxbaeffYyQN85mW");
         
         // get 
         Path outPath = Paths.get("target/ipfs");
         Path path = client.get(HASH, outPath).get(3000, TimeUnit.MILLISECONDS);
-        Assert.assertEquals(outPath.resolve(HASH), path);
+        Assert.assertEquals(outPath.resolve(HASH.toBase58()), path);
         Assert.assertTrue("Is dir: " + path, path.toFile().isDirectory());
         Assert.assertTrue(path.resolve("index.html").toFile().isFile());
-    }
-
-    @Test
-    public void getInvalidIPFSPath() throws Exception {
-        
-        String HASH = "XInvalidHashmdD2VVMkuuE5HjVxixTJTu24PyRE3Xea33";
-        
-        // get 
-        Path outPath = Paths.get("target/ipfs");
-        Future<Path> future = client.get(HASH, outPath);
-        try {
-            future.get();
-            Assert.fail("ExecutionException expected");
-        } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause();
-            Assert.assertTrue(cause instanceof IPFSException);
-        }
     }
 
     @Test
@@ -179,12 +160,12 @@ public class IPFSClientTest {
         added QmP2oWphFGtPasCDXurRaxHZsq6NHnD2kd5Tt5H1NTEqSn contentA/subB
         added QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8 contentA
         */
-        String HASH = "QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8";
+        Multihash HASH = Multihash.fromBase58("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8");
         
         // add --only-hash
         
         Path path = Paths.get("src/test/resources/contentA");
-        List<String> cids = client.add(path, false, true);
+        List<Multihash> cids = client.add(path, false, true);
         Assert.assertEquals(7, cids.size());
         Assert.assertEquals(HASH, cids.get(6));
     }

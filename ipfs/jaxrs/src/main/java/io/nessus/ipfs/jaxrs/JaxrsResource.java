@@ -36,6 +36,7 @@ import javax.ws.rs.QueryParam;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
@@ -158,7 +159,7 @@ public class JaxrsResource implements JaxrsEndpoint {
         assertBlockchainNetworkAvailable();
         
         Address owner = assertWalletAddress(addr);
-        FHandle fhandle = cntmgr.getIpfsContent(owner, cid, Paths.get(path), timeout);
+        FHandle fhandle = cntmgr.getIpfsContent(owner, Multihash.fromBase58(cid), Paths.get(path), timeout);
 
         AssertState.assertTrue(fhandle.getFilePath().toFile().exists());
         AssertState.assertNull(fhandle.getCid());
@@ -177,7 +178,7 @@ public class JaxrsResource implements JaxrsEndpoint {
         Address owner = assertWalletAddress(addr);
         Address target = assertWalletAddress(rawTarget);
 
-        FHandle fhandle = cntmgr.sendIpfsContent(owner, cid, target, timeout);
+        FHandle fhandle = cntmgr.sendIpfsContent(owner, Multihash.fromBase58(cid), target, timeout);
         AssertState.assertNotNull(fhandle.getCid());
 
         SFHandle shandle = new SFHandle(fhandle);
@@ -203,16 +204,18 @@ public class JaxrsResource implements JaxrsEndpoint {
     }
 
     @Override
-    public List<String> unregisterIpfsContent(String addr, List<String> cids) throws IOException {
+    public List<String> unregisterIpfsContent(String addr, List<String> rawids) throws IOException {
         
         assertBlockchainNetworkAvailable();
         
         Address owner = assertWalletAddress(addr);
         
-        List<String> result = cntmgr.unregisterIpfsContent(owner, cids);
+        List<Multihash> cids = rawids.stream().map(id -> Multihash.fromBase58(id)).collect(Collectors.toList());
+        
+        List<Multihash> result = cntmgr.unregisterIpfsContent(owner, cids);
         LOG.info("/rmipfs {} {} => {}", addr, cids, result);
 
-        return result;
+        return result.stream().map(cid -> cid.toBase58()).collect(Collectors.toList());
     }
 
     @Override

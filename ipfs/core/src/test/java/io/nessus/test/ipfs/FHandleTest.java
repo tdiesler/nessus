@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import org.junit.Assert;
 import org.junit.Test;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.utils.FileUtils;
@@ -31,21 +32,23 @@ public class FHandleTest extends AbstractWorkflowTest {
         
         // Change root properties & maintain children
         
-        FHandle fhandleB = new FHBuilder(fhandleA).cid("fhandleB").build();
+    	Multihash HASH = Multihash.fromBase58("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8");
+    	
+        FHandle fhandleB = new FHBuilder(fhandleA).cid(HASH).build();
         LOG.info(fhandleB.toString(true));
-        Assert.assertEquals("fhandleB", fhandleB.getCid());
+        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8", fhandleB.getCidPath());
         Assert.assertEquals("contentA", fhandleB.getPath().toString());
         Assert.assertEquals(3, fhandleB.getChildren().size());
         FHandle fhChild = fhandleB.getChildren().get(1);
-        Assert.assertEquals("fhandleB/subB", fhChild.getCid());
+        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB", fhChild.getCidPath());
         String fhandleBstr = fhandleB.toString(true);
         
         // Modify a subtree element
         
         Path childPath = fhandleA.getPath().resolve("subB/subC/file02.txt");
-        FHandle fhandleC = new FHBuilder(fhandleA).findChild(childPath).cid("fhandleC").build();
+        FHandle fhandleC = new FHBuilder(fhandleA).findChild(childPath).cid(HASH).build();
         LOG.info(fhandleC.toString(true));
-        Assert.assertEquals("fhandleC", fhandleC.getCid());
+        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB/subC/file02.txt", fhandleC.getCidPath());
         Assert.assertEquals("contentA/subB/subC/file02.txt", fhandleC.getPath().toString());
         Assert.assertEquals(0, fhandleC.getChildren().size());
 
@@ -57,7 +60,7 @@ public class FHandleTest extends AbstractWorkflowTest {
         FHandle fhandleD = fhandleC.getRoot();
         LOG.info(fhandleD.toString(true));
         Assert.assertEquals("contentA", fhandleD.getPath().toString());
-        Assert.assertEquals("fhandleC", fhandleD.findChild(childPath).getCid());
+        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB/subC/file02.txt", fhandleD.findChild(childPath).getCidPath());
     }
 
     @Test

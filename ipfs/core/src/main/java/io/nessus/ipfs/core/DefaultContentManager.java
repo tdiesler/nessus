@@ -178,9 +178,9 @@ public class DefaultContentManager implements ContentManager {
         pubKey = keyPair.getPublic();
         
         AddrRegistration areg = new AddrRegistration(fhvals, addr, pubKey);
-        String cid = areg.addIpfsContent(ipfsClient);
+        Multihash cid = areg.addIpfsContent(ipfsClient);
         
-        byte[] data = bcdata.createAddrData(Multihash.fromBase58(cid));
+        byte[] data = bcdata.createAddrData(cid);
 
         // Send a Tx to record the OP_RETURN data
 
@@ -262,12 +262,12 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public List<String> unregisterIpfsContent(Address owner, List<String> cids) throws IOException {
+    public List<Multihash> unregisterIpfsContent(Address owner, List<Multihash> cids) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
         
         assertArgumentHasLabel(owner);
 
-        List<String> results = new ArrayList<>();
+        List<Multihash> results = new ArrayList<>();
         
         Wallet wallet = getBlockchain().getWallet();
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(owner)).stream()
@@ -357,13 +357,13 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("IPFS add: {}", fhandle.toString(true));
         
-        List<String> cids = ipfsClient.add(auxPath);
+        List<Multihash> cids = ipfsClient.add(auxPath);
         AssertState.assertTrue(cids.size() > 0, "No ipfs content ids");
         
         // Move the temp file to its crypt path
         
-        String cid = cids.get(cids.size() - 1);
-        Path fullPath = getCryptPath(owner).resolve(cid);
+        Multihash cid = cids.get(cids.size() - 1);
+        Path fullPath = getCryptPath(owner).resolve(cid.toBase58());
         Files.move(auxPath, fullPath, StandardCopyOption.ATOMIC_MOVE);
         
         URL furl = fullPath.toUri().toURL();
@@ -463,7 +463,7 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public FHandle getIpfsContent(Address owner, String cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
+    public FHandle getIpfsContent(Address owner, Multihash cid, Path path, Long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(cid, "Null cid");
 
@@ -484,7 +484,7 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public FHandle sendIpfsContent(Address owner, String cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
+    public FHandle sendIpfsContent(Address owner, Multihash cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(cid, "Null cid");
         AssertArgument.assertNotNull(target, "Null target");
@@ -519,7 +519,7 @@ public class DefaultContentManager implements ContentManager {
         Path tmpPath = fhandle.getFilePath();
         cid = ipfsClient.addSingle(tmpPath);
         
-        Path cryptPath = getCryptPath(target).resolve(cid);
+        Path cryptPath = getCryptPath(target).resolve(cid.toBase58());
         Files.move(tmpPath, cryptPath);
 
         URL furl = cryptPath.toUri().toURL();
@@ -622,8 +622,8 @@ public class DefaultContentManager implements ContentManager {
             }
             
             // Cleanup the file cache by removing entries that are no longer unspent
-            List<String> cids = unspentFHandles.stream().map(fh -> fh.getCid()).collect(Collectors.toList());
-            for (String cid : new HashSet<>(filecache.keySet())) {
+            List<Multihash> cids = unspentFHandles.stream().map(fh -> fh.getCid()).collect(Collectors.toList());
+            for (Multihash cid : new HashSet<>(filecache.keySet())) {
                 FHandle aux = filecache.get(cid);
                 if (owner.equals(aux.getOwner()) && !cids.contains(aux.getCid())) {
                     filecache.remove(cid);
@@ -749,7 +749,7 @@ public class DefaultContentManager implements ContentManager {
         return Files.createTempFile(getTempPath(), "", "");
     }
     
-    private FHandle ipfsGet(Address owner, String cid, long timeout) throws IOException, IPFSTimeoutException {
+    private FHandle ipfsGet(Address owner, Multihash cid, long timeout) throws IOException, IPFSTimeoutException {
         
         FHandle fhandle;
         synchronized (filecache) {
@@ -775,10 +775,10 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(fhandle.getCid(), "Null cid");
         
         Address owner = fhandle.getOwner();
-        String cid = fhandle.getCid();
+        Multihash cid = fhandle.getCid();
         
         Path cryptPath = getCryptPath(owner);
-        Path rootPath = cryptPath.resolve(cid);
+        Path rootPath = cryptPath.resolve(cid.toBase58());
         
         // Fetch the content from IPFS
         
@@ -979,7 +979,7 @@ public class DefaultContentManager implements ContentManager {
         
         synchronized (filecache) {
             for (FHandle fhaux : fhandles) {
-                String cid = fhaux.getCid();
+            	Multihash cid = fhaux.getCid();
                 FHandle fhc = filecache.get(cid);
                 if (fhc == null) {
                     fhc = new FHBuilder(fhaux).elapsed(0L).build();
@@ -1124,9 +1124,9 @@ public class DefaultContentManager implements ContentManager {
         
         // Get the CID for the plain content
         // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
-        List<String> cids = ipfsClient.add(fhandle.getFilePath(), false, true);
+        List<Multihash> cids = ipfsClient.add(fhandle.getFilePath(), false, true);
         AssertState.assertTrue(cids.size() > 0, "Cannot obtain content ids for: " + fhandle);
-        Multihash cid = Multihash.fromBase58(cids.get(cids.size() - 1));
+        Multihash cid = cids.get(cids.size() - 1);
         
         // Get the AES secret key for the entire tree
         Address owner = fhandle.getOwner();
@@ -1161,8 +1161,7 @@ public class DefaultContentManager implements ContentManager {
                 
                 // Get the CID for the plain content
                 // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
-                String encid = ipfsClient.addSingle(fhaux.getFilePath(), false, true);
-                Multihash cid = Multihash.fromBase58(encid);
+                Multihash cid = ipfsClient.addSingle(fhaux.getFilePath(), false, true);
                 
                 // Create a content based AES key & IV
                 byte[] iv = AESUtils.getIV(cid, owner);
@@ -1354,7 +1353,8 @@ public class DefaultContentManager implements ContentManager {
         if (hashBytes != null && outAddr != null) {
 
             // Get the file id from stored data
-            String cid = new String(hashBytes);
+        	String fid = new String(hashBytes);
+			Multihash cid = Multihash.fromBase58(fid);
 
             // Get the file from IPFS
             LOG.debug("File Tx: {} => {}", tx.txId(), cid);
@@ -1550,9 +1550,9 @@ public class DefaultContentManager implements ContentManager {
     
     static class IPFSFileCache {
         
-        private final Map<String, FHandle> filecache = Collections.synchronizedMap(new LinkedHashMap<>());
+        private final Map<Multihash, FHandle> filecache = Collections.synchronizedMap(new LinkedHashMap<>());
 
-        Set<String> keySet() {
+        Set<Multihash> keySet() {
             return filecache.keySet();
         }
         
@@ -1560,18 +1560,18 @@ public class DefaultContentManager implements ContentManager {
             filecache.clear();
         }
 
-        FHandle get(String cid) {
+        FHandle get(Multihash cid) {
             return filecache.get(cid);
         }
         
         FHandle put(FHandle fhandle) {
-            String cid = fhandle.getCid();
+        	Multihash cid = fhandle.getCid();
             AssertArgument.assertNotNull(cid, "Null cid");
             LOG.debug("Cache put: {}", fhandle);
             return filecache.put(cid, fhandle);
         }
         
-        FHandle remove(String cid) {
+        FHandle remove(Multihash cid) {
             LOG.debug("Cache remove: {}", cid);
             return filecache.remove(cid);
         }

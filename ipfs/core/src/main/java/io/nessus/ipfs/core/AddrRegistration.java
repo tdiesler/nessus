@@ -63,7 +63,7 @@ class AddrRegistration {
 	static AddrRegistration fromIpfs(IPFSClient ipfsClient, Wallet wallet, FHeaderValues fhvals, Multihash cid) throws IOException, GeneralSecurityException {
 		
 		Properties props = new Properties();
-    	InputStream input = ipfsClient.cat(cid.toBase58());
+    	InputStream input = ipfsClient.cat(cid);
         props.load(input);
         
         String version = props.getProperty(fhvals.PREFIX + "-Version");
@@ -89,7 +89,7 @@ class AddrRegistration {
 		return pubKey;
 	}
 
-	String addIpfsContent(IPFSClient ipfsClient) throws IOException {
+	Multihash addIpfsContent(IPFSClient ipfsClient) throws IOException {
 		
         Properties props = new Properties();
         props.setProperty(fhvals.PREFIX + "-Version", fhvals.VERSION);
@@ -99,7 +99,7 @@ class AddrRegistration {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         props.store(new OutputStreamWriter(baos), null);
         
-        String cid = ipfsClient.addSingle(baos.toByteArray());
+        Multihash cid = ipfsClient.addSingle(baos.toByteArray());
         
         LOG.info("Addr Registration: {} => {} => {}", addr.getAddress(), cid, pubKey);
         return cid;

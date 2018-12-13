@@ -103,58 +103,56 @@ public class DefaultIPFSClient implements IPFSClient {
     }
 
     @Override
-    public List<String> add(Path path) throws IOException {
+    public List<Multihash> add(Path path) throws IOException {
         return add(path, false, false);
     }
 
     @Override
-    public List<String> add(Path path, boolean wrap, boolean hashOnly) throws IOException {
+    public List<Multihash> add(Path path, boolean wrap, boolean hashOnly) throws IOException {
         List<MerkleNode> parts = ipfs().add(new FileWrapper(path.toFile()), wrap, hashOnly);
         AssertState.assertTrue(parts.size() > 0, "No content added");
-        return parts.stream().map(mn -> mn.hash.toBase58()).collect(Collectors.toList());
+        return parts.stream().map(mn -> mn.hash).collect(Collectors.toList());
     }
 
     @Override
-    public String addSingle(Path path) throws IOException {
+    public Multihash addSingle(Path path) throws IOException {
         return addSingle(path, false, false);
     }
 
     @Override
-    public String addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException {
+    public Multihash addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException {
         AssertArgument.assertTrue(path.toFile().isFile(), "Not a file: " + path);
-        List<String> cids = add(path);
+        List<Multihash> cids = add(path);
         AssertState.assertTrue(cids.size() > 0, "No content added");
         return cids.get(0);
     }
 
     @Override
-    public String addSingle(InputStream input) throws IOException {
+    public Multihash addSingle(InputStream input) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         return addSingle(baos.toByteArray());
     }
 
     @Override
-    public String addSingle(byte[] bytes) throws IOException {
+    public Multihash addSingle(byte[] bytes) throws IOException {
         List<MerkleNode> parts = ipfs().add(new ByteArrayWrapper(bytes));
         AssertState.assertTrue(parts.size() > 0, "No content added");
-        String cid = parts.stream().map(mn -> mn.hash.toBase58()).findFirst().get();
+        Multihash cid = parts.stream().map(mn -> mn.hash).findFirst().get();
         return cid;
     }
 
     @Override
-    public InputStream cat(String hash) throws IOException {
-        Multihash mhash = Multihash.fromBase58(hash);
-        return ipfs().catStream(mhash);
+    public InputStream cat(Multihash cid) throws IOException {
+        return ipfs().catStream(cid);
     }
 
     @Override
-    public Future<Path> get(String hash, Path outdir) {
+    public Future<Path> get(Multihash cid, Path outdir) {
         Future<Path> future = executorService.submit(new Callable<Path>() {
             @Override
             public Path call() throws Exception {
                 try {
-                    Multihash mhash = Multihash.fromBase58(hash);
-                    return get(mhash, outdir.resolve(hash));
+                    return getInternal(cid, outdir.resolve(cid.toBase58()));
                 } catch (Exception ex) {
                     throw new IPFSException(ex);
                 }
@@ -162,17 +160,17 @@ public class DefaultIPFSClient implements IPFSClient {
         return future;
     }
 
-    private Path get(Multihash mhash, Path outpath) throws IOException {
-        List<MerkleNode> links = ipfs().ls(mhash).get(0).links;
+    private Path getInternal(Multihash cid, Path outpath) throws IOException {
+        List<MerkleNode> links = ipfs().ls(cid).get(0).links;
         for (MerkleNode node : links) {
             String name = node.name.get();
-            get(node.hash, outpath.resolve(name));
+            getInternal(node.hash, outpath.resolve(name));
         }
         if (links.isEmpty()) {
             File outfile = outpath.toFile();
             outpath.getParent().toFile().mkdirs();
             try (OutputStream fout = new FileOutputStream(outfile)) {
-                InputStream ins = ipfs().catStream(mhash);
+                InputStream ins = ipfs().catStream(cid);
                 StreamUtils.copyStream(ins, fout);
             }
         }

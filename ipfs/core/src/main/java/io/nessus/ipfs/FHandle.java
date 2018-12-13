@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
 import io.nessus.utils.AssertArgument;
 
@@ -46,7 +47,7 @@ public class FHandle {
     
     final FHandle parent;
     final Address owner;
-    final String cid;
+    final Multihash cid;
     final Path path;
     final URL furl;
     final String txId;
@@ -59,14 +60,15 @@ public class FHandle {
     final AtomicBoolean scheduled;
     final List<FHandle> children = new ArrayList<>();
     
-    private FHandle(FHandle parent, Address owner, Path path, String cid, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, Long elapsed) {
+    private FHandle(FHandle parent, Address owner, Path path, Multihash cid, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, Long elapsed) {
         AssertArgument.assertNotNull(owner, "Null owner");
         boolean urlBased = path != null && furl != null;
         AssertArgument.assertTrue(urlBased || cid != null, "Neither url nor cid based");
         
         // Adjust child cid
-        if (parent != null && parent.cid != null) 
-            cid = parent.cid + "/" + path.getFileName();
+        if (parent != null && parent.cid != null) {
+            cid = parent.cid;
+        }
         
         this.parent = parent;
         this.owner = owner;
@@ -107,8 +109,16 @@ public class FHandle {
         return !children.isEmpty();
     }
     
-    public String getCid() {
+    public Multihash getCid() {
         return cid;
+    }
+
+    public String getCidPath() {
+    	if (cid == null) return null;
+    	if (getRoot() == this) return cid.toBase58();
+    	Path rootPath = getRoot().getPath();
+		Path relpath = rootPath.relativize(path);
+        return cid + "/" + relpath;
     }
 
     public URL getURL() {
@@ -228,7 +238,7 @@ public class FHandle {
     
     private void addChild(FHandle fhchild) {
         Path chpath = fhchild.getPath();
-        String chcid = fhchild.getCid();
+        Multihash chcid = fhchild.getCid();
         AssertArgument.assertTrue(chcid != null || chpath != null, "Neither cid not path in: " + fhchild);
         if (chpath != null) {
             AssertArgument.assertTrue(chpath.startsWith(path) && !chpath.equals(path), "Invalid child path: " + chpath);
@@ -273,14 +283,14 @@ public class FHandle {
     @Override
     public String toString() {
         return String.format("[cid=%s, owner=%s, path=%s, avl=%d, exp=%d, try=%d, time=%s]", 
-                cid, owner.getAddress(), path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
+                getCidPath(), owner.getAddress(), path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
     }
 
     public static class FHBuilder {
         
         private FHandle parent;
         private Address owner;
-        private String cid;
+        private Multihash cid;
         private Path path;
         private URL furl;
         private String txId;
@@ -306,7 +316,7 @@ public class FHandle {
             this.furl = furl;
         }
 
-        public FHBuilder(Address owner, String cid) {
+        public FHBuilder(Address owner, Multihash cid) {
             this.owner = owner;
             this.cid = cid;
         }
@@ -348,7 +358,7 @@ public class FHandle {
             return findChildRecursive(rootBuilder(), path);
         }
 
-        public FHBuilder findChild(String cid) {
+        public FHBuilder findChild(Multihash cid) {
             AssertArgument.assertNotNull(cid, "Null cid");
             return findChildRecursive(rootBuilder(), cid);
         }
@@ -366,7 +376,7 @@ public class FHandle {
             return null;
         }
 
-        FHBuilder findChildRecursive(FHBuilder builder, String cid) {
+        FHBuilder findChildRecursive(FHBuilder builder, Multihash cid) {
             
             if (cid.equals(builder.cid)) 
                 return builder;
@@ -384,7 +394,7 @@ public class FHandle {
             return this;
         }
 
-        public FHBuilder cid(String cid) {
+        public FHBuilder cid(Multihash cid) {
             this.cid = cid;
             return this;
         }

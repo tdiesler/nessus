@@ -30,6 +30,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.ipfs.FHandle;
 
 public class SFHandle {
@@ -65,7 +66,8 @@ public class SFHandle {
 
     public SFHandle(FHandle fhandle) {
         Path path = fhandle.getPath();
-        this.cid = fhandle.getCid();
+        Multihash cid = fhandle.getCid();
+		this.cid = cid != null ? cid.toBase58() : null;
         this.owner = fhandle.getOwner().getAddress();
         this.path = path != null ? path.toString() : null;
         this.txId = fhandle.getTxId();

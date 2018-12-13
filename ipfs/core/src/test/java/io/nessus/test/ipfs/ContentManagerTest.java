@@ -41,6 +41,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet;
 import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
@@ -95,8 +96,8 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
         Assert.assertEquals(2, fhandles.size());
         
-        List<String> cids = Arrays.asList(fhA.getCid(), fhB.getCid());
-        List<String> cres = cntmgr.unregisterIpfsContent(addrBob, cids);
+        List<Multihash> cids = Arrays.asList(fhA.getCid(), fhB.getCid());
+        List<Multihash> cres = cntmgr.unregisterIpfsContent(addrBob, cids);
         Assert.assertEquals(2, cres.size());
         
         fhandles = cntmgr.findIpfsContent(addrBob, null);
@@ -121,8 +122,8 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertTrue(fhres.isEncrypted());
         
-        String cid = fhres.getCid();
-        Assert.assertEquals("QmUcygEYHUMENET59niod3Kb1YXhKoNDVpuyFLGnASA2Nt", cid);
+        Multihash cid = fhres.getCid();
+        Assert.assertEquals("QmUcygEYHUMENET59niod3Kb1YXhKoNDVpuyFLGnASA2Nt", cid.toBase58());
 
         // Expect to find the local content
         fhres = cntmgr.findLocalContent(addrBob, path);
@@ -178,8 +179,8 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertTrue(fhres.isEncrypted());
         
-        String cid = fhres.getCid();
-		Assert.assertEquals("QmXxz5PKhS691jqjCzu9U1wrH95gYzPQLEtwab3YzED3x1", cid);
+        Multihash cid = fhres.getCid();
+		Assert.assertEquals("QmXxz5PKhS691jqjCzu9U1wrH95gYzPQLEtwab3YzED3x1", cid.toBase58());
         
         List<FHandle> fhandles = flatFileTree(fhres, new ArrayList<>());
         fhandles.forEach(fh -> LOG.info("{}", fh));
@@ -196,9 +197,9 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertTrue(fhres.isEncrypted());
         Assert.assertEquals(3, fhres.getChildren().size());
-        Assert.assertEquals(cid + "/subA", fhres.getChildren().get(0).getCid());
-        Assert.assertEquals(cid + "/subB", fhres.getChildren().get(1).getCid());
-        Assert.assertEquals(cid + "/file03.txt", fhres.getChildren().get(2).getCid());
+        Assert.assertEquals(cid + "/subA", fhres.getChildren().get(0).getCidPath());
+        Assert.assertEquals(cid + "/subB", fhres.getChildren().get(1).getCidPath());
+        Assert.assertEquals(cid + "/file03.txt", fhres.getChildren().get(2).getCidPath());
         
         // Get the file from IPFS
         
@@ -369,7 +370,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.removeLocalContent(addrBob, path);
         
         InputStream input = new ByteArrayInputStream("some text".getBytes());
-        String cid = cntmgr.addIpfsContent(addrBob, path, input).getCid();
+        Multihash cid = cntmgr.addIpfsContent(addrBob, path, input).getCid();
 
         // Verify that we cannot add to an existing path
         try {

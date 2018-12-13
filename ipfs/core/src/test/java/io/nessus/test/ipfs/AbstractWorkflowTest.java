@@ -41,6 +41,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.Blockchain;
 import io.nessus.Network;
 import io.nessus.Wallet;
@@ -151,7 +152,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         return cntmgr.addIpfsContent(addrBob, path, input);
     }
 
-    FHandle getIpfsContent(Address owner, String cid) throws Exception {
+    FHandle getIpfsContent(Address owner, Multihash cid) throws Exception {
         FHandle fhandle = new FHBuilder(owner, cid).build();
         long ipfsTimeout = cntmgr.getConfig().getIpfsTimeout();
         try {
@@ -167,7 +168,7 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         return fhandle;
     }
     
-    FHandle findIpfsContent(Address addr, String cid, Long timeout) throws Exception {
+    FHandle findIpfsContent(Address addr, Multihash cid, Long timeout) throws Exception {
         List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
         FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
         return fhandle;
