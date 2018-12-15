@@ -169,7 +169,7 @@ public class AESCipherTest extends AbstractCipherTest {
         SecretKey secKey = AESUtils.newSecretKey(addrBob, cid);
         String token = AESUtils.encodeKey(secKey);
         
-        Assert.assertEquals("QXqjvsbKAU2Moc+6sWk/4A==", token);
+        Assert.assertEquals("su/CDryLQR9yAJZ+P8TDrQ==", token);
         
         List<String> secmsgs = new ArrayList<>();
         

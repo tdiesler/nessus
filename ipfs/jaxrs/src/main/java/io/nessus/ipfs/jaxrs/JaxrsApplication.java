@@ -93,7 +93,7 @@ public class JaxrsApplication extends Application {
         Blockchain blockchain = cntManager.getBlockchain();
         JaxrsClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
-        IPFSClient ipfsClient = cntManager.getIpfsClient();
+        IPFSClient ipfsClient = cntManager.getIPFSClient();
         LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
         LOG.info("IPFS Version: {}",  ipfsClient.version());
 

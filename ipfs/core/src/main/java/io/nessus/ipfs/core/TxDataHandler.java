@@ -6,7 +6,7 @@ import java.util.Arrays;
 import io.ipfs.multihash.Multihash;
 import io.nessus.ipfs.FHandle;
 
-class BCData {
+class TxDataHandler {
     
     static final byte OP_ADDR_DATA = 0x10;
     static final byte OP_FILE_DATA = 0x20;
@@ -14,7 +14,7 @@ class BCData {
     
     final String OP_PREFIX;
     
-    BCData(FHeaderValues fhid) {
+    TxDataHandler(FHeaderValues fhid) {
         OP_PREFIX = fhid.PREFIX;
     }
 
@@ -37,13 +37,13 @@ class BCData {
         return buffer(OP_FILE_DATA, fid.length + 1).put((byte) fid.length).put(fid).array();
     }
 
-    byte[] extractFileData(byte[] txdata) {
+    Multihash extractFileData(byte[] txdata) {
         if (extractOpCode(txdata) != OP_FILE_DATA)
             return null;
         byte[] data = extractData(txdata);
         int len = data[0];
         data = Arrays.copyOfRange(data, 1, 1 + len);
-        return data;
+        return Multihash.fromBase58(new String(data));
     }
 
     boolean isOurs(byte[] txdata) {

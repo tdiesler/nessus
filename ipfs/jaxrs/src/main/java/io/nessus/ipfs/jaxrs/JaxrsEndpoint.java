@@ -64,7 +64,7 @@ public interface JaxrsEndpoint {
     @GET
     @Path("/regaddr")
     @Produces(MediaType.APPLICATION_JSON)
-    AddrHandle registerAddress(@QueryParam("addr") String addr) throws GeneralSecurityException, IOException;
+    SAHandle registerAddress(@QueryParam("addr") String addr) throws GeneralSecurityException, IOException;
 
     /**
      * Get address registration details.
@@ -89,7 +89,7 @@ public interface JaxrsEndpoint {
     @GET
     @Path("/addrinfo")
     @Produces(MediaType.APPLICATION_JSON)
-    List<AddrHandle> findAddressInfo(@QueryParam("label") String label, @QueryParam("addr") String addr) throws IOException;
+    List<SAHandle> findAddressInfo(@QueryParam("label") String label, @QueryParam("addr") String addr) throws IOException;
 
     /**
      * Unegister the given address from the system.
@@ -115,7 +115,7 @@ public interface JaxrsEndpoint {
     @GET
     @Path("/rmaddr")
     @Produces(MediaType.APPLICATION_JSON)
-    AddrHandle unregisterAddress(@QueryParam("addr") String addr) throws IOException;
+    SAHandle unregisterAddress(@QueryParam("addr") String addr) throws IOException;
     
     /**
      * Add IPFS content from the given input stream.

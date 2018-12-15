@@ -43,48 +43,31 @@ import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
 import io.nessus.utils.AssertArgument;
 
-public class FHandle {
+public class FHandle extends AbstractHandle {
     
     final FHandle parent;
-    final Address owner;
-    final Multihash cid;
     final Path path;
     final URL furl;
-    final String txId;
     final String secToken;
-    final boolean available;
-    final boolean expired;
-    final int attempt;
-    final Long elapsed;
     
-    final AtomicBoolean scheduled;
     final List<FHandle> children = new ArrayList<>();
     
     private FHandle(FHandle parent, Address owner, Path path, Multihash cid, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, Long elapsed) {
-        AssertArgument.assertNotNull(owner, "Null owner");
+    	super(owner, childcid(parent, cid), txId, available, expired, scheduled, attempt, elapsed);
         boolean urlBased = path != null && furl != null;
         AssertArgument.assertTrue(urlBased || cid != null, "Neither url nor cid based");
         
-        // Adjust child cid
-        if (parent != null && parent.cid != null) {
-            cid = parent.cid;
-        }
-        
         this.parent = parent;
-        this.owner = owner;
         this.path = path;
         this.furl = furl;
-        this.cid = cid;
-        this.txId = txId;
         this.secToken = secToken;
-        this.available = available;
-        this.expired = expired;
-        this.scheduled = scheduled;
-        this.attempt = attempt;
-        this.elapsed = elapsed;
     }
+    
+    private static Multihash childcid(FHandle parent, Multihash cid) {
+    	return parent != null ? parent.cid : cid;
+	}
 
-    public FHandle getRoot() {
+	public FHandle getRoot() {
         FHandle result = this;
         while (result.parent != null) {
             result = result.parent;
@@ -109,10 +92,6 @@ public class FHandle {
         return !children.isEmpty();
     }
     
-    public Multihash getCid() {
-        return cid;
-    }
-
     public String getCidPath() {
     	if (cid == null) return null;
     	if (getRoot() == this) return cid.toBase58();
@@ -138,14 +117,6 @@ public class FHandle {
         return path;
     }
     
-    public Address getOwner() {
-        return owner;
-    }
-    
-    public String getTxId() {
-        return txId;
-    }
-
     public String getSecretToken() {
         return secToken;
     }
@@ -154,34 +125,6 @@ public class FHandle {
         return secToken != null;
     }
 
-    public boolean isAvailable() {
-        return available;
-    }
-
-    public boolean isExpired() {
-        return expired;
-    }
-
-    public boolean setScheduled(boolean flag) {
-        return scheduled.compareAndSet(!flag, flag);
-    }
-
-    public boolean isScheduled() {
-        return scheduled.get();
-    }
-
-    public int getAttempt() {
-        return attempt;
-    }
-
-    public Long getElapsed() {
-        return elapsed;
-    }
-
-    public boolean isMissing() {
-        return !available && !expired;
-    } 
-    
     public interface Visitor {
         FHandle visit(FHandle fhandle) throws IOException, GeneralSecurityException;
     }
@@ -231,6 +174,7 @@ public class FHandle {
             this.fhref = fh;
         }
         
+        @Override
         public synchronized String toString() {
             return fhref.toString();
         }
@@ -282,8 +226,9 @@ public class FHandle {
 
     @Override
     public String toString() {
-        return String.format("[cid=%s, owner=%s, path=%s, avl=%d, exp=%d, try=%d, time=%s]", 
-                getCidPath(), owner.getAddress(), path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
+        String addr = owner.getAddress();
+		return String.format("[cid=%s, owner=%s, path=%s, avl=%d, exp=%d, try=%d, time=%s]", 
+                getCidPath(), addr, path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
     }
 
     public static class FHBuilder {

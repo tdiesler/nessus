@@ -1,7 +1,5 @@
 package io.nessus.cipher.utils;
 
-import java.security.GeneralSecurityException;
-
 /*-
  * #%L
  * Nessus :: Cipher
@@ -22,6 +20,7 @@ import java.security.GeneralSecurityException;
  * #L%
  */
 
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -32,7 +31,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import io.nessus.AbstractAddress;
 import io.nessus.Wallet.Address;
-import io.nessus.cipher.ECIESCipher;
+import io.nessus.cipher.RSACipher;
 import io.nessus.utils.AssertState;
 
 public class CipherSanityCheck {
@@ -51,24 +50,24 @@ public class CipherSanityCheck {
         byte[] encBytes = AESUtils.newSecretKey().getEncoded();
         String encSecret = Base64.getEncoder().encodeToString(encBytes);
         
-        // Generate a deterministic key pair using EC
+        // Generate a deterministic key pair
 
         // This is a Bitcoin priv key in WIF
         Address auxAddr = getTestAddress();
         
-        KeyPair keyPair = ECIESUtils.newKeyPair(auxAddr);
+        KeyPair keyPair = RSAUtils.newKeyPair(auxAddr);
         PublicKey pubKey = keyPair.getPublic();
         PrivateKey pivKey = keyPair.getPrivate();
 
         // Verify that the EC public key is deterministic
         
-        final String encPubKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
-        AssertState.assertEquals("MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAEYtzTFMrUdiyYkmsTzP1fAgDmMEzvzuvo3Wp+Eya1JU8=", encPubKey);
-        AssertState.assertEquals(56, pubKey.getEncoded().length);
+        final String encPubKey = RSAUtils.encodeKey(pubKey);
+        AssertState.assertEquals("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5SSQgSaIsFYGKxp9uMuwnYi/M1SEx9uq74suJkdbiwUF/Yznz+bu6ZhpimE79lG/g3rn2ptcWXqZ8DcKOucIyCN2JjmRxh5zpRrR9mfV8JYgvYdjLDweUTABidR3w9FkMKrv+1akyz3S/faxy46xl2L10YlC+g3ufLeWrXEjDZckcBJSYSe1KCateAnSSfm/8I733Lr75mBptlPoCdQF5TrfBbkTS7oEcUkk6Mf3ZMpk7Q/QVU7FnK0+JY0kiZruiobSS3WVGCwZaOjKlw/m3PvdW+s/2Ts26Mr1u8HthHk5Bz/GD8SqIfFPvaebYfUpNk6ct8Y6mNNVfKkk+2Fr+QIDAQAB", encPubKey);
+        AssertState.assertEquals(294, pubKey.getEncoded().length);
         
-        pubKey = ECIESUtils.decodePublicKey(encPubKey);
+        pubKey = RSAUtils.decodePublicKey(encPubKey);
 
-        ECIESCipher ecipher = new ECIESCipher();
+        RSACipher ecipher = new RSACipher();
         byte[] ciphertext = ecipher.encrypt(pubKey, encBytes);
         byte[] decrypted = ecipher.decrypt(pivKey, ciphertext);
 

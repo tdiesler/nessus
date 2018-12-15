@@ -134,7 +134,7 @@ public class ECIESCipherTest extends AbstractCipherTest {
         String token = encode(pubKey.getEncoded());
         LOG.info(token);
         
-        Assert.assertEquals("MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAEYtzTFMrUdiyYkmsTzP1fAgDmMEzvzuvo3Wp+Eya1JU8=", token);
+        Assert.assertEquals("MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAE0yECtdOg+7gg7yXFF0Wvuc+4oQDFHk9NINHBu4pVGI8=", token);
         Assert.assertEquals(76, token.length());
         
         List<String> secmsgs = new ArrayList<>();

@@ -38,7 +38,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.jaxrs.AddrHandle;
+import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.JaxrsApplication;
 import io.nessus.ipfs.jaxrs.JaxrsApplication.JAXRSServer;
 import io.nessus.ipfs.jaxrs.JaxrsClient;
@@ -97,18 +97,18 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Register Bob's public encryption key
 
-        AddrHandle ahBob = client.registerAddress(addrBob.getAddress());
+        SAHandle ahBob = client.registerAddress(addrBob.getAddress());
         Assert.assertNotNull(ahBob.getEncKey());
 
         // Find Bob's pubKey registration
 
-        List<AddrHandle> addrs = client.findAddressInfo(null, addrBob.getAddress());
+        List<SAHandle> addrs = client.findAddressInfo(null, addrBob.getAddress());
         Assert.assertEquals(1, addrs.size());
         Assert.assertEquals(ahBob.getEncKey(), addrs.get(0).getEncKey());
 
         // Register Mary's public encryption key
 
-        AddrHandle ahMary = client.registerAddress(addrMary.getAddress());
+        SAHandle ahMary = client.registerAddress(addrMary.getAddress());
         Assert.assertNotNull(ahMary.getEncKey());
 
         // Find Mary's pubKey registration

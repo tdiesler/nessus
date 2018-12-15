@@ -31,7 +31,6 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -47,13 +46,14 @@ import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.NessusUserFault;
+import io.nessus.ipfs.core.AHandle;
 import io.nessus.ipfs.core.FHeader;
 import io.nessus.ipfs.core.FHeaderValues;
 import io.nessus.utils.FileUtils;
 import io.nessus.utils.StreamUtils;
 import io.nessus.utils.TimeUtils;
 
-public class ContentManagerTest extends AbstractWorkflowTest {
+public class ContentManagerTest extends AbstractIpfsTest {
 
     long timeout = 2000L;
     int attempts = 5;
@@ -62,46 +62,12 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     public void before() throws Exception {
         super.before();
         
-        PublicKey pubKey = cntmgr.findAddressRegistation(addrBob);
-        
-        if (pubKey == null) {
-            cntmgr.registerAddress(addrBob);
-            pubKey = cntmgr.findAddressRegistation(addrBob);
+        AHandle ahandle = cntmgr.findAddressRegistation(addrBob, null);
+        if (ahandle == null) {
+        	ahandle = cntmgr.registerAddress(addrBob);
         }
         
-        Assert.assertNotNull(pubKey);
-    }
-    
-    @Test
-    public void unregisterAddress() throws Exception {
-
-        PublicKey pubKey = cntmgr.findAddressRegistation(addrBob);
-        
-        PublicKey resKey = cntmgr.unregisterAddress(addrBob);
-        Assert.assertEquals(pubKey, resKey);
-        
-        pubKey = cntmgr.findAddressRegistation(addrBob);
-        Assert.assertNull(pubKey);
-    }
-    
-    @Test
-    public void unregisterIPFS() throws Exception {
-
-        InputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
-        FHandle fhA = cntmgr.addIpfsContent(addrBob, Paths.get("kermit.txt"), input);
-        
-        input = new ByteArrayInputStream("Hello Piggy".getBytes());
-        FHandle fhB = cntmgr.addIpfsContent(addrBob, Paths.get("piggy.txt"), input);
-        
-        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
-        Assert.assertEquals(2, fhandles.size());
-        
-        List<Multihash> cids = Arrays.asList(fhA.getCid(), fhB.getCid());
-        List<Multihash> cres = cntmgr.unregisterIpfsContent(addrBob, cids);
-        Assert.assertEquals(2, cres.size());
-        
-        fhandles = cntmgr.findIpfsContent(addrBob, null);
-        Assert.assertEquals(0, fhandles.size());
+        Assert.assertNotNull(ahandle.isAvailable());
     }
     
     @Test
@@ -123,9 +89,10 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertTrue(fhres.isEncrypted());
         
         Multihash cid = fhres.getCid();
-        Assert.assertEquals("QmUcygEYHUMENET59niod3Kb1YXhKoNDVpuyFLGnASA2Nt", cid.toBase58());
+        Assert.assertEquals("Qmce1N5pky6LSVP37a8Hfv2kT7H6w1a1RyDbkaDRg6SSdS", cid.toBase58());
 
         // Expect to find the local content
+        
         fhres = cntmgr.findLocalContent(addrBob, path);
         Assert.assertTrue(fhres.isAvailable());
         
@@ -133,18 +100,22 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         // https://github.com/jboss-fuse/nessus/issues/41
         
         // Use an extremely short timeout 
+        
         fhres = findIpfsContent(addrBob, cid, 10L);
         Assert.assertTrue(fhres.isAvailable());
         
         // Clear the file cache & local file
-        cntmgr.clearFileCache();
+        
+        cntmgr.getIPFSCache().clear();
         cntmgr.removeLocalContent(addrBob, path);
         
         // Get the file from IPFS
+        
         fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
 
         // Verify local content
+        
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
         Assert.assertEquals(new String(baos.toByteArray()), new BufferedReader(rd).readLine());
     }
@@ -180,7 +151,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertTrue(fhres.isEncrypted());
         
         Multihash cid = fhres.getCid();
-		Assert.assertEquals("QmXxz5PKhS691jqjCzu9U1wrH95gYzPQLEtwab3YzED3x1", cid.toBase58());
+		Assert.assertEquals("QmbHxAmpdP6UETKZdZ8bvCj24jVqJ3c6xTGUpdTdEmAEHd", cid.toBase58());
         
         List<FHandle> fhandles = flatFileTree(fhres, new ArrayList<>());
         fhandles.forEach(fh -> LOG.info("{}", fh));
@@ -188,7 +159,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         
         // Clear the file cache & local file
         
-        cntmgr.clearFileCache();
+        cntmgr.getIPFSCache().clear();
         cntmgr.removeLocalContent(addrBob, path);
         
         // Find the IPFS tree
@@ -319,7 +290,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     }
 
     @Test
-    public void findNonExisting() throws Exception {
+    public void findMissingIPFS() throws Exception {
 
 		Config config = new ConfigBuilder()
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
@@ -364,7 +335,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
     }
 
     @Test
-    public void preventSilentOverwrite() throws Exception {
+    public void preventOverwrite() throws Exception {
 
         Path path = Paths.get("override");
         cntmgr.removeLocalContent(addrBob, path);
@@ -373,6 +344,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Multihash cid = cntmgr.addIpfsContent(addrBob, path, input).getCid();
 
         // Verify that we cannot add to an existing path
+        
         try {
             input = new ByteArrayInputStream("some other".getBytes());
             cntmgr.addIpfsContent(addrBob, path, input).getCid();
@@ -382,24 +354,30 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         }
 
         // Clear the file cache & local file
-        cntmgr.clearFileCache();
+        
+        cntmgr.getIPFSCache().clear();
         cntmgr.removeLocalContent(addrBob, path);
         
         // Get the file from IPFS
+        
         FHandle fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
 
         // Verify local content
+        
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
         Assert.assertEquals("some text", new BufferedReader(rd).readLine());
 
         // Verify that we cannot get to an existing path
+        
         try {
             cntmgr.getIpfsContent(addrBob, cid, path, null);
             Assert.fail("NessusUserFault expected");
         } catch (NessusUserFault ex) {
             Assert.assertTrue(ex.getMessage().contains("already exists"));
         }
+        
+        // Use a content manager that allows overwrite
         
 		Config config = new ConfigBuilder()
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
@@ -409,10 +387,12 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         createContentManager(config);
 
         // Verify that we now can get to an existing path
+        
         fhres = cntmgr.getIpfsContent(addrBob, cid, path, null);
         Assert.assertTrue(fhres.isAvailable());
         
         // Verify local content
+        
         rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
         Assert.assertEquals("some text", new BufferedReader(rd).readLine());
     }
@@ -428,6 +408,7 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         cntmgr.addIpfsContent(addrBob, path, input).getCid();
 
         // Verify local content
+        
         Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
         Assert.assertEquals("some text", new BufferedReader(rd).readLine());
         
@@ -439,14 +420,37 @@ public class ContentManagerTest extends AbstractWorkflowTest {
         Assert.assertFalse(fullPath.toFile().exists());
         Assert.assertFalse(fullPath.getParent().toFile().exists());
     }
+
+    @Test
+    public void unregisterAddress() throws Exception {
+
+        AHandle ahandle = cntmgr.findAddressRegistation(addrBob, null);
+        Assert.assertTrue(ahandle.isAvailable());
+        
+        AHandle ahres = cntmgr.unregisterAddress(addrBob);
+        Assert.assertFalse(ahres.isAvailable());
+        
+        ahres = cntmgr.findAddressRegistation(addrBob, null);
+        Assert.assertNull(ahres);
+    }
+    
+    @Test
+    public void unregisterIPFS() throws Exception {
+
+        InputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
+        FHandle fhA = cntmgr.addIpfsContent(addrBob, Paths.get("kermit.txt"), input);
+        
+        input = new ByteArrayInputStream("Hello Piggy".getBytes());
+        FHandle fhB = cntmgr.addIpfsContent(addrBob, Paths.get("piggy.txt"), input);
+        
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
+        Assert.assertEquals(2, fhandles.size());
+        
+        List<Multihash> cids = Arrays.asList(fhA.getCid(), fhB.getCid());
+        List<Multihash> cres = cntmgr.unregisterIpfsContent(addrBob, cids);
+        Assert.assertEquals(2, cres.size());
+        
+        fhandles = cntmgr.findIpfsContent(addrBob, null);
+        Assert.assertEquals(0, fhandles.size());
+    }
 }
-
-/*
-
-killall ipfs
- 
-rm -rf ~/.bitcoin/regtest
-rm -rf ~/.ipfs; ipfs init; ipfs daemon &
-rm -rf ~/.fman
-
-*/

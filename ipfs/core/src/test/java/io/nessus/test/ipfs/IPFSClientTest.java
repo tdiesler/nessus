@@ -2,6 +2,7 @@ package io.nessus.test.ipfs;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /*-
  * #%L
@@ -27,6 +28,7 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
@@ -79,7 +81,8 @@ public class IPFSClientTest {
         // cat 
         
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        StreamUtils.copyStream(client.cat(HASH), baos);
+        Future<InputStream> future = client.cat(HASH);
+		StreamUtils.copyStream(future.get(), baos);
         Assert.assertEquals("The quick brown fox jumps over the lazy dog.", new String (baos.toByteArray()));
 
         // get 
@@ -165,7 +168,7 @@ public class IPFSClientTest {
         // add --only-hash
         
         Path path = Paths.get("src/test/resources/contentA");
-        List<Multihash> cids = client.add(path, false, true);
+        List<Multihash> cids = client.add(path, true);
         Assert.assertEquals(7, cids.size());
         Assert.assertEquals(HASH, cids.get(6));
     }

@@ -29,6 +29,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 
+import io.ipfs.multihash.Multihash;
 import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
 import io.nessus.Network;
@@ -38,12 +39,12 @@ import io.nessus.Wallet.Address;
 import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.core.ExtendedContentManager;
+import io.nessus.ipfs.core.DefaultContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 
 public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
 
-    protected static ExtendedContentManager cntmgr;
+    protected static DefaultContentManager cntmgr;
     protected static Blockchain blockchain;
     protected static Network network;
     protected static Wallet wallet;
@@ -58,7 +59,7 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
         		.build();
         
-        cntmgr = new ExtendedContentManager(config);
+        cntmgr = new DefaultContentManager(config);
         
         blockchain = cntmgr.getBlockchain();
         network = blockchain.getNetwork();
@@ -92,7 +93,7 @@ public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
         wallet.sendToAddress(addr.getAddress(), changeAddr, Wallet.ALL_FUNDS, utxos);
     }
 
-    FHandle findIpfsContent(Address addr, String cid, Long timeout) throws Exception {
+    FHandle findIpfsContent(Address addr, Multihash cid, Long timeout) throws Exception {
         
         List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
         FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();

@@ -112,7 +112,7 @@ public class RSACipherTest extends AbstractCipherTest {
         String token = encode(pubKey.getEncoded());
         LOG.info(token);
         
-        Assert.assertEquals("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmir1erWjwdkKmedgYVK2N+NyQp7iwPKbWFWdalXP+0nW+q4pzAkNNkPlumpsbSwCaEsI7T2Lt6V+uxOTu0zSTfQ2mWb5LYcO7OulXHLLwoTstOBefaTxVBl28Yk8F5DDyzzUuqz2S46ZyxcnSiWuVM9q9bqA8F2vP4tYUwnoe5gLGesJrtUdZlCt+mcKg4lHw2AcD3juGj88/GLz4WVg0QL+ySILOAncrYYxzVOzy8lqs3u/JCeVyxKzBB/clGHVx0Ek6MWaxB2OaW1CMdZD+ZZ32dHfsTfR9hHJisE2/8SMbY4EwroIbZegm6O0OKMeTQ1N7ugZpEdkPNlVhqRNowIDAQAB", token);
+        Assert.assertEquals("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5SSQgSaIsFYGKxp9uMuwnYi/M1SEx9uq74suJkdbiwUF/Yznz+bu6ZhpimE79lG/g3rn2ptcWXqZ8DcKOucIyCN2JjmRxh5zpRrR9mfV8JYgvYdjLDweUTABidR3w9FkMKrv+1akyz3S/faxy46xl2L10YlC+g3ufLeWrXEjDZckcBJSYSe1KCateAnSSfm/8I733Lr75mBptlPoCdQF5TrfBbkTS7oEcUkk6Mf3ZMpk7Q/QVU7FnK0+JY0kiZruiobSS3WVGCwZaOjKlw/m3PvdW+s/2Ts26Mr1u8HthHk5Bz/GD8SqIfFPvaebYfUpNk6ct8Y6mNNVfKkk+2Fr+QIDAQAB", token);
         Assert.assertEquals(392, token.length());
 
         // Recreate the public key from its encoded form 

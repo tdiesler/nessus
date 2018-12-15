@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -51,14 +50,14 @@ import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.core.AHandle;
 import io.nessus.ipfs.core.DefaultContentManager;
-import io.nessus.ipfs.core.ExtendedContentManager;
 import io.nessus.testing.AbstractBlockchainTest;
 import io.nessus.utils.FileUtils;
 
-public class AbstractWorkflowTest extends AbstractBlockchainTest {
+public class AbstractIpfsTest extends AbstractBlockchainTest {
 
-    static ExtendedContentManager cntmgr;
+    static DefaultContentManager cntmgr;
     static IPFSClient ipfsClient;
     static Blockchain blockchain;
     static Network network;
@@ -74,17 +73,15 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
         		.build();
         
-        cntmgr = new ExtendedContentManager(config);
+        cntmgr = new DefaultContentManager(config);
         
-        ipfsClient = cntmgr.getIpfsClient();
+        ipfsClient = cntmgr.getIPFSClient();
         
         blockchain = cntmgr.getBlockchain();
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
         
-        importAddresses(wallet, AbstractWorkflowTest.class);
-        
-        generate(blockchain);
+        importAddresses(wallet, AbstractIpfsTest.class);
         
         // Delete all local files
         
@@ -100,6 +97,8 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
         
         wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
         wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
+        
+        generate(blockchain);
     }
 
     @After
@@ -121,13 +120,13 @@ public class AbstractWorkflowTest extends AbstractBlockchainTest {
 
     DefaultContentManager createContentManager(Config config) {
         LOG.info("");
-        return cntmgr = new ExtendedContentManager(config);
+        return cntmgr = new DefaultContentManager(config);
     }
     
     void unlockAddressRegistrations(Address addr) {
         wallet.listLockUnspent(Arrays.asList(addr)).stream().forEach(utxo -> {
-            PublicKey pubKey = cntmgr.getPubKeyFromTx(utxo, null);
-            if (pubKey != null) wallet.lockUnspent(utxo, true);
+            AHandle ahandle = cntmgr.getAHandleFromTx(utxo, null);
+            if (ahandle != null) wallet.lockUnspent(utxo, true);
         });
     }
 

@@ -12,7 +12,7 @@ import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.utils.FileUtils;
 
-public class FHandleTest extends AbstractWorkflowTest {
+public class FHandleTest extends AbstractIpfsTest {
 
     @Test
     public void treeTest() throws Exception {
@@ -45,9 +45,10 @@ public class FHandleTest extends AbstractWorkflowTest {
         
         // Modify a subtree element
         
-        Path childPath = fhandleA.getPath().resolve("subB/subC/file02.txt");
-        FHandle fhandleC = new FHBuilder(fhandleA).findChild(childPath).cid(HASH).build();
+        Path childPath = fhandleB.getPath().resolve("subB/subC/file02.txt");
+        FHandle fhandleC = new FHBuilder(fhandleB).findChild(childPath).txId("fooTx").build();
         LOG.info(fhandleC.toString(true));
+        Assert.assertEquals("fooTx", fhandleC.getTxId());
         Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB/subC/file02.txt", fhandleC.getCidPath());
         Assert.assertEquals("contentA/subB/subC/file02.txt", fhandleC.getPath().toString());
         Assert.assertEquals(0, fhandleC.getChildren().size());
@@ -60,6 +61,7 @@ public class FHandleTest extends AbstractWorkflowTest {
         FHandle fhandleD = fhandleC.getRoot();
         LOG.info(fhandleD.toString(true));
         Assert.assertEquals("contentA", fhandleD.getPath().toString());
+        Assert.assertEquals("fooTx", fhandleD.findChild(childPath).getTxId());
         Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB/subC/file02.txt", fhandleD.findChild(childPath).getCidPath());
     }
 

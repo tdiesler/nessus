@@ -36,17 +36,21 @@ public interface IPFSClient {
     
     List<Multihash> add(Path path) throws IOException;
 
-    List<Multihash> add(Path path, boolean wrap, boolean hashOnly) throws IOException;
+    List<Multihash> add(Path path, boolean hashOnly) throws IOException;
     
     Multihash addSingle(Path path) throws IOException;
 
-    Multihash addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException;
+    Multihash addSingle(Path path, boolean hashOnly) throws IOException;
 
     Multihash addSingle(InputStream input) throws IOException;
 
+    Multihash addSingle(InputStream input, boolean hashOnly) throws IOException;
+
     Multihash addSingle(byte[] bytes) throws IOException;
 
-    InputStream cat(Multihash cid) throws IOException;
+    Multihash addSingle(byte[] bytes, boolean hashOnly) throws IOException;
+
+    Future<InputStream> cat(Multihash cid) throws IOException;
 
     Future<Path> get(Multihash cid, Path outdir);
 

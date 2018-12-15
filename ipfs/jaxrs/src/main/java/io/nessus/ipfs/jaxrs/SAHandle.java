@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.nessus.Wallet.Address;
 import io.nessus.utils.AssertArgument;
 
-public class AddrHandle {
+public class SAHandle {
 
     private String label;
     private String addr;
@@ -18,10 +18,10 @@ public class AddrHandle {
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private boolean wonly;
 
-    public AddrHandle() {
+    public SAHandle() {
     }
 
-    public AddrHandle(Address addr, String encKey, BigDecimal balance) {
+    public SAHandle(Address addr, String encKey, BigDecimal balance) {
         AssertArgument.assertNotNull(addr, "Null addr");
         AssertArgument.assertNotNull(balance, "Null balance");
         AssertArgument.assertTrue(addr.getLabels().size() < 2, "Multiple labels: " + addr);

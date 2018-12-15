@@ -19,7 +19,7 @@ import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
 
-public class BasicWorkflowTest extends AbstractWorkflowTest {
+public class BasicWorkflowTest extends AbstractIpfsTest {
 
     long timeout = 2000L;
     int attempts = 5;
@@ -37,11 +37,11 @@ public class BasicWorkflowTest extends AbstractWorkflowTest {
         
         // Register the public encryption keys
         
-        PublicKey pubKeyBob = cntmgr.registerAddress(addrBob);
-        assertKeyEquals(pubKeyBob, cntmgr.findAddressRegistation(addrBob));
+        PublicKey pubKeyBob = cntmgr.registerAddress(addrBob).getPubKey();
+        assertKeyEquals(pubKeyBob, cntmgr.findAddressRegistation(addrBob, null).getPubKey());
         
-        PublicKey pubKeyMary = cntmgr.registerAddress(addrMary);
-        assertKeyEquals(pubKeyMary, cntmgr.findAddressRegistation(addrMary));
+        PublicKey pubKeyMary = cntmgr.registerAddress(addrMary).getPubKey();
+        assertKeyEquals(pubKeyMary, cntmgr.findAddressRegistation(addrMary, null).getPubKey());
         
         // Add content to IPFS
         

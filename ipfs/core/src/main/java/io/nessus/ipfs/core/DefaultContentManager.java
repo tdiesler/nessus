@@ -44,22 +44,9 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.Stack;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
@@ -82,17 +69,16 @@ import io.nessus.cipher.AESCipher;
 import io.nessus.cipher.RSACipher;
 import io.nessus.cipher.utils.AESUtils;
 import io.nessus.cipher.utils.RSAUtils;
+import io.nessus.ipfs.AbstractHandle;
 import io.nessus.ipfs.Config;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
-import io.nessus.ipfs.FHandle.FHReference;
 import io.nessus.ipfs.FHandle.Visitor;
-import io.nessus.ipfs.IPFSException;
-import io.nessus.ipfs.IPFSNotFoundException;
-import io.nessus.ipfs.IPFSTimeoutException;
 import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSTimeoutException;
 import io.nessus.ipfs.NessusUserFault;
+import io.nessus.ipfs.core.AHandle.AHBuilder;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.FileUtils;
@@ -109,10 +95,9 @@ public class DefaultContentManager implements ContentManager {
     protected final Network network;
     protected final Wallet wallet;
     protected final FHeaderValues fhvals;
-    private final BCData bcdata;
 
-    // Executor service for async IPFS get operations
-    protected final ExecutorService executorService;
+    protected final AHandleManager ahmgr;
+    protected final FHandleManager fhmgr;
     
     // Contains fully initialized FHandles pointing to encrypted files.
     // It is guarantied that the wallet contains the privKeys needed to access these files.
@@ -123,7 +108,8 @@ public class DefaultContentManager implements ContentManager {
     // However, not all the information needed by this app (e.g. path) can be stored on the blockchain.
     // Hence, an IPFS get is needed in any case to get at the IPFS file header. For large files this may result
     // in an undesired performance hit. We may need to find ways to separate this metadata from the actual content.
-    private final IPFSFileCache filecache = new IPFSFileCache();
+    private final IPFSCache ipfsCache = new IPFSCache();
+    private final TxDataHandler dataHandler;
     
     public DefaultContentManager(Config config) {
     	this.config = config;
@@ -133,18 +119,13 @@ public class DefaultContentManager implements ContentManager {
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
         
+        ahmgr = new AHandleManager(this);
+        fhmgr = new FHandleManager(this);
+        
         fhvals = getFHeaderValues();
-        bcdata = new BCData(fhvals);
+        dataHandler = new TxDataHandler(fhvals);
         
         LOG.info("{}{}", getClass().getSimpleName(), config);
-        
-        int ipfsThreads = config.getIpfsThreads();
-        executorService = Executors.newFixedThreadPool(ipfsThreads, new ThreadFactory() {
-            AtomicInteger count = new AtomicInteger();
-            public Thread newThread(Runnable run) {
-                return new Thread(run, "ipfs-pool-" + count.incrementAndGet());
-            }
-        });
     }
 
     public Config getConfig() {
@@ -155,12 +136,29 @@ public class DefaultContentManager implements ContentManager {
         return blockchain;
     }
     
-    public IPFSClient getIpfsClient() {
+    public IPFSClient getIPFSClient() {
         return ipfsClient;
     }
 
-    @Override
-    public PublicKey registerAddress(Address addr) throws GeneralSecurityException, IOException {
+    public IPFSCache getIPFSCache() {
+		return ipfsCache;
+	}
+
+	public AHandleManager getAHandleManager() {
+		return ahmgr;
+	}
+
+	public FHandleManager getFHandleManager() {
+		return fhmgr;
+	}
+
+	@Override
+    public AHandle registerAddress(Address addr) throws GeneralSecurityException, IOException {
+    	AHandle ahandle = registerAddress(addr, false);
+		return ahandle;
+    }
+    
+    public AHandle registerAddress(Address addr, boolean dryRun) throws GeneralSecurityException, IOException {
         AssertArgument.assertNotNull(addr, "Null addr");
         
         assertArgumentHasLabel(addr);
@@ -168,19 +166,21 @@ public class DefaultContentManager implements ContentManager {
         assertArgumentNotChangeAddress(addr);
 
         // Do nothing if already registered
-        PublicKey pubKey = findAddressRegistation(addr);
-        if (pubKey != null)
-            return pubKey;
+        
+        AHandle ahandle = findAddressRegistation(addr, null);
+        if (ahandle != null && ahandle.isAvailable())
+            return ahandle;
 
-        // Store the EC key, which is derived from the privKey
+        // Generate a new RSA key pair derived from the private blockchain key
 
         KeyPair keyPair = RSAUtils.newKeyPair(addr);
-        pubKey = keyPair.getPublic();
+        PublicKey pubKey = keyPair.getPublic();
         
-        AddrRegistration areg = new AddrRegistration(fhvals, addr, pubKey);
-        Multihash cid = areg.addIpfsContent(ipfsClient);
+        ahandle = new AHBuilder(addr, pubKey).build();
+        ahandle = ahmgr.addIpfsContent(ahandle, dryRun);
+        Multihash cid = ahandle.getCid();
         
-        byte[] data = bcdata.createAddrData(cid);
+        byte[] data = dataHandler.createAddrData(cid);
 
         // Send a Tx to record the OP_RETURN data
 
@@ -191,7 +191,7 @@ public class DefaultContentManager implements ContentManager {
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
-        String label = areg.getLabel();
+        String label = ahandle.getLabel();
         List<UTXO> utxos = wallet.selectUnspent(label, spendAmount.add(feePerKB));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
 
@@ -219,30 +219,39 @@ public class DefaultContentManager implements ContentManager {
         AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
         AssertState.assertEquals(dataAmount, dataOut.getAmount());
 
-        LOG.info("Lock unspent: {} {}", txId, vout);
+        // Lock the UTXO
         
-        BitcoindRpcClient client = getRpcClient();
-        client.lockUnspent(false, txId, vout);
+        List<UTXO> unlocked = listLockedAndUnlockedUnspent(addr, false, true);
+        unlocked.stream()
+        	.filter(utxo -> utxo.getTxId().equals(txId))
+        	.filter(utxo -> utxo.getVout() == vout)
+        	.forEach(utxo -> wallet.lockUnspent(utxo, false));
         
         LOG.debug("Redeem change: {}", changeAmount);
         ((AbstractWallet) wallet).redeemChange(label, addr);
         
-        return pubKey;
+        AHandle ahres = new AHBuilder(ahandle)
+        		.txId(tx.txId())
+        		.build();
+        
+        ipfsCache.put(ahres, AHandle.class);
+        
+        return ahandle;
     }
 
     @Override
-    public PublicKey unregisterAddress(Address addr) {
+    public AHandle unregisterAddress(Address addr) {
         AssertArgument.assertNotNull(addr, "Null addr");
         
         assertArgumentHasLabel(addr);
         
         // Do nothing if not registered
-        PublicKey pubKey = findAddressRegistation(addr);
-        if (pubKey == null) return null;
+        AHandle ahandle = findAddressRegistation(addr, null);
+        if (ahandle == null) return null;
         
         Wallet wallet = getBlockchain().getWallet();
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(addr)).stream()
-                .filter(utxo -> pubKey.equals(getPubKeyFromTx(utxo, addr)))
+                .filter(utxo -> ahandle.equals(getAHandleFromTx(utxo, addr)))
                 .peek(utxo -> wallet.lockUnspent(utxo, true))
                 .collect(Collectors.toList());
 
@@ -252,13 +261,18 @@ public class DefaultContentManager implements ContentManager {
         String txId = wallet.sendToAddress(changeAddr, changeAddr, Wallet.ALL_FUNDS, utxos);
         
         if (txId == null) {
-            LOG.warn("Cannot unregister PubKey: {} => {}", addr, pubKey);
-            return null;
+            LOG.warn("Cannot unregister PubKey: {} => {}", addr, ahandle);
+            return ahandle;
         }
         
-        LOG.info("Unregister PubKey: {} => {} => Tx {}", addr.getAddress(), pubKey, txId);
+        Multihash cid = ahandle.getCid();
+        LOG.info("Unregister PubKey: {} => Tx {} => {}", addr.getAddress(), txId, cid);
         
-        return pubKey;
+        AHandle ahres = new AHBuilder(ahandle)
+        		.pubKey(null)
+        		.build();
+        
+        return ahres;
     }
 
     @Override
@@ -293,20 +307,16 @@ public class DefaultContentManager implements ContentManager {
             return results;
         }
         
-        synchronized (filecache) {
+        synchronized (ipfsCache) {
             results.forEach(cid -> {
                 LOG.info("Unregister IPFS: {} => {}", cid, txId);
-                filecache.remove(cid);
+                ipfsCache.remove(cid, FHandle.class);
             });
         }
         
         return results;
     }
 
-    protected void clearFileCache() {
-        filecache.clear();
-    }
-    
     @Override
     public FHandle addIpfsContent(Address owner, Path path, URL srcUrl) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
@@ -341,8 +351,7 @@ public class DefaultContentManager implements ContentManager {
         
         assertArgumentHasPrivateKey(owner);
         
-        PublicKey pubKey = findAddressRegistation(owner);
-        AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + owner);
+        PublicKey pubKey = assertAddressRegistration(owner);
         
         LOG.info("Start IPFS Add: {} {}", owner, srcPath);
         
@@ -352,17 +361,17 @@ public class DefaultContentManager implements ContentManager {
         
         fhandle = encrypt(fhandle, pubKey);
         
-        Path auxPath = fhandle.getFilePath();
-        AssertState.assertTrue(auxPath.toFile().exists(), "Encrypted content does not exists: " + srcPath);
-        
         LOG.info("IPFS add: {}", fhandle.toString(true));
         
-        List<Multihash> cids = ipfsClient.add(auxPath);
-        AssertState.assertTrue(cids.size() > 0, "No ipfs content ids");
+        Path auxPath = fhandle.getFilePath();
+        AssertState.assertTrue(auxPath.toFile().exists(), "Encrypted content does not exists: " + auxPath);
+        
+        fhandle = fhmgr.addIpfsContent(fhandle, false);
+        AssertState.assertNotNull(fhandle.getCid(), "No ipfs content ids");
         
         // Move the temp file to its crypt path
         
-        Multihash cid = cids.get(cids.size() - 1);
+        Multihash cid = fhandle.getCid();
         Path fullPath = getCryptPath(owner).resolve(cid.toBase58());
         Files.move(auxPath, fullPath, StandardCopyOption.ATOMIC_MOVE);
         
@@ -399,14 +408,14 @@ public class DefaultContentManager implements ContentManager {
             }
         });
         
-        filecache.put(fhres);
+        ipfsCache.put(fhres, FHandle.class);
         
         LOG.info("Done IPFS Add: {}", fhres.toString(true));
         
         return fhres;
     }
 
-    protected FHandle buildTreeFromPath(Address owner, Path path) throws IOException {
+    public FHandle buildTreeFromPath(Address owner, Path path) throws IOException {
         
         Path plainPath = assertValidPlainPath(owner, path);
         AssertState.assertTrue(plainPath.toFile().exists(), "Local content does not exists: " + plainPath);
@@ -493,8 +502,7 @@ public class DefaultContentManager implements ContentManager {
         assertArgumentHasPrivateKey(owner);
         assertArgumentNotChangeAddress(owner);
         
-        PublicKey pubKey = findAddressRegistation(target);
-        AssertArgument.assertTrue(pubKey != null, "Cannot obtain encryption key for: " + target);
+        PublicKey pubKey = assertAddressRegistration(target);
         
         LOG.info("Start IPFS Send: {} {}", owner, cid);
         
@@ -538,16 +546,10 @@ public class DefaultContentManager implements ContentManager {
     }
 
     @Override
-    public PublicKey findAddressRegistation(Address addr) {
+    public AHandle findAddressRegistation(Address addr, Long timeout) {
         AssertArgument.assertNotNull(addr, "Null addr");
         
-        // We used to have a cache of these pubKey registrations.
-        // This is no longer the case, because we want the owner 
-        // to have full control over the registration. If the 
-        // registration UTXO gets spent, it will immediately
-        // no longer be available through this method.  
-        
-        PublicKey pubKey = null;
+        AHandle ahandle = null;
         
         List<UTXO> locked = listLockedAndUnlockedUnspent(addr, true, false);
         List<UTXO> allUnspent = listLockedAndUnlockedUnspent(addr, true, true);
@@ -557,8 +559,8 @@ public class DefaultContentManager implements ContentManager {
             String txId = utxo.getTxId();
             Tx tx = wallet.getTransaction(txId);
             
-            pubKey = getPubKeyFromTx(utxo, addr);
-            if (pubKey != null) {
+            AHandle ahaux = getAHandleFromTx(utxo, addr);
+            if (ahaux != null) {
                 
                 // The lock state of a registration may get lost due to wallet 
                 // restart. Here we recreate that lock state if the given
@@ -570,16 +572,20 @@ public class DefaultContentManager implements ContentManager {
                     TxOutput dataOut = tx.outputs().get(vout);
                     AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
                     
-                    LOG.info("Lock unspent: {} {}", txId, vout);
-                    
                     wallet.lockUnspent(utxo, false);
                 }
                 
+                ahandle = ahaux;
                 break;
             }
         }
         
-        return pubKey;
+        if (ahandle != null) {
+            timeout = timeout != null ? timeout : config.getIpfsTimeout();
+            ahandle = ahmgr.findIpfsContentAsync(ahandle, timeout);
+        }
+        
+        return ahandle;
     }
 
     @Override
@@ -589,7 +595,7 @@ public class DefaultContentManager implements ContentManager {
         // The list of files that are recorded and unspent
         List<FHandle> unspentFHandles = new ArrayList<>();
         
-        synchronized (filecache) {
+        synchronized (ipfsCache) {
         
             List<UTXO> locked = listLockedAndUnlockedUnspent(owner, true, false);
             List<UTXO> unspent = listLockedAndUnlockedUnspent(owner, true, true);
@@ -614,8 +620,6 @@ public class DefaultContentManager implements ContentManager {
                         TxOutput dataOut = tx.outputs().get(vout);
                         AssertState.assertEquals(owner.getAddress(), dataOut.getAddress());
                         
-                        LOG.info("Lock unspent: {} {}", txId, vout);
-                        
                         wallet.lockUnspent(utxo, false);
                     }
                 }
@@ -623,17 +627,17 @@ public class DefaultContentManager implements ContentManager {
             
             // Cleanup the file cache by removing entries that are no longer unspent
             List<Multihash> cids = unspentFHandles.stream().map(fh -> fh.getCid()).collect(Collectors.toList());
-            for (Multihash cid : new HashSet<>(filecache.keySet())) {
-                FHandle aux = filecache.get(cid);
+            for (Multihash cid : new HashSet<>(ipfsCache.keySet(FHandle.class))) {
+            	FHandle aux = ipfsCache.get(cid, FHandle.class);
                 if (owner.equals(aux.getOwner()) && !cids.contains(aux.getCid())) {
-                    filecache.remove(cid);
+                    ipfsCache.remove(cid, AbstractHandle.class);
                 }
             }
         }
         
         // Finally iterate get the IPFS files asynchronously
         timeout = timeout != null ? timeout : config.getIpfsTimeout();
-        List<FHandle> results = ipfsGetAsync(unspentFHandles, timeout);
+        List<FHandle> results = fhmgr.findIpfsContentAsync(unspentFHandles, timeout);
         
         return results;
     }
@@ -709,335 +713,62 @@ public class DefaultContentManager implements ContentManager {
         return !path.toFile().exists();
     }
 
-    protected BitcoindRpcClient getRpcClient() {
+    public BitcoindRpcClient getBitcoinRpcClient() {
         return ((RpcClientSupport) blockchain).getRpcClient();
     }
 
-    protected FHeaderValues getFHeaderValues() {
+    public FHeaderValues getFHeaderValues() {
         return new FHeaderValues("Nessus", "1.0");
     }
 
-    Path getRootPath() {
+    public Path getRootPath() {
         Path rootPath = config.getDataDir();
         rootPath.toFile().mkdirs();
         return rootPath;
     }
 
-    Path getPlainPath(Address owner) {
+    public Path getPlainPath(Address owner) {
         Path plainPath = getRootPath().resolve("plain").resolve(owner.getAddress());
         plainPath.toFile().mkdirs();
         return plainPath;
     }
 
-    Path getCryptPath(Address owner) {
+    public Path getCryptPath(Address owner) {
         Path cryptPath = getRootPath().resolve("crypt").resolve(owner.getAddress());
         cryptPath.toFile().mkdirs();
         return cryptPath;
     }
 
-    Path getTempPath() {
+    private Path getTempPath() {
         Path tmpPath = getRootPath().resolve("tmp");
         tmpPath.toFile().mkdirs();
         return tmpPath;
     }
 
-    Path createTempDir() throws IOException {
+    private Path createTempDir() throws IOException {
         return Files.createTempDirectory(getTempPath(), "");
-    }
-    
-    Path createTempFile() throws IOException {
-        return Files.createTempFile(getTempPath(), "", "");
     }
     
     private FHandle ipfsGet(Address owner, Multihash cid, long timeout) throws IOException, IPFSTimeoutException {
         
         FHandle fhandle;
-        synchronized (filecache) {
+        synchronized (ipfsCache) {
             
-            fhandle = filecache.get(cid);
+            fhandle = ipfsCache.get(cid, FHandle.class);
             if (fhandle != null && !fhandle.isMissing())
                 return fhandle;
             
             if (fhandle == null) {
-                fhandle = new FHBuilder(owner, cid)
+                
+            	fhandle = new FHBuilder(owner, cid)
                         .elapsed(0L)
                         .build();
-                filecache.put(fhandle);
+                
+                ipfsCache.put(fhandle, FHandle.class);
             }
         }
         
-        return ipfsGet(fhandle, timeout);
-    }
-    
-    private FHandle ipfsGet(FHandle fhandle, long timeout) throws IOException, IPFSTimeoutException {
-        AssertArgument.assertNotNull(fhandle, "Null fhandle");
-        AssertArgument.assertNotNull(fhandle.getOwner(), "Null owner");
-        AssertArgument.assertNotNull(fhandle.getCid(), "Null cid");
-        
-        Address owner = fhandle.getOwner();
-        Multihash cid = fhandle.getCid();
-        
-        Path cryptPath = getCryptPath(owner);
-        Path rootPath = cryptPath.resolve(cid.toBase58());
-        
-        // Fetch the content from IPFS
-        
-        if (!rootPath.toFile().exists()) {
-            
-            long before = System.currentTimeMillis();
-            try {
-                
-                Future<Path> future = ipfsClient.get(cid, cryptPath);
-                Path resPath = future.get(timeout, TimeUnit.MILLISECONDS);
-                
-                AssertState.assertEquals(rootPath, resPath);
-                
-            } catch (InterruptedException | ExecutionException ex) {
-                
-                Throwable cause = ex.getCause();
-                if (cause instanceof IPFSException) 
-                    throw (IPFSException)cause;
-                else 
-                    throw new IPFSException(ex);
-                
-            } catch (TimeoutException ex) {
-                
-                throw new IPFSTimeoutException(ex);
-                
-            } finally {
-                
-                long elapsed = System.currentTimeMillis() - before;
-                fhandle = new FHBuilder(fhandle)
-                        .elapsed(elapsed)
-                        .build();
-                
-                filecache.put(fhandle);
-            }
-        }
-        
-        if (fhandle.getURL() == null) {
-            URL furl = rootPath.toUri().toURL();
-            fhandle = new FHBuilder(fhandle).url(furl).build();
-        }
-        
-        File rootFile = rootPath.toFile();
-        AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootFile);
-        
-        if (rootFile.isDirectory()) {
-            fhandle = createIPFSFileTree(fhandle);
-        } else {
-            fhandle = createFromFileHeader(null, fhandle);
-        }
-        
-        FHandle fhres = new FHBuilder(fhandle)
-                .available(true)
-                .build();
-        
-        LOG.info("IPFS found: {}", fhres.toString(true));
-
-        filecache.put(fhres);
-        
-        return fhres;
-    }
-
-    private FHandle createIPFSFileTree(FHandle fhandle) throws IOException {
-        
-        Stack<FHandle> fhstack = new Stack<>();
-        
-        // Find the root node path by reading the 
-        // file header of the first encrypted file we find
-        
-        Path rootPath = fhandle.getFilePath();
-        File rootFile = rootPath.toFile();
-        AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootFile);
-        
-        FHReference fhref = new FHReference();
-        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
-
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                
-                URL furl = file.toUri().toURL();
-                FHandle fhaux = new FHBuilder(fhandle)
-                        .url(furl)
-                        .build();
-                
-                FHandle fhres = createFromFileHeader(null, fhaux);
-                
-                Path path = fhres.getPath().getName(0);
-                furl = rootFile.toURI().toURL();
-
-                fhres = new FHBuilder(fhres)
-                        .path(path)
-                        .url(furl)
-                        .build();
-                
-                fhref.setFHandle(fhres);
-                
-                return FileVisitResult.TERMINATE;
-            }
-        });
-        
-        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
-
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                FHandle parent = !fhstack.isEmpty() ? fhstack.peek() : null;
-                FHandle fhandle = createFileHandle(parent, dir);
-                fhstack.push(fhandle);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                fhstack.pop();
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                FHandle parent = !fhstack.isEmpty() ? fhstack.peek() : null;
-                createFileHandle(parent, file);
-                return FileVisitResult.CONTINUE;
-            }
-            
-            FHandle createFileHandle(FHandle parent, Path fullPath) throws IOException {
-                
-                FHandle fhres;
-                if (fullPath.toFile().isDirectory()) {
-                    
-                    if (parent == null) {
-                        
-                        // Root handle                         
-                        fhres = fhref.getFHandle();
-                        
-                    } else {
-                        
-                        // Sub directory handles
-                        
-                        FHandle fhroot = fhref.getFHandle();
-                        Path relPath = rootPath.relativize(fullPath);
-                        relPath = fhroot.getPath().resolve(relPath);
-                        URL furl = fullPath.toUri().toURL();
-                        
-                        fhres = new FHBuilder(fhandle)
-                                .parent(parent)
-                                .path(relPath)
-                                .url(furl)
-                                .build();
-                    }
-                    
-                } else {
-                    
-                    URL furl = fullPath.toUri().toURL();
-                    FHandle fhaux = new FHBuilder(fhandle)
-                            .url(furl)
-                            .build();
-
-                    fhres = createFromFileHeader(parent, fhaux);
-                }
-                
-                return fhres;
-            }
-        });
-        
-        FHandle fhres = fhref.getFHandle();
-        AssertState.assertNotNull(fhres, "Cannot obtain fhandle for: " + rootFile);
-        
-        return fhres;
-    }
-
-    private FHandle createFromFileHeader(FHandle parent, FHandle fhandle) throws IOException {
-        AssertArgument.assertNotNull(fhandle, "Null fullPath");
-        
-        Path fullPath = fhandle.getFilePath();
-        AssertState.assertTrue(fullPath.toFile().isFile(), "Cannot find IPFS content at: " + fullPath);
-        
-        try (FileReader fr = new FileReader(fullPath.toFile())) {
-
-            FHeader header = FHeader.fromReader(fhvals, fr);
-            Address owner = findAddress(header.owner);
-            String encToken = header.token;
-            Path path = header.path;
-            
-            AssertState.assertNotNull(owner, "Address unknown to this wallet: " + header.owner);
-
-            boolean available = parent != null ? parent.isAvailable() : false;
-            
-            FHandle fhres = new FHBuilder(fhandle)
-                    .secretToken(encToken)
-                    .available(available)
-                    .parent(parent)
-                    .path(path)
-                    .build();
-            
-            return fhres;
-        }
-    }
-    
-    private List<FHandle> ipfsGetAsync(List<FHandle> fhandles, long timeout) throws IOException {
-        
-        synchronized (filecache) {
-            for (FHandle fhaux : fhandles) {
-            	Multihash cid = fhaux.getCid();
-                FHandle fhc = filecache.get(cid);
-                if (fhc == null) {
-                    fhc = new FHBuilder(fhaux).elapsed(0L).build();
-                    LOG.info("IPFS submit: {}", fhc);
-                    filecache.put(fhc);
-                }
-            }
-        }
-        
-        Future<List<FHandle>> future = executorService.submit(new Callable<List<FHandle>>() {
-
-            @Override
-            public List<FHandle> call() throws Exception {
-                
-                List<FHandle> missing = getMissingFHandles(fhandles);
-                
-                while(!missing.isEmpty()) {
-                    for (FHandle fh : missing) {
-                        if (fh.setScheduled(true)) {
-                            AsyncGetCallable callable = new AsyncGetCallable(fh, timeout);
-                            executorService.submit(callable);
-                        }
-                    }
-                    Thread.sleep(500L);
-                    missing = getMissingFHandles(fhandles);
-                }
-                
-                return getCurrentFHandles(fhandles);
-            }
-        });
-        
-        List<FHandle> results;
-        try {
-            results = future.get(timeout, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new IllegalStateException(ex);
-        } catch (TimeoutException ex) {
-            results = getCurrentFHandles(fhandles);
-        }
-        
-        return results;
-    }
-
-    private List<FHandle> getMissingFHandles(List<FHandle> fhandles) {
-        List<FHandle> result = getCurrentFHandles(fhandles).stream()
-                .filter(fh -> fh.isMissing())
-                .collect(Collectors.toList());
-        return result;
-    }
-    
-    private List<FHandle> getCurrentFHandles(List<FHandle> fhandles) {
-        synchronized (filecache) {
-            List<FHandle> result = fhandles.stream()
-                .map(fh -> fh.getCid())
-                .map(cid -> filecache.get(cid))
-                .collect(Collectors.toList());
-            return result;
-        }
+        return fhmgr.getIpfsContent(fhandle, timeout);
     }
     
     private FHandle recordFileData(FHandle fhandle, Address toAddr) throws GeneralSecurityException {
@@ -1046,7 +777,7 @@ public class DefaultContentManager implements ContentManager {
 
         // Construct the OP_RETURN data
 
-        byte[] data = bcdata.createFileData(fhandle);
+        byte[] data = dataHandler.createFileData(fhandle);
 
         // Send a Tx to record the OP_TOKEN data
 
@@ -1086,10 +817,13 @@ public class DefaultContentManager implements ContentManager {
             AssertState.assertEquals(toAddr.getAddress(), dataOut.getAddress());
             AssertState.assertEquals(dataAmount, dataOut.getAmount());
 
-            LOG.info("Lock unspent: {} {}", txId, vout);
+            // Lock the UTXO
             
-            BitcoindRpcClient client = getRpcClient();
-            client.lockUnspent(false, txId, vout);
+            List<UTXO> unlocked = listLockedAndUnlockedUnspent(owner, false, true);
+            unlocked.stream()
+            	.filter(utxo -> utxo.getTxId().equals(txId))
+            	.filter(utxo -> utxo.getVout() == vout)
+            	.forEach(utxo -> wallet.lockUnspent(utxo, false));
         }
 
         LOG.debug("Redeem change: {}", changeAmount);
@@ -1100,12 +834,6 @@ public class DefaultContentManager implements ContentManager {
                 .build();
 
         return fhandle;
-    }
-
-    private Address findAddress(String rawAddr) {
-        Address addrs = wallet.findAddress(rawAddr);
-        AssertState.assertNotNull(addrs, "Address not known to this wallet: " + rawAddr);
-        return addrs;
     }
 
     private BigDecimal getUTXOAmount(List<UTXO> utxos) {
@@ -1124,7 +852,7 @@ public class DefaultContentManager implements ContentManager {
         
         // Get the CID for the plain content
         // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
-        List<Multihash> cids = ipfsClient.add(fhandle.getFilePath(), false, true);
+        List<Multihash> cids = ipfsClient.add(fhandle.getFilePath(), true);
         AssertState.assertTrue(cids.size() > 0, "Cannot obtain content ids for: " + fhandle);
         Multihash cid = cids.get(cids.size() - 1);
         
@@ -1161,7 +889,7 @@ public class DefaultContentManager implements ContentManager {
                 
                 // Get the CID for the plain content
                 // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
-                Multihash cid = ipfsClient.addSingle(fhaux.getFilePath(), false, true);
+                Multihash cid = ipfsClient.addSingle(fhaux.getFilePath(), true);
                 
                 // Create a content based AES key & IV
                 byte[] iv = AESUtils.getIV(cid, owner);
@@ -1196,7 +924,7 @@ public class DefaultContentManager implements ContentManager {
         return fhres;
     }
 
-    protected FHandle decrypt(FHandle fhandle, Path dstPath, boolean storePlain) throws IOException, GeneralSecurityException {
+    public FHandle decrypt(FHandle fhandle, Path dstPath, boolean storePlain) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(fhandle, "Null fhandle");
 
         AESCipher aes = new AESCipher();
@@ -1293,14 +1021,13 @@ public class DefaultContentManager implements ContentManager {
         return fhres;
     }
     
-    protected PublicKey getPubKeyFromTx(UTXO utxo, Address owner) {
+    public AHandle getAHandleFromTx(UTXO utxo, Address owner) {
         AssertArgument.assertNotNull(utxo, "Null utxo");
 
         Tx tx = wallet.getTransaction(utxo.getTxId());
-        if (!isOurs(tx)) 
-            return null;
+        if (!isOurs(tx)) return null;
         
-        PublicKey pubKey = null;
+        AHandle ahandle = null;
 
         List<TxOutput> outs = tx.outputs();
         TxOutput out0 = outs.get(outs.size() - 2);
@@ -1308,37 +1035,29 @@ public class DefaultContentManager implements ContentManager {
 
         // Expect OP_ADDR_DATA
         byte[] txdata = out1.getData();
-        Multihash cid = bcdata.extractAddrData(txdata);
+        Multihash cid = dataHandler.extractAddrData(txdata);
         Address outAddr = wallet.findAddress(out0.getAddress());
         if (cid != null && outAddr != null) {
 
+            LOG.debug("Addr Tx: {} => {}", tx.txId(), cid);
+            
             // Not owned by the given address
             if (owner != null && !owner.equals(outAddr)) return null;
             
-            AddrRegistration areg;
-            try {
-                
-            	areg = AddrRegistration.fromIpfs(ipfsClient, wallet, fhvals, cid);
-            	AssertState.assertEquals(outAddr, areg.getAddress());
-            	
-            	pubKey = areg.getPubKey();
-                
-            } catch (IOException | GeneralSecurityException ex) {
-                throw new IllegalStateException(ex);
-            }
-            
-            LOG.debug("PubKey Tx: {} => {} => {}", new Object[] { tx.txId(), cid, pubKey });
+            ahandle = new AHBuilder(outAddr, tx.txId(), cid).build();
         }
 
-        return pubKey;
+        // The AHandle is not fully initialized
+        // There has been no blocking IPFS access
+        
+        return ahandle;
     }
 
-    protected FHandle getFHandleFromTx(Address owner, UTXO utxo) {
+    public FHandle getFHandleFromTx(Address owner, UTXO utxo) {
         AssertArgument.assertNotNull(utxo, "Null utxo");
 
         Tx tx = wallet.getTransaction(utxo.getTxId());
-        if (!isOurs(tx)) 
-            return null;
+        if (!isOurs(tx)) return null;
         
         FHandle fhandle = null;
 
@@ -1348,15 +1067,10 @@ public class DefaultContentManager implements ContentManager {
 
         // Expect OP_FILE_DATA
         byte[] txdata = out1.getData();
-        byte[] hashBytes = bcdata.extractFileData(txdata);
+        Multihash cid = dataHandler.extractFileData(txdata);
         Address outAddr = wallet.findAddress(out0.getAddress());
-        if (hashBytes != null && outAddr != null) {
+        if (cid != null && outAddr != null) {
 
-            // Get the file id from stored data
-        	String fid = new String(hashBytes);
-			Multihash cid = Multihash.fromBase58(fid);
-
-            // Get the file from IPFS
             LOG.debug("File Tx: {} => {}", tx.txId(), cid);
             
             // Not owned by the given address
@@ -1410,7 +1124,7 @@ public class DefaultContentManager implements ContentManager {
 
         // Expect data to be our's
         byte[] txdata = out1.getData();
-        return bcdata.isOurs(txdata);
+        return dataHandler.isOurs(txdata);
     }
 
     // Make sure the total amount in the utxos is > required fees
@@ -1451,6 +1165,12 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(!addr.getLabels().contains(Wallet.LABEL_CHANGE), "Cannot use change address: " + addr);
     }
     
+	private PublicKey assertAddressRegistration(Address addr) {
+		AHandle ahandle = findAddressRegistation(addr, null);
+        AssertArgument.assertTrue(ahandle != null && ahandle.isAvailable(), "Cannot obtain encryption key for: " + addr);
+		return ahandle.getPubKey();
+	}
+
     private Path assertValidPlainPath(Address owner, Path path) {
         
         AssertArgument.assertNotNull(path, "Null path");
@@ -1460,120 +1180,5 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertTrue(pstr.trim().length() > 0, "Empty path");
         
         return getPlainPath(owner).resolve(path);
-    }
-
-    class AsyncGetCallable implements Callable<FHandle> {
-        
-        final long timeout;
-        final FHandle fhandle;
-        
-        AsyncGetCallable(FHandle fhandle, long timeout) {
-            AssertArgument.assertNotNull(fhandle, "Null fhandle");
-            AssertArgument.assertTrue(fhandle.isScheduled(), "Not scheduled");
-            this.timeout = timeout;
-            this.fhandle = fhandle;
-        }
-
-        @Override
-        public FHandle call() throws Exception {
-            
-            int attempt = fhandle.getAttempt() + 1;
-            
-            FHandle fhaux = new FHBuilder(fhandle)
-                    .attempt(attempt)
-                    .build();
-            
-            filecache.put(fhaux);
-            
-            LOG.info("{}: {}", logPrefix("attempt", attempt),  fhaux);
-            
-            try {
-                
-                fhaux = ipfsGet(fhaux, timeout);
-                
-            } catch (Exception ex) {
-                
-                fhaux = processException(fhaux, ex);
-                
-            } finally {
-                
-                fhaux.setScheduled(false);
-                filecache.put(fhaux);
-            }
-
-            return fhaux;
-        }
-        
-        private FHandle processException(FHandle fhres, Exception ex) throws InterruptedException {
-            
-            fhres = filecache.get(fhres.getCid());
-            int attempt = fhres.getAttempt();
-            
-            if (ex instanceof IPFSTimeoutException) {
-                
-                if (config.getIpfsAttempts() <= attempt) {
-                    fhres = new FHBuilder(fhres)
-                            .expired(true)
-                            .build();
-                }
-                
-                LOG.info("{}: {}", logPrefix("timeout", attempt),  fhres);
-            }
-            
-            else if (ex instanceof IPFSNotFoundException) {
-                
-                fhres = new FHBuilder(fhres)
-                        .expired(true)
-                        .build();
-                
-                LOG.warn("{}: {}", logPrefix("no merkle", attempt),  fhres);
-            }
-            
-            else {
-                
-                fhres = new FHBuilder(fhres)
-                        .expired(true)
-                        .build();
-                
-                LOG.error(logPrefix("error", attempt) + ": " + fhres, ex);
-            }
-            
-            return fhres;
-        }
-
-        private String logPrefix(String action, int attempt) {
-            int ipfsAttempts = config.getIpfsAttempts();
-            String trdName = Thread.currentThread().getName();
-            return String.format("IPFS %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);
-        }
-    }
-    
-    static class IPFSFileCache {
-        
-        private final Map<Multihash, FHandle> filecache = Collections.synchronizedMap(new LinkedHashMap<>());
-
-        Set<Multihash> keySet() {
-            return filecache.keySet();
-        }
-        
-        void clear() {
-            filecache.clear();
-        }
-
-        FHandle get(Multihash cid) {
-            return filecache.get(cid);
-        }
-        
-        FHandle put(FHandle fhandle) {
-        	Multihash cid = fhandle.getCid();
-            AssertArgument.assertNotNull(cid, "Null cid");
-            LOG.debug("Cache put: {}", fhandle);
-            return filecache.put(cid, fhandle);
-        }
-        
-        FHandle remove(Multihash cid) {
-            LOG.debug("Cache remove: {}", cid);
-            return filecache.remove(cid);
-        }
     }
 }

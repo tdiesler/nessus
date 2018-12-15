@@ -104,25 +104,25 @@ public class DefaultIPFSClient implements IPFSClient {
 
     @Override
     public List<Multihash> add(Path path) throws IOException {
-        return add(path, false, false);
+        return add(path, false);
     }
 
     @Override
-    public List<Multihash> add(Path path, boolean wrap, boolean hashOnly) throws IOException {
-        List<MerkleNode> parts = ipfs().add(new FileWrapper(path.toFile()), wrap, hashOnly);
+    public List<Multihash> add(Path path, boolean hashOnly) throws IOException {
+        List<MerkleNode> parts = ipfs().add(new FileWrapper(path.toFile()), false, hashOnly);
         AssertState.assertTrue(parts.size() > 0, "No content added");
         return parts.stream().map(mn -> mn.hash).collect(Collectors.toList());
     }
 
     @Override
     public Multihash addSingle(Path path) throws IOException {
-        return addSingle(path, false, false);
+        return addSingle(path, false);
     }
 
     @Override
-    public Multihash addSingle(Path path, boolean wrap, boolean hashOnly) throws IOException {
+    public Multihash addSingle(Path path, boolean hashOnly) throws IOException {
         AssertArgument.assertTrue(path.toFile().isFile(), "Not a file: " + path);
-        List<Multihash> cids = add(path);
+        List<Multihash> cids = add(path, hashOnly);
         AssertState.assertTrue(cids.size() > 0, "No content added");
         return cids.get(0);
     }
@@ -134,21 +134,47 @@ public class DefaultIPFSClient implements IPFSClient {
     }
 
     @Override
+    public Multihash addSingle(InputStream input, boolean hashOnly) throws IOException {
+        return addSingle(input, false);
+    }
+
+    @Override
     public Multihash addSingle(byte[] bytes) throws IOException {
-        List<MerkleNode> parts = ipfs().add(new ByteArrayWrapper(bytes));
+        return addSingle(bytes, false);
+    }
+
+    @Override
+    public Multihash addSingle(byte[] bytes, boolean hashOnly) throws IOException {
+        List<MerkleNode> parts = ipfs().add(new ByteArrayWrapper(bytes), false, hashOnly);
         AssertState.assertTrue(parts.size() > 0, "No content added");
         Multihash cid = parts.stream().map(mn -> mn.hash).findFirst().get();
         return cid;
     }
 
     @Override
-    public InputStream cat(Multihash cid) throws IOException {
-        return ipfs().catStream(cid);
+    public Future<InputStream> cat(Multihash cid) throws IOException {
+    	
+        Callable<InputStream> call = new Callable<InputStream>() {
+        	
+            @Override
+            public InputStream call() throws Exception {
+                try {
+                    return ipfs().catStream(cid);
+                } catch (Exception ex) {
+                    throw new IPFSException(ex);
+                }
+            }
+        };
+        
+		Future<InputStream> future = executorService.submit(call);
+        return future;
     }
 
     @Override
     public Future<Path> get(Multihash cid, Path outdir) {
-        Future<Path> future = executorService.submit(new Callable<Path>() {
+    	
+        Callable<Path> call = new Callable<Path>() {
+        	
             @Override
             public Path call() throws Exception {
                 try {
@@ -156,26 +182,30 @@ public class DefaultIPFSClient implements IPFSClient {
                 } catch (Exception ex) {
                     throw new IPFSException(ex);
                 }
-            }});
+            }
+            
+            Path getInternal(Multihash cid, Path outpath) throws IOException {
+                List<MerkleNode> links = ipfs().ls(cid).get(0).links;
+                for (MerkleNode node : links) {
+                    String name = node.name.get();
+                    getInternal(node.hash, outpath.resolve(name));
+                }
+                if (links.isEmpty()) {
+                    File outfile = outpath.toFile();
+                    outpath.getParent().toFile().mkdirs();
+                    try (OutputStream fout = new FileOutputStream(outfile)) {
+                        InputStream ins = ipfs().catStream(cid);
+                        StreamUtils.copyStream(ins, fout);
+                    }
+                }
+                return outpath;
+            }
+        };
+        
+		Future<Path> future = executorService.submit(call);
         return future;
     }
 
-    private Path getInternal(Multihash cid, Path outpath) throws IOException {
-        List<MerkleNode> links = ipfs().ls(cid).get(0).links;
-        for (MerkleNode node : links) {
-            String name = node.name.get();
-            getInternal(node.hash, outpath.resolve(name));
-        }
-        if (links.isEmpty()) {
-            File outfile = outpath.toFile();
-            outpath.getParent().toFile().mkdirs();
-            try (OutputStream fout = new FileOutputStream(outfile)) {
-                InputStream ins = ipfs().catStream(cid);
-                StreamUtils.copyStream(ins, fout);
-            }
-        }
-        return outpath;
-    }
 
     @Override
     public String version() throws IOException {

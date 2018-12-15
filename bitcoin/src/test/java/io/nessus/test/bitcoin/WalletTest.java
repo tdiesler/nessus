@@ -68,7 +68,9 @@ public class WalletTest extends AbstractBitcoinTest {
     public void testInitialImport () throws Exception {
 
         List<String> labels = wallet.getLabels();
-        Assert.assertEquals("[(change), Bob, Mary, Sink]", labels.toString());
+        Arrays.asList("(change)", "Bob", "Lui", "Mary", "Sink").forEach(l -> {
+            Assert.assertTrue(labels + " contains: " + l, labels.contains(l));
+        });
         
         Address addrBob = wallet.getAddress(LABEL_BOB);
         Assert.assertNotNull(wallet.getChangeAddress(LABEL_BOB));
@@ -77,6 +79,10 @@ public class WalletTest extends AbstractBitcoinTest {
         Address addrMary = wallet.getAddress(LABEL_MARY);
         Assert.assertNotNull(wallet.getChangeAddress(LABEL_MARY));
         Assert.assertNotNull(addrMary);
+        
+        Address addrLui = wallet.getAddress(LABEL_LUI);
+        Assert.assertNotNull(wallet.getChangeAddress(LABEL_LUI));
+        Assert.assertNotNull(addrLui);
         
         Address addrSink = wallet.getAddress(LABEL_SINK);
         Assert.assertNotNull(wallet.getChangeAddress(LABEL_SINK));

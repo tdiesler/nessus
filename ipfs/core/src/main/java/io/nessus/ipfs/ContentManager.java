@@ -25,12 +25,12 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
-import java.security.PublicKey;
 import java.util.List;
 
 import io.ipfs.multihash.Multihash;
 import io.nessus.Blockchain;
 import io.nessus.Wallet.Address;
+import io.nessus.ipfs.core.AHandle;
 
 public interface ContentManager {
 
@@ -46,26 +46,22 @@ public interface ContentManager {
     /**
      * Get the IPFS client
      */
-    IPFSClient getIpfsClient();
+    IPFSClient getIPFSClient();
     
     /**
-     * Register a public address.
-     * 
-     * @return An Eliptic Curve public key
+     * Create the public encyption key for a given address.
      */
-    PublicKey registerAddress(Address addr) throws GeneralSecurityException, IOException;
+    AHandle registerAddress(Address addr) throws GeneralSecurityException, IOException;
 
     /**
-     * Find the registered key for a given address.
-     * 
-     * @return An Eliptic Curve public key
+     * Find the public encyption key for a given address.
      */
-    PublicKey findAddressRegistation(Address addr);
+    AHandle findAddressRegistation(Address addr, Long timeout);
     
     /**
-     * Unregister a public address.
+     * Unregister the public encyption key for a given address.
      */
-    PublicKey unregisterAddress(Address addr);
+    AHandle unregisterAddress(Address addr);
     
     /**
      * Add content to IPFS.

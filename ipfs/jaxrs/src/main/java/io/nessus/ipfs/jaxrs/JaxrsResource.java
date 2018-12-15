@@ -25,9 +25,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
-import java.security.PublicKey;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,8 +38,10 @@ import io.ipfs.multihash.Multihash;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
+import io.nessus.cipher.utils.RSAUtils;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
+import io.nessus.ipfs.core.AHandle;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 
@@ -58,37 +58,35 @@ public class JaxrsResource implements JaxrsEndpoint {
     }
 
     @Override
-    public AddrHandle registerAddress(String addr) throws GeneralSecurityException, IOException {
+    public SAHandle registerAddress(String addr) throws GeneralSecurityException, IOException {
 
         assertBlockchainNetworkAvailable();
         
         Address owner = assertWalletAddress(addr);
-        PublicKey pubKey = cntmgr.registerAddress(owner);
-        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+        AHandle ahandle = cntmgr.registerAddress(owner);
         
-        AddrHandle ahandle = createAddrHandle(owner, encKey);
-        LOG.info("/regaddr {} => {}", owner, ahandle);
+        SAHandle shandle = createAddrHandle(ahandle);
+        LOG.info("/regaddr {} => {}", owner, shandle);
 
-        return ahandle;
+        return shandle;
     }
 
     @Override
-    public List<AddrHandle> findAddressInfo(String label, String addr) {
+    public List<SAHandle> findAddressInfo(String label, String addr) {
 
         assertBlockchainNetworkAvailable();
         
         Address owner = addr != null ? assertWalletAddress(addr) : null;
         
         Wallet wallet = cntmgr.getBlockchain().getWallet();
-        List<AddrHandle> info = wallet.getAddresses().stream()
+        List<SAHandle> info = wallet.getAddresses().stream()
                 .filter(a -> !a.getLabels().contains(Wallet.LABEL_CHANGE))
                 .filter(a -> owner == null || a.equals(owner))
                 .filter(a -> label == null || a.getLabels().contains(label))
                 .map(a -> {
-                    PublicKey pubKey = cntmgr.findAddressRegistation(a);
-                    String encKey = pubKey != null ? Base64.getEncoder().encodeToString(pubKey.getEncoded()) : null;
-                    AddrHandle ahandle = createAddrHandle(a, encKey);
-                    return ahandle;
+                    AHandle ahandle = cntmgr.findAddressRegistation(a, null);
+                    SAHandle shandle = createAddrHandle(ahandle);
+                    return shandle;
                 })
                 .collect(Collectors.toList());
 
@@ -99,18 +97,17 @@ public class JaxrsResource implements JaxrsEndpoint {
     }
 
     @Override
-    public AddrHandle unregisterAddress(String addr) {
+    public SAHandle unregisterAddress(String addr) {
 
         assertBlockchainNetworkAvailable();
         
         Address owner = assertWalletAddress(addr);
-        PublicKey pubKey = cntmgr.unregisterAddress(owner);
-        String encKey = Base64.getEncoder().encodeToString(pubKey.getEncoded());
+        AHandle ahandle = cntmgr.unregisterAddress(owner);
         
-        AddrHandle ahandle = createAddrHandle(owner, encKey);
-        LOG.info("/rmaddr {} => {}", owner, ahandle);
+        SAHandle shandle = createAddrHandle(ahandle);
+        LOG.info("/rmaddr {} => {}", owner, shandle);
 
-        return ahandle;
+        return shandle;
     }
 
     @Override
@@ -275,8 +272,11 @@ public class JaxrsResource implements JaxrsEndpoint {
         return addr;
     }
     
-    private AddrHandle createAddrHandle(Address addr, String encKey) {
+    private SAHandle createAddrHandle(AHandle ahandle) {
+    	if (ahandle == null) return null;
+        Address owner = ahandle.getOwner();
+        String encKey = RSAUtils.encodeKey(ahandle.getPubKey());
         Wallet wallet = cntmgr.getBlockchain().getWallet();
-        return new AddrHandle(addr, encKey, wallet.getBalance(addr));
+        return new SAHandle(owner, encKey, wallet.getBalance(owner));
     }
 }

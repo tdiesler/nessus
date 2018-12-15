@@ -1,6 +1,7 @@
 package io.nessus.test.bitcoin;
 
 import java.net.URL;
+import java.util.List;
 
 /*-
  * #%L
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Config;
+import io.nessus.Config.Address;
 
 public class ConfigParserTest {
 
@@ -40,6 +42,7 @@ public class ConfigParserTest {
         Config config = Config.parseConfig(configURL);
         LOG.info("{}", config);
         
-        Assert.assertEquals(5, config.getWallet().getAddresses().size());
+        List<Address> addrs = config.getWallet().getAddresses();
+		Assert.assertEquals(6, addrs.size());
     }
 }

@@ -448,7 +448,11 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public boolean lockUnspent(UTXO utxo, boolean unlock) {
         AssertArgument.assertNotNull(utxo, "Null utxo");
-        return client.lockUnspent(unlock, utxo.getTxId(), utxo.getVout());
+        String act = unlock ? "unlock" : "lock";
+        String txId = utxo.getTxId();
+		Integer vout = utxo.getVout();
+		LOG.debug(String.format("UTXO %s: %s %d", act, txId, vout));
+		return client.lockUnspent(unlock, txId, vout);
     }
 
     @Override

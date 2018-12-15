@@ -86,13 +86,13 @@ public class JaxrsClient implements JaxrsEndpoint {
     }
 
     @Override
-    public AddrHandle registerAddress(String addr) throws IOException {
+    public SAHandle registerAddress(String addr) throws IOException {
 
         WebTarget target = client.target(generateURL("/regaddr"))
                 .queryParam("addr", addr);
 
         Response res = processResponse(target.request().get(Response.class));
-        AddrHandle ahandle = res.readEntity(AddrHandle.class);
+        SAHandle ahandle = res.readEntity(SAHandle.class);
         
         LOG.info("/regaddr {} => {}", addr, ahandle);
 
@@ -100,14 +100,14 @@ public class JaxrsClient implements JaxrsEndpoint {
     }
 
     @Override
-    public List<AddrHandle> findAddressInfo(String label, String addr) throws IOException {
+    public List<SAHandle> findAddressInfo(String label, String addr) throws IOException {
 
         WebTarget target = client.target(generateURL("/addrinfo"));
         if (label != null) target = target.queryParam("label", label);
         if (addr != null) target = target.queryParam("addr", addr);
 
         Response res = processResponse(target.request().get(Response.class));
-        List<AddrHandle> result = Arrays.asList(res.readEntity(AddrHandle[].class));
+        List<SAHandle> result = Arrays.asList(res.readEntity(SAHandle[].class));
 
         LOG.info("/addrinfo {} {} => {}", label, addr, result);
 
@@ -115,7 +115,7 @@ public class JaxrsClient implements JaxrsEndpoint {
     }
 
     @Override
-    public AddrHandle unregisterAddress(String addr) throws IOException {
+    public SAHandle unregisterAddress(String addr) throws IOException {
 
         WebTarget target = client.target(generateURL("/rmaddr"))
                 .queryParam("addr", addr);
@@ -123,7 +123,7 @@ public class JaxrsClient implements JaxrsEndpoint {
         Response res = processResponse(target.request().get(Response.class));
         if (Status.NO_CONTENT.getStatusCode() == res.getStatus()) return null;
 
-        AddrHandle ahandle = res.readEntity(AddrHandle.class);
+        SAHandle ahandle = res.readEntity(SAHandle.class);
         LOG.info("/rmaddr {} => {}", addr, ahandle);
 
         return ahandle;

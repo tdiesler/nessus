@@ -55,7 +55,7 @@ import io.nessus.Blockchain;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.jaxrs.AddrHandle;
+import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.JaxrsClient;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.ipfs.portal.TreeData.TreeNode;
@@ -437,7 +437,7 @@ public class ContentHandler implements HttpHandler {
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String addr = qparams.get("addr").getFirst();
 
-        AddrHandle ahandle = findAddressInfo(addr);
+        SAHandle ahandle = findAddressInfo(addr);
         context.put("addr", ahandle);
 
         return "templates/portal-add.vm";
@@ -450,7 +450,7 @@ public class ContentHandler implements HttpHandler {
         String path = qparams.get("path").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        AddrHandle ahandle = findAddressInfo(addr);
+        SAHandle ahandle = findAddressInfo(addr);
         SFHandle fhandle = new SFHandle(cid, addr, path, true, true);
         context.put("gatewayUrl", gatewayUrl);
         context.put("addr", ahandle);
@@ -466,11 +466,11 @@ public class ContentHandler implements HttpHandler {
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String addr = qparams.get("addr").getFirst();
 
-        AddrHandle ahandle = findAddressInfo(addr);
+        SAHandle ahandle = findAddressInfo(addr);
         context.put("addr", ahandle);
         context.put("gatewayUrl", gatewayUrl);
 
-        List<AddrHandle> toaddrs = client.findAddressInfo(null, null).stream()
+        List<SAHandle> toaddrs = client.findAddressInfo(null, null).stream()
                 .filter(ah -> !ah.getAddress().equals(addr))
                 .filter(ah -> ah.getEncKey() != null)
                 .collect(Collectors.toList());
@@ -488,7 +488,7 @@ public class ContentHandler implements HttpHandler {
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String addr = qparams.get("addr").getFirst();
 
-        AddrHandle ahandle = findAddressInfo(addr);
+        SAHandle ahandle = findAddressInfo(addr);
         context.put("addr", ahandle);
 
         return "templates/portal-qr.vm";
@@ -501,8 +501,8 @@ public class ContentHandler implements HttpHandler {
         String relPath = qparams.get("path").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        AddrHandle ahandle = findAddressInfo(addr);
-        List<AddrHandle> toaddrs = client.findAddressInfo(null, null).stream()
+        SAHandle ahandle = findAddressInfo(addr);
+        List<SAHandle> toaddrs = client.findAddressInfo(null, null).stream()
                 .filter(ah -> !ah.getAddress().equals(addr))
                 .filter(ah -> ah.getEncKey() != null)
                 .collect(Collectors.toList());
@@ -517,7 +517,7 @@ public class ContentHandler implements HttpHandler {
 
     private String pageHome(VelocityContext context) throws Exception {
 
-        List<AddrHandle> addrs = client.findAddressInfo(null, null);
+        List<SAHandle> addrs = client.findAddressInfo(null, null);
 
         String envLabel = SystemUtils.getenv(WebUI.ENV_NESSUS_WEBUI_LABEL, "Bob");
         context.put("envLabel", envLabel);
@@ -566,9 +566,9 @@ public class ContentHandler implements HttpHandler {
         return node;
     }
 
-    private AddrHandle findAddressInfo(String addr) throws IOException {
+    private SAHandle findAddressInfo(String addr) throws IOException {
         AssertArgument.assertNotNull(addr, "Null addr");
-        AddrHandle ahandle = client.findAddressInfo(null, addr).stream()
+        SAHandle ahandle = client.findAddressInfo(null, addr).stream()
                 .filter(ah -> ah.getAddress().equals(addr))
                 .findFirst().orElse(null);
         AssertState.assertNotNull(ahandle, "Cannot get address handle for: " + addr);

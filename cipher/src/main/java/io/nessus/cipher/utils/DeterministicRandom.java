@@ -1,8 +1,5 @@
 package io.nessus.cipher.utils;
 
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-
 /*-
  * #%L
  * Nessus :: Cipher
@@ -23,8 +20,9 @@ import java.security.MessageDigest;
  * #L%
  */
 
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.util.Base64;
 
 import org.bouncycastle.util.Arrays;
 
@@ -35,8 +33,9 @@ import io.nessus.utils.AssertArgument;
 @SuppressWarnings("serial") 
 public class DeterministicRandom extends SecureRandom {
     
-    private final MessageDigest md;
+    private final MessageDigest md = MessageDigest.getInstance("SHA3-512");
     private byte[] digest;
+    private long total;
     
     public DeterministicRandom(Address addr) throws GeneralSecurityException {
     	this (addr, null);
@@ -45,24 +44,25 @@ public class DeterministicRandom extends SecureRandom {
     public DeterministicRandom(Address addr, Multihash cid) throws GeneralSecurityException {
 		AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
         
-        md = MessageDigest.getInstance("SHA-256");
-        
-        String input = addr.getPrivKey() + (cid != null ? cid.toBase58() : "");
-        digest = md.digest(Base64.getDecoder().decode(input));
+        byte[] bytesA = addr.getPrivKey().getBytes();
+        byte[] bytesB = cid != null ? cid.toBytes() : Arrays.reverse(bytesA);
+		digest = Arrays.concatenate(md.digest(bytesA), md.digest(bytesB));
     }
 
     public DeterministicRandom(byte[] input) throws GeneralSecurityException {
-        md = MessageDigest.getInstance("SHA-256");
         digest = md.digest(input);
     }
 
     @Override
     public void nextBytes(byte[] buffer) {
         
-        int idx = 0;
-        byte[] seed = Arrays.clone(digest);
+    	if (512 * 1024 < total)
+    		throw new IllegalStateException("Upper limit exceeded");
+    	
+    	int idx = 0;
+        byte[] seed = new byte[0];
         while (seed.length < buffer.length) {
-            idx = (idx + 3) % digest.length;
+            idx = (idx + 7) % digest.length;
             byte[] head = Arrays.copyOfRange(digest, 0, idx);
             byte[] tail = Arrays.copyOfRange(digest, idx, digest.length);
             digest = Arrays.concatenate(tail, head);
@@ -70,5 +70,6 @@ public class DeterministicRandom extends SecureRandom {
         }
         
         System.arraycopy(seed, 0, buffer, 0, buffer.length);
+        total += buffer.length;
     }
 }
