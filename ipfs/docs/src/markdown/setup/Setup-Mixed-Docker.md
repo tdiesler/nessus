@@ -59,13 +59,18 @@ Verify that this works
 
 To start the Nessus bridge in Docker, you can run ...
 
-    export LOCALIP=192.168.178.20
+	# Testnet: 18332
+	# Regtest: 18443
+	
+	export LOCALIP=192.168.178.20
+	export RPCPORT=18443
 
     docker run --detach \
+        -p 8081:8081 \
         --env IPFS_JSONRPC_ADDR=$LOCALIP \
         --env IPFS_JSONRPC_PORT=5001 \
         --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \
-        --env BLOCKCHAIN_JSONRPC_PORT=18332 \
+        --env BLOCKCHAIN_JSONRPC_PORT=$RPCPORT \
         --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
         --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
         --memory=50m --memory-swap=2g \
@@ -78,24 +83,31 @@ On bootstrap the bridge reports some connection properties.
 
     IPFS Address: /ip4/192.168.178.20/tcp/5001
     IPFS Version: 0.4.18
-    BitcoinBlockchain: http://rpcusr:*******@192.168.178.20:18332
+    BitcoinBlockchain: http://rpcusr:*******@192.168.178.20:18443
     BitcoinNetwork Version: 170001
     DefaultContentManager[timeout=6000, attempts=100, threads=12]
     Nessus JAXRS: http://0.0.0.0:8081/nessus
+
+#### Knowing the Bridge IP address
+
+	docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' jaxrs
+	172.17.0.4
 
 ### Running the WebUI image
 
 In this setup the Nessus UI is optional as well. Still, lets try to connect it to the JSON-RPC bridge and the Blockchain wallet  ...
 
-    export LABEL=Mary
+	export LOCALIP=192.168.178.20
+	export RPCPORT=18443
+    	export LABEL=Mary
 
-    docker run --detach \
+    	docker run --detach \
         -p 8082:8082 \
         --link jaxrs:jaxrs \
         --env IPFS_GATEWAY_ADDR=$LOCALIP \
         --env IPFS_GATEWAY_PORT=8080 \
         --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \
-        --env BLOCKCHAIN_JSONRPC_PORT=18332 \
+        --env BLOCKCHAIN_JSONRPC_PORT=$RPCPORT \
         --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
         --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
         --env NESSUS_WEBUI_LABEL=$LABEL \
@@ -108,7 +120,7 @@ The WebUI also reports some connection properties.
     docker logs webui
 
     IPFS Gateway: http://192.168.178.20:8080/ipfs
-    BitcoinBlockchain: http://rpcusr:*******@192.168.178.20:18332
+    BitcoinBlockchain: http://rpcusr:*******@192.168.178.20:18443
     BitcoinNetwork Version: 170001
     Nessus JAXRS: http://172.17.0.2:8081/nessus
     Nessus WebUI: http://0.0.0.0:8082/portal

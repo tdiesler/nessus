@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,16 +46,16 @@ import io.nessus.ipfs.core.AHandle;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 
-public class JaxrsResource implements JaxrsEndpoint {
+public class JAXRSResource implements JAXRSEndpoint {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JaxrsResource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JAXRSResource.class);
 
     private final ContentManager cntmgr;
     
-    public JaxrsResource() throws IOException {
+    public JAXRSResource() throws IOException {
 
         // [TODO] Inject this propperly
-        cntmgr = JaxrsApplication.INSTANCE.cntManager;
+        cntmgr = JAXRSApplication.INSTANCE.cntManager;
     }
 
     @Override
@@ -64,9 +65,10 @@ public class JaxrsResource implements JaxrsEndpoint {
         
         Address owner = assertWalletAddress(addr);
         AHandle ahandle = cntmgr.registerAddress(owner);
+        PublicKey pubKey = ahandle.getPubKey();
         
-        SAHandle shandle = createAddrHandle(ahandle);
-        LOG.info("/regaddr {} => {}", owner, shandle);
+		SAHandle shandle = createAddrHandle(owner, pubKey);
+        LOG.info("/regaddr {} => {}", addr, shandle);
 
         return shandle;
     }
@@ -85,7 +87,8 @@ public class JaxrsResource implements JaxrsEndpoint {
                 .filter(a -> label == null || a.getLabels().contains(label))
                 .map(a -> {
                     AHandle ahandle = cntmgr.findAddressRegistation(a, null);
-                    SAHandle shandle = createAddrHandle(ahandle);
+                    PublicKey pubKey = ahandle != null ? ahandle.getPubKey() : null;
+                    SAHandle shandle = createAddrHandle(a, pubKey);
                     return shandle;
                 })
                 .collect(Collectors.toList());
@@ -103,9 +106,10 @@ public class JaxrsResource implements JaxrsEndpoint {
         
         Address owner = assertWalletAddress(addr);
         AHandle ahandle = cntmgr.unregisterAddress(owner);
+        PublicKey pubKey = ahandle != null ? ahandle.getPubKey() : null;
         
-        SAHandle shandle = createAddrHandle(ahandle);
-        LOG.info("/rmaddr {} => {}", owner, shandle);
+        SAHandle shandle = createAddrHandle(owner, pubKey);
+        LOG.info("/rmaddr {} => {}", addr, shandle);
 
         return shandle;
     }
@@ -263,7 +267,7 @@ public class JaxrsResource implements JaxrsEndpoint {
 
     private void assertBlockchainNetworkAvailable() {
         Network network = cntmgr.getBlockchain().getNetwork();
-        JaxrsClient.assertBlockchainNetworkAvailable(network);
+        JAXRSClient.assertBlockchainNetworkAvailable(network);
     }
 
     private Address assertWalletAddress(String rawaddr) {
@@ -272,11 +276,9 @@ public class JaxrsResource implements JaxrsEndpoint {
         return addr;
     }
     
-    private SAHandle createAddrHandle(AHandle ahandle) {
-    	if (ahandle == null) return null;
-        Address owner = ahandle.getOwner();
-        String encKey = RSAUtils.encodeKey(ahandle.getPubKey());
+    private SAHandle createAddrHandle(Address owner, PublicKey pubKey) {
         Wallet wallet = cntmgr.getBlockchain().getWallet();
+        String encKey = pubKey != null ? RSAUtils.encodeKey(pubKey) : null;
         return new SAHandle(owner, encKey, wallet.getBalance(owner));
     }
 }

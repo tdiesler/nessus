@@ -56,7 +56,7 @@ import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.jaxrs.SAHandle;
-import io.nessus.ipfs.jaxrs.JaxrsClient;
+import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.ipfs.portal.TreeData.TreeNode;
 import io.nessus.utils.AssertArgument;
@@ -77,7 +77,7 @@ public class ContentHandler implements HttpHandler {
     final Network network;
     final Wallet wallet;
 
-    final JaxrsClient client;
+    final JAXRSClient client;
     final VelocityEngine ve;
     final URI gatewayUrl;
 
@@ -87,7 +87,7 @@ public class ContentHandler implements HttpHandler {
     // The last executable job
     private Future<Address> lastJob;
 
-    ContentHandler(JaxrsClient client, Blockchain blockchain, URI gatewayURI) {
+    ContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
         this.blockchain = blockchain;
         this.gatewayUrl = gatewayURI;
         this.client = client;
@@ -590,7 +590,7 @@ public class ContentHandler implements HttpHandler {
     }
 
     private void assertBlockchainAvailable() {
-        JaxrsClient.assertBlockchainNetworkAvailable(network);
+        JAXRSClient.assertBlockchainNetworkAvailable(network);
     }
 
     private ByteBuffer getResource(String resname) throws IOException {

@@ -9,7 +9,7 @@ import org.kohsuke.args4j.Option;
 import io.nessus.ipfs.Config;
 import io.nessus.utils.SystemUtils;
 
-public final class JaxrsConfig extends Config {
+public final class JAXRSConfig extends Config {
 
     private static final String DEFAULT_NESSUS_JAXRS_HOST = "0.0.0.0";
     private static final int DEFAULT_NESSUS_JAXRS_PORT = 8081;
@@ -20,10 +20,10 @@ public final class JaxrsConfig extends Config {
     @Option(name = "--port", usage = "The Nessus JAXRS port")
     int jaxrsPort = DEFAULT_NESSUS_JAXRS_PORT;
 
-    public JaxrsConfig() {
+    public JAXRSConfig() {
     }
     
-    private JaxrsConfig(String ipfsAddr, long ipfsTimeout, int ipfsAttempts, int ipfsThreads, String bcImpl, String bcUrl, 
+    private JAXRSConfig(String ipfsAddr, long ipfsTimeout, int ipfsAttempts, int ipfsThreads, String bcImpl, String bcUrl, 
     		String bcHost, int bcPort, String bcUser, String bcPass, String jaxrsHost, int jaxrsPort, Path dataDir, boolean overwrite) {
     	super(ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, dataDir, overwrite);
         this.jaxrsHost = jaxrsHost;
@@ -33,15 +33,15 @@ public final class JaxrsConfig extends Config {
     public URL getJaxrsUrl() throws MalformedURLException {
         
         if (DEFAULT_NESSUS_JAXRS_HOST.equals(jaxrsHost))
-            jaxrsHost = SystemUtils.getenv(JaxrsConstants.ENV_NESSUS_JAXRS_ADDR, jaxrsHost);
+            jaxrsHost = SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_ADDR, jaxrsHost);
         
         if (DEFAULT_NESSUS_JAXRS_PORT == jaxrsPort)
-            jaxrsPort = Integer.parseInt(SystemUtils.getenv(JaxrsConstants.ENV_NESSUS_JAXRS_PORT, "" + jaxrsPort));
+            jaxrsPort = Integer.parseInt(SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_PORT, "" + jaxrsPort));
         
         return new URL(String.format("http://%s:%s/nessus", jaxrsHost, jaxrsPort));   
     }
     
-    public static class Builder extends AbstractBuilder<Builder, JaxrsConfig> {
+    public static class Builder extends AbstractBuilder<Builder, JAXRSConfig> {
         
         String jaxrsHost = DEFAULT_NESSUS_JAXRS_HOST;
         int jaxrsPort = DEFAULT_NESSUS_JAXRS_PORT;
@@ -56,8 +56,8 @@ public final class JaxrsConfig extends Config {
             return this;
         }
         
-        public JaxrsConfig build() {
-            return new JaxrsConfig(ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, jaxrsHost, jaxrsPort, dataDir, overwrite);
+        public JAXRSConfig build() {
+            return new JAXRSConfig(ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, jaxrsHost, jaxrsPort, dataDir, overwrite);
         }
     }
 }

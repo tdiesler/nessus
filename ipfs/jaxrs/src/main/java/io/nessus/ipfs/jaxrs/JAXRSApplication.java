@@ -42,7 +42,6 @@ import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
 import org.jboss.resteasy.plugins.server.undertow.UndertowJaxrsServer;
-import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,15 +54,15 @@ import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 
 @ApplicationPath("/nessus")
-public class JaxrsApplication extends Application {
+public class JAXRSApplication extends Application {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JaxrsApplication.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JAXRSApplication.class);
 
     static final String implVersion;
     static final String implBuild;
     
     static {
-        try (InputStream ins = JaxrsApplication.class.getResourceAsStream("/" + JarFile.MANIFEST_NAME)) {
+        try (InputStream ins = JAXRSApplication.class.getResourceAsStream("/" + JarFile.MANIFEST_NAME)) {
             Manifest manifest = new Manifest(ins);
             Attributes attribs = manifest.getMainAttributes();
             implVersion = attribs.getValue("Implementation-Version");
@@ -73,17 +72,17 @@ public class JaxrsApplication extends Application {
         }
     }
 
-    private static JaxrsConfig config;
+    private static JAXRSConfig config;
     private static JAXRSServer jaxrsServer;
 
-    static JaxrsApplication INSTANCE;
+    static JAXRSApplication INSTANCE;
     final ContentManager cntManager;
 
-    public JaxrsApplication() throws Exception {
+    public JAXRSApplication() throws Exception {
         this(config);
     }
         
-    public JaxrsApplication(JaxrsConfig config) throws Exception {
+    public JAXRSApplication(JAXRSConfig config) throws Exception {
         AssertArgument.assertNotNull(config,  "Null config");
         
         LOG.info("Nessus Version: {} Build: {}", implVersion, implBuild);
@@ -91,7 +90,7 @@ public class JaxrsApplication extends Application {
         cntManager = new DefaultContentManager(config);
         
         Blockchain blockchain = cntManager.getBlockchain();
-        JaxrsClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
+        JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
         IPFSClient ipfsClient = cntManager.getIPFSClient();
         LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
@@ -100,19 +99,14 @@ public class JaxrsApplication extends Application {
         INSTANCE = this;
     }
 
-    public static JAXRSServer serverStart(JaxrsConfig config) throws Exception {
+    public static JAXRSServer serverStart(JAXRSConfig config) throws Exception {
         
-        JaxrsSanityCheck.verifyPlatform();
-        JaxrsApplication.config = config;
+        JAXRSSanityCheck.verifyPlatform();
+        JAXRSApplication.config = config;
 
-        ResteasyProviderFactory providerFactory = ResteasyProviderFactory.getInstance();
-        providerFactory.registerProvider(GeneralSecurityExceptionMapper.class);
-        providerFactory.registerProvider(RuntimeExceptionMapper.class);
-        providerFactory.registerProvider(IOExceptionMapper.class);
-        
         Builder builder = Undertow.builder().addHttpListener(config.jaxrsPort, config.jaxrsHost);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
-        undertowServer.deploy(JaxrsApplication.class);
+        undertowServer.deploy(JAXRSApplication.class);
 
         jaxrsServer = new JAXRSServer(undertowServer, config);
         LOG.info("Nessus JAXRS: {}",  jaxrsServer.getRootURL());
@@ -138,16 +132,19 @@ public class JaxrsApplication extends Application {
     @Override
     public Set<Class<?>> getClasses() {
         HashSet<Class<?>> classes = new HashSet<Class<?>>();
-        classes.add(JaxrsResource.class);
+        classes.add(JAXRSResource.class);
+        classes.add(RuntimeExceptionMapper.class);
+        classes.add(GeneralSecurityExceptionMapper.class);
+        classes.add(IOExceptionMapper.class);
         return classes;
     }
 
     public static class JAXRSServer {
 
-        final JaxrsConfig options;
+        final JAXRSConfig options;
         final UndertowJaxrsServer server;
 
-        JAXRSServer(UndertowJaxrsServer server, JaxrsConfig options) {
+        JAXRSServer(UndertowJaxrsServer server, JAXRSConfig options) {
             this.options = options;
             this.server = server;
         }
@@ -166,24 +163,24 @@ public class JaxrsApplication extends Application {
     }
 
     @Provider
-    public static class GeneralSecurityExceptionMapper extends AbstractExceptionMapper<GeneralSecurityException> {
+    public static class IOExceptionMapper extends AbstractExceptionMapper<IOException> {
     }
 
     @Provider
-    public static class IOExceptionMapper extends AbstractExceptionMapper<IOException> {
+    public static class GeneralSecurityExceptionMapper extends AbstractExceptionMapper<GeneralSecurityException> {
     }
 
     @Provider
     public static class RuntimeExceptionMapper extends AbstractExceptionMapper<RuntimeException> {
     }
 
-    static class AbstractExceptionMapper<T extends Exception> implements ExceptionMapper<T> {
+    public static class AbstractExceptionMapper<T extends Exception> implements ExceptionMapper<T> {
 
         @Override
-        public Response toResponse(T rte) {
+        public Response toResponse(T ex) {
             StringWriter strwr = new StringWriter();
-            rte.printStackTrace(new PrintWriter(strwr));
-            LOG.error("ERROR executing request", rte);
+            ex.printStackTrace(new PrintWriter(strwr));
+            LOG.error("ERROR executing request", ex);
             return Response.status(Status.INTERNAL_SERVER_ERROR).entity(strwr.toString()).build();
         }
     }

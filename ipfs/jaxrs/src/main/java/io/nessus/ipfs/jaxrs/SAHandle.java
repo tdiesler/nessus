@@ -78,7 +78,8 @@ public class SAHandle {
     }
     
     public String toString() {
+    	String key = encKey != null ? encKey.substring(0, 8) : null;
         return String.format("[label=%s, addr=%s, wo=%b, key=%s, bal=%.6f]",
-                label, addr, wonly, encKey, balance);
+                label, addr, wonly, key, balance);
     }
 }

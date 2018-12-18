@@ -34,7 +34,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 @Path("/")
-public interface JaxrsEndpoint {
+public interface JAXRSEndpoint {
 
     /**
      * Register the given address with the system.
@@ -49,7 +49,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      * 
-     *      curl http://192.168.178.20:8081/nessus/regaddr?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
+     *      curl -f http://192.168.178.20:8081/nessus/regaddr?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
      *      
      *      {
      *        "label": "Bob",
@@ -71,7 +71,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      * 
-     *      curl http://192.168.178.20:8081/nessus/addrinfo?label=Bob
+     *      curl -f http://192.168.178.20:8081/nessus/addrinfo?label=Bob
      *      
      *      [{
      *        "label": "Bob",
@@ -100,7 +100,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      * 
-     *      curl http://192.168.178.20:8081/nessus/rmaddr?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
+     *      curl -f http://192.168.178.20:8081/nessus/rmaddr?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
      *      
      *      {
      *        "label": "Bob",
@@ -129,7 +129,7 @@ public interface JaxrsEndpoint {
      * Example:
      * 
      *      echo "Hello World" > test.txt
-     *      curl --request POST --data @test.txt "http://192.168.178.20:8081/nessus/addipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&path=test.txt"
+     *      curl --request POST --data @test.txt http://192.168.178.20:8081/nessus/addipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB\&path=test.txt
      *      
      *      {
      *        "cid": "Qme7mLoshqb8E8szmebWqiY8o1UbMAYcWL1b3YdTyPv6Ds",
@@ -163,7 +163,7 @@ public interface JaxrsEndpoint {
      * 
      * URL Example:
      * 
-     *      curl "http://192.168.178.20:8081/nessus/addipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&path=userfile.txt&url=https://raw.githubusercontent.com/jboss-fuse/nessus/master/ipfs/jaxrs/src/test/resources/userfile.txt"
+     *      curl -f http://192.168.178.20:8081/nessus/addipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB\&path=userfile.txt\&url=https://raw.githubusercontent.com/jboss-fuse/nessus/master/ipfs/jaxrs/src/test/resources/userfile.txt
      *      
      *      {
      *        "cid": "QmUVjhRvnvrXtu5KtBRdLp1zjG5jwMJEjBV6Efag6cw69T",
@@ -177,7 +177,7 @@ public interface JaxrsEndpoint {
      *       
      * Path Example:
      * 
-     *      curl "http://192.168.178.20:8081/nessus/addipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&path=contentA"
+     *      curl -f http://192.168.178.20:8081/nessus/addipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB\&path=contentA
      *      
      *      {
      *        "cid": "QmNpjzWvd7ZqkeqitGCXYvLHvyNQZ6SPJhU9uG9NFKX8ug",
@@ -207,7 +207,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      * 
-     *      curl "http://192.168.178.20:8081/nessus/getipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&path=foo.txt&cid=Qme7mLoshqb8E8szmebWqiY8o1UbMAYcWL1b3YdTyPv6Ds"
+     *      curl -f http://192.168.178.20:8081/nessus/getipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB\&path=foo.txt\&cid=Qme7mLoshqb8E8szmebWqiY8o1UbMAYcWL1b3YdTyPv6Ds
      *      
      *      {
      *        "owner": "mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB",
@@ -238,8 +238,8 @@ public interface JaxrsEndpoint {
      * Example:
      *      
      *      ipfs cat Qme7mLoshqb8E8szmebWqiY8o1UbMAYcWL1b3YdTyPv6Ds
-     *      curl http://192.168.178.20:8081/nessus/findkey?addr=mm2PoHeFncAStYeZJSSTa4bmUVXRa3L6PL
-     *      curl "http://192.168.178.20:8081/nessus/sendipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&target=mm2PoHeFncAStYeZJSSTa4bmUVXRa3L6PL&cid=Qme7mLoshqb8E8szmebWqiY8o1UbMAYcWL1b3YdTyPv6Ds"
+     *      curl -f http://192.168.178.20:8081/nessus/findkey?addr=mm2PoHeFncAStYeZJSSTa4bmUVXRa3L6PL
+     *      curl -f http://192.168.178.20:8081/nessus/sendipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&target=mm2PoHeFncAStYeZJSSTa4bmUVXRa3L6PL&cid=Qme7mLoshqb8E8szmebWqiY8o1UbMAYcWL1b3YdTyPv6Ds
      *      
      *      {
      *        "cid": "QmZWCV3c75ShzyuGaJ38yFQWv3zPDvzAAb4g8oygh7AGDH",
@@ -268,7 +268,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      *      
-     *      curl "http://192.168.178.20:8081/nessus/findipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB"
+     *      curl -f http://192.168.178.20:8081/nessus/findipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
      *      
      *      {
      *        "cid": "QmNpjzWvd7ZqkeqitGCXYvLHvyNQZ6SPJhU9uG9NFKX8ug",
@@ -296,7 +296,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      *      
-     *      curl "http://192.168.178.20:8081/nessus/rmipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&cid=QmUVjhRvnvrXtu5KtBRdLp1zjG5jwMJEjBV6Efag6cw69T"
+     *      curl -f http://192.168.178.20:8081/nessus/rmipfs?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB\&cid=QmUVjhRvnvrXtu5KtBRdLp1zjG5jwMJEjBV6Efag6cw69T
      *      
      *      ["QmUVjhRvnvrXtu5KtBRdLp1zjG5jwMJEjBV6Efag6cw69T"]
      *       
@@ -312,7 +312,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      *      
-     *      curl "http://192.168.178.20:8081/nessus/findlocal?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB"
+     *      curl -f http://192.168.178.20:8081/nessus/findlocal?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB
      *      
      *      {
      *        "owner": "mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB",
@@ -335,7 +335,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      *      
-     *      curl "http://192.168.178.20:8081/nessus/getlocal?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&path=foo.txt"
+     *      curl -f http://192.168.178.20:8081/nessus/getlocal?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB\&path=foo.txt
      *      
      *      Hello World 
      */
@@ -349,7 +349,7 @@ public interface JaxrsEndpoint {
      * 
      * Example:
      *      
-     *      curl "http://192.168.178.20:8081/nessus/rmlocal?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB&path=foo.txt"
+     *      curl -f http://192.168.178.20:8081/nessus/rmlocal?addr=mt5CNtbvx9qSxCRze5AqTDdsr4CZCn9MQB\&path=foo.txt
      */
     @GET
     @Path("/rmlocal")

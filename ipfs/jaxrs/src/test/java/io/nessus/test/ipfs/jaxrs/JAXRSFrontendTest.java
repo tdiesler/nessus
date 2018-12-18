@@ -24,7 +24,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,49 +32,44 @@ import java.util.List;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.jaxrs.JaxrsApplication;
-import io.nessus.ipfs.jaxrs.JaxrsApplication.JAXRSServer;
-import io.nessus.ipfs.jaxrs.JaxrsClient;
-import io.nessus.ipfs.jaxrs.JaxrsConfig;
+import io.nessus.ipfs.jaxrs.JAXRSApplication;
+import io.nessus.ipfs.jaxrs.JAXRSApplication.JAXRSServer;
+import io.nessus.ipfs.jaxrs.JAXRSClient;
+import io.nessus.ipfs.jaxrs.JAXRSConfig;
 import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.utils.FileUtils;
 
 public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
+    static JAXRSConfig config;
     static JAXRSServer server;
-    static JaxrsClient client;
+    static JAXRSClient client;
 
-    @BeforeClass
-    public static void beforeClass() throws Exception {
+    @Before
+    public void before() throws Exception {
+    	super.before();
 
-        JaxrsConfig config = new JaxrsConfig.Builder().bcport(18443).build();
-        server = JaxrsApplication.serverStart(config);
+    	if (server == null) {
+    		
+            config = new JAXRSConfig.Builder().bcport(18443).build();
+            server = JAXRSApplication.serverStart(config);
 
-        URL jaxrsUrl = config.getJaxrsUrl();
-        client = new JaxrsClient(jaxrsUrl);
+            URL jaxrsUrl = config.getJaxrsUrl();
+            client = new JAXRSClient(jaxrsUrl);
+    	}
     }
 
     @AfterClass
     public static void stop() throws Exception {
         if (server != null)
             server.stop();
-    }
-
-    @Before
-    public void before() throws Exception {
-    	super.before();
-
-        // Give Bob & Mary some funds
-        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
-        wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
     }
 
     @Test
@@ -225,6 +219,31 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         String strres = writer.writeValueAsString(sfh);
         LOG.info("{}", strres);
         Assert.assertFalse(strres.contains(": null"));
+    }
+    
+
+    @Test
+    public void invalidRootPath() throws Exception {
+
+    	SAHandle shandle = client.registerAddress(addrBob.getAddress());
+		LOG.info("{}", shandle);
+		
+        List<SAHandle> infos = client.findAddressInfo(null, addrBob.getAddress());
+        infos.forEach(info -> LOG.info("{}", info));
+		
+        infos = client.findAddressInfo(LABEL_BOB, null);
+        infos.forEach(info -> LOG.info("{}", info));
+		
+		URL jaxrsUrl = config.getJaxrsUrl();
+		URL bogusUrl = new URL(jaxrsUrl.toString().replace("nessus", "bogus"));
+		JAXRSClient bogusClient = new JAXRSClient(bogusUrl);
+        
+        try {
+			bogusClient.findAddressInfo(null, addrBob.getAddress());
+			Assert.fail("RuntimeException expected");
+		} catch (RuntimeException rte) {
+			// ignore
+		}
     }
     
 	private SFHandle findLocalContent(Address addr, Path path) throws IOException {

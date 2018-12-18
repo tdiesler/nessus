@@ -45,18 +45,19 @@ import io.nessus.ipfs.NessusException;
 import io.nessus.ipfs.NessusUserFault;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
+import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCError;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 
-public class JaxrsClient implements JaxrsEndpoint {
+public class JAXRSClient implements JAXRSEndpoint {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JaxrsClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JAXRSClient.class);
 
     final Client client = ClientBuilder.newClient();
     final URL jaxrsUrl;
 
     static Long networkVersion;
     
-    public JaxrsClient(URL jaxrsUrl) {
+    public JAXRSClient(URL jaxrsUrl) {
         this.jaxrsUrl = jaxrsUrl;
     }
 
@@ -75,7 +76,8 @@ public class JaxrsClient implements JaxrsEndpoint {
                 networkVersion = network.getNetworkInfo().version();
                 LOG.info("{} Version: {}",  networkName, networkVersion);
             } catch (BitcoinRPCException rte) {
-                String errmsg = rte.getRPCError().getMessage();
+                BitcoinRPCError rpcError = rte.getRPCError();
+				String errmsg = rpcError != null ? rpcError.getMessage() : rte.getMessage();
                 LOG.error("Blockchain not available: {}", errmsg);
                 throw rte;
             } catch (RuntimeException rte) {
@@ -307,7 +309,7 @@ public class JaxrsClient implements JaxrsEndpoint {
                 
                 Throwable errInst = null;
                 try {
-                    ClassLoader loader = JaxrsClient.class.getClassLoader();
+                    ClassLoader loader = JAXRSClient.class.getClassLoader();
                     Class<?> extype = loader.loadClass(errType);
                     Constructor<?> ctor = extype.getConstructor(String.class);
                     errInst = (Throwable) ctor.newInstance(errMessage);
@@ -323,6 +325,7 @@ public class JaxrsClient implements JaxrsEndpoint {
                     throw new IllegalStateException(errInst);
                 }
                 
+                //if (errMessage.length() == 0)
                 throw new IllegalStateException(errMessage);
             }
 

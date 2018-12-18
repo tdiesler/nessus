@@ -14,9 +14,9 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.ipfs.Config;
-import io.nessus.ipfs.jaxrs.JaxrsClient;
-import io.nessus.ipfs.jaxrs.JaxrsConfig;
-import io.nessus.ipfs.jaxrs.JaxrsSanityCheck;
+import io.nessus.ipfs.jaxrs.JAXRSClient;
+import io.nessus.ipfs.jaxrs.JAXRSConfig;
+import io.nessus.ipfs.jaxrs.JAXRSSanityCheck;
 import io.nessus.utils.SystemUtils;
 import io.undertow.Undertow;
 import io.undertow.server.HttpHandler;
@@ -44,7 +44,7 @@ public class WebUI {
     
     public static void main(String[] args) throws Exception {
 
-        JaxrsConfig config = new JaxrsConfig();
+        JAXRSConfig config = new JAXRSConfig();
         CmdLineParser parser = new CmdLineParser(config);
         
         try {
@@ -54,7 +54,7 @@ public class WebUI {
             throw ex;
         }
 
-        JaxrsSanityCheck.verifyPlatform();
+        JAXRSSanityCheck.verifyPlatform();
 
         WebUI webUI = new WebUI (config);
         webUI.start();
@@ -65,14 +65,14 @@ public class WebUI {
     final URL gatewayUrl;
     
     final Blockchain blockchain;
-    final JaxrsClient jaxrsClient;
+    final JAXRSClient jaxrsClient;
     
-    public WebUI(JaxrsConfig config) throws Exception {
+    public WebUI(JAXRSConfig config) throws Exception {
         
         LOG.info("{} Version: {} Build: {}", getApplicationName(), implVersion, implBuild);
         
         blockchain = config.getBlockchain();
-        JaxrsClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
+        JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
         String envHost = SystemUtils.getenv(Config.ENV_IPFS_GATEWAY_ADDR, "127.0.0.1");
         String envPort = SystemUtils.getenv(Config.ENV_IPFS_GATEWAY_PORT, "8080");
@@ -82,7 +82,7 @@ public class WebUI {
         URL jaxrsUrl = config.getJaxrsUrl();
         LOG.info("Nessus JAXRS: {}", jaxrsUrl);
 
-        jaxrsClient = new JaxrsClient(jaxrsUrl);
+        jaxrsClient = new JAXRSClient(jaxrsUrl);
 
         webuiHost = SystemUtils.getenv(ENV_NESSUS_WEBUI_ADDR, "0.0.0.0");
         webuiPort = SystemUtils.getenv(ENV_NESSUS_WEBUI_PORT, "8082");
@@ -104,7 +104,7 @@ public class WebUI {
         server.start();
     }
 
-    protected HttpHandler createHttpHandler(Blockchain blockchain, JaxrsClient jaxrsClient, URL gatewayUrl) throws Exception {
+    protected HttpHandler createHttpHandler(Blockchain blockchain, JAXRSClient jaxrsClient, URL gatewayUrl) throws Exception {
         return new ContentHandler(jaxrsClient, blockchain, gatewayUrl.toURI());
     }
 }
