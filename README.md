@@ -1,4 +1,4 @@
-## Welcome to Nessus Blockchain + IPFS
+blockstore## Welcome to Nessus Blockchain + IPFS
 
 The Nessus project is about exploring various Blockchain and related technologies.
 In its initial state we looked at the combination of Blockchain and IPFS. 
@@ -25,9 +25,9 @@ Here is a quickstart to get the whole system running ...
 
     export GATEWAYIP=[YOUR_PUBLIC_IP]
     
-    docker volume rm -f tnblocks
-    docker run --rm -v tnblocks:/var/lib/bitcoind nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
-    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v tnblocks:/var/lib/bitcoind --memory=500m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=1024
+    docker volume rm -f blockstore
+    docker run --rm -v blockstore:/var/lib/bitcoind nessusio/bitcoin-testnet-blockstore du -h /var/lib/bitcoind
+    docker run --detach --name btcd -p 18333:18333 --expose=18332 -v blockstore:/var/lib/bitcoind --memory=500m --memory-swap=2g nessusio/bitcoind -testnet=1 -prune=1024
     docker run --detach --name ipfs -p 4001:4001 -p 8080:8080 -e GATEWAYIP=$GATEWAYIP --memory=300m --memory-swap=2g nessusio/ipfs
     docker run --detach --name jaxrs --link btcd:blockchain --link ipfs:ipfs --privileged -v ~/.nessus/plain:/root/.nessus/plain --memory=50m --memory-swap=2g nessusio/ipfs-jaxrs
     docker run --detach --name webui -p 8082:8082 --link btcd:blockchain --link ipfs:ipfs --link jaxrs:jaxrs --memory=50m --memory-swap=2g nessusio/ipfs-webui

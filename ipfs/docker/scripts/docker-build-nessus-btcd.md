@@ -4,11 +4,13 @@
 rm -rf docker
 mkdir docker
 
+# Testnet Explorer
 # https://live.blockcypher.com/btc-testnet
 
 docker exec btcd bitcoin-cli -testnet=1 getblockcount
 docker exec btcd bitcoin-cli -testnet=1 stop
 
+mkdir docker
 docker cp btcd:/var/lib/bitcoind/testnet3 docker/testnet3
 rm -f docker/testnet3/*.log docker/testnet3/wallet.dat
 
@@ -21,13 +23,13 @@ RUN mkdir /var/lib/bitcoind
 COPY testnet3 /var/lib/bitcoind/testnet3
 EOF
 
-docker build -t nessusio/bitcoin-tnblocks docker/
+docker build -t nessusio/bitcoin-testnet-blockstore docker/
 
-docker rm btcd
-docker volume rm -f tnblocks
-docker run --rm -v tnblocks:/var/lib/bitcoind nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
+docker rm -f btcd
+docker volume rm -f blockstore
+docker run --rm -v blockstore:/var/lib/bitcoind nessusio/bitcoin-testnet-blockstore du -h /var/lib/bitcoind
 
-docker push nessusio/bitcoin-tnblocks
+docker push nessusio/bitcoin-testnet-blockstore
 ```
 
 ## Build the Bitcoin daemon image
@@ -99,26 +101,24 @@ docker push nessusio/bitcoind:$NVERSION
 ### Populate the blockstore volume
 
 ```
-docker volume rm tnblocks
+docker volume rm blockstore
 docker run -it --rm \
-    -v tnblocks:/var/lib/bitcoind \
-    nessusio/bitcoin-tnblocks du -h /var/lib/bitcoind
+    -v blockstore:/var/lib/bitcoind \
+    nessusio/bitcoin-testnet-blockstore du -h /var/lib/bitcoind
 
-docker volume inspect tnblocks
+docker volume inspect blockstore
 ```
 
 ### Run the Bitcoin daemon 
 
 ```
-export CNAME=btcd
-
-docker rm -f $CNAME
+docker rm -f btcd
 docker run --detach \
     -p 18333:18333 \
     --expose=18332 \
-    -v tnblocks:/var/lib/bitcoind \
-    --name $CNAME \
-    nessusio/bitcoind -testnet=1 -prune=720
+    -v blockstore:/var/lib/bitcoind \
+    --name btcd \
+    nessusio/bitcoind -testnet=1 -prune=1024
 
 watch docker exec btcd bitcoin-cli -testnet=1 getblockcount
 
