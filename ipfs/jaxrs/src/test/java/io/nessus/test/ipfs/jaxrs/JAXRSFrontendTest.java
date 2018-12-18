@@ -30,19 +30,21 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.JaxrsApplication;
 import io.nessus.ipfs.jaxrs.JaxrsApplication.JAXRSServer;
 import io.nessus.ipfs.jaxrs.JaxrsClient;
 import io.nessus.ipfs.jaxrs.JaxrsConfig;
+import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.utils.FileUtils;
 
@@ -53,8 +55,6 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-
-        AbstractJAXRSTest.beforeClass();
 
         JaxrsConfig config = new JaxrsConfig.Builder().bcport(18443).build();
         server = JaxrsApplication.serverStart(config);
@@ -70,24 +70,12 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
     }
 
     @Before
-    public void before() {
+    public void before() throws Exception {
+    	super.before();
 
-        // Verify that Bob has some funds
-        BigDecimal balBob = wallet.getBalance(addrBob);
-        if (balBob.doubleValue() < 1.0)
-            wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
-
-        // Verify that Mary has some funds
-        BigDecimal balMary = wallet.getBalance(addrMary);
-        if (balMary.doubleValue() < 1.0)
-            wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
-    }
-
-    @After
-    public void after() {
-
-        redeemLockedUtxos(addrBob);
-        redeemLockedUtxos(addrMary);
+        // Give Bob & Mary some funds
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
+        wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
     }
 
     @Test
@@ -119,7 +107,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         // Add content to IPFS
 
         Path relPath = Paths.get("Bob/userfile.txt");
-        FileUtils.recursiveDelete(cntmgr.getPlainPath(addrBob).resolve("Bob"));
+        FileUtils.recursiveDelete(getPlainPath(addrBob).resolve("Bob"));
         InputStream input = getClass().getResourceAsStream("/userfile.txt");
 
         SFHandle fhandle = client.addIpfsContent(addrBob.getAddress(), relPath.toString(), input);
@@ -189,7 +177,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         // Get content from IPFS
 
         relPath = Paths.get("marry/userfile.txt");
-        FileUtils.recursiveDelete(cntmgr.getPlainPath(addrMary));
+        FileUtils.recursiveDelete(getPlainPath(addrMary));
         fhandle = client.getIpfsContent(addrMary.getAddress(), fhandle.getCid(), relPath.toString(), timeout);
 
         Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
@@ -216,7 +204,30 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertEquals(relPath, Paths.get(fhandles.get(0).getPath()));
     }
 
-    private SFHandle findLocalContent(Address addr, Path path) throws IOException {
+    @Test
+    public void fileTree() throws Exception {
+
+        Path srcPath = Paths.get("src/test/resources/contentA");
+        Path dstPath = getPlainPath(addrBob).resolve("contentA");
+        if (!dstPath.toFile().exists())
+            FileUtils.recursiveCopy(srcPath, dstPath);
+        
+        client.findLocalContent(addrBob.getAddress(), "contentA");
+        List<SFHandle> sfhs = client.findLocalContent(addrBob.getAddress(), "contentA");
+        Assert.assertEquals(1, sfhs.size());
+        
+        SFHandle sfh = sfhs.get(0);
+		LOG.info("{}", sfh.toString(true));
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectWriter writer = mapper.writer();
+        writer = mapper.writerWithDefaultPrettyPrinter();
+        String strres = writer.writeValueAsString(sfh);
+        LOG.info("{}", strres);
+        Assert.assertFalse(strres.contains(": null"));
+    }
+    
+	private SFHandle findLocalContent(Address addr, Path path) throws IOException {
         List<SFHandle> fhandles = client.findLocalContent(addr.getAddress(), path.toString());
         SFHandle fhLocal = fhandles.stream().findFirst().orElse(null);
         return fhLocal;

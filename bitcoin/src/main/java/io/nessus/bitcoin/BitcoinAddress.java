@@ -5,8 +5,6 @@ import java.util.List;
 import io.nessus.AbstractAddress;
 import io.nessus.AbstractWallet;
 import io.nessus.Wallet.Address;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class BitcoinAddress extends AbstractAddress implements Address {
 
@@ -19,14 +17,7 @@ public class BitcoinAddress extends AbstractAddress implements Address {
 
     @Override
     public String getPrivKey() {
-        String privKey = null;
-        try {
-        	BitcoindRpcClient client = wallet.getRpcClient();
-            privKey = client.dumpPrivKey(getAddress());
-        } catch (BitcoinRPCException ex) {
-            // ignore
-        }
-        return privKey;
+        return wallet.getPrivKey(getAddress());
     }
 
     @Override

@@ -1,45 +1,17 @@
 package io.nessus.test.bitcoin;
 
-/*-
- * #%L
- * Nessus :: Bitcoin
- * %%
- * Copyright (C) 2018 Nessus
- * %%
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * #L%
- */
-
-import static io.nessus.Wallet.ALL_FUNDS;
-
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
-import io.nessus.BlockchainFactory;
-import io.nessus.Network;
 import io.nessus.Tx;
 import io.nessus.Tx.TxBuilder;
 import io.nessus.TxInput;
 import io.nessus.TxOutput;
 import io.nessus.UTXO;
-import io.nessus.Wallet;
-import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.AbstractBitcoinTest;
 import io.nessus.bitcoin.BitcoinBlockchain;
 import io.nessus.bitcoin.BitcoinWallet;
@@ -50,39 +22,14 @@ import wf.bitcoin.krotjson.HexCoder;
 
 public class ColoredCoinTest extends AbstractBitcoinTest {
 
-    BitcoinBlockchain blockchain;
-    Network network;
-    Wallet wallet;
-
-    @Before
-    public void before() {
-
-        blockchain = BlockchainFactory.getBlockchain(BitcoinBlockchain.class);
-        network = blockchain.getNetwork();
-        wallet = blockchain.getWallet();
-        
-        // Send 0.1 BTC to Bob
-        Address addrBob = wallet.getAddress(LABEL_BOB);
-        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("0.1"));
-    }
-
-    @After
-    public void after() {
-
-        // Bob & Mary send everything to the Sink  
-        Address addrSink = wallet.getAddress(LABEL_SINK);
-        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARY, addrSink.getAddress(), ALL_FUNDS);
-        network.generate(1);
-    }
-
     @Test
     public void testSimpleSpending() throws Exception {
 
-        Address addrMary = wallet.getAddress(LABEL_MARY);
-
+        // Send 0.1 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("0.1"));
+        
         // Verify that Bob has received 0.1 BTC
-        BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
+        BigDecimal btcBob = wallet.getBalance(addrBob);
         Assert.assertEquals(0.1, btcBob.doubleValue(), 0);
 
         BigDecimal btcSend = new BigDecimal("0.01");
@@ -111,7 +58,7 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         showAccountBalances();
 
         // Verify that Mary has received 0.01 BTC
-        BigDecimal btcMary = wallet.getBalance(LABEL_MARY);
+        BigDecimal btcMary = wallet.getBalance(addrMary);
         Assert.assertTrue(btcMary.doubleValue() > 0);
 
         // Verify that OP_RETURN data has been recorded
@@ -130,10 +77,11 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
     @Test
     public void testRawTxHack() throws Exception {
 
-        Address addrMary = wallet.getAddress(LABEL_MARY);
-
+        // Send 0.1 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("0.1"));
+        
         // Verify that Bob has received 0.1 BTC
-        BigDecimal btcBob = wallet.getBalance(LABEL_BOB);
+        BigDecimal btcBob = wallet.getBalance(addrBob);
         Assert.assertTrue(btcBob.doubleValue() > 0);
 
         BigDecimal btcSend = network.getDustThreshold().multiply(BigDecimal.TEN);
@@ -148,7 +96,8 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
 
         Tx tx = new TxBuilder().unspentInputs(utxos).output(changeAddr, changeAmount).output(new TxOutput(addrMary.getAddress(), btcSend)).build();
 
-        ExtWallet extWallet = new ExtWallet(blockchain, blockchain.getRpcClient());
+        BitcoinBlockchain bitcoin = (BitcoinBlockchain) blockchain;
+		ExtWallet extWallet = new ExtWallet(bitcoin, bitcoin.getRpcClient());
         String rawTx = extWallet.createRawTx(tx, dataIn);
         LOG.info("Raw Tx: {}", rawTx);
 
@@ -164,7 +113,7 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         showAccountBalances();
 
         // Verify that Mary has received coins
-        BigDecimal btcMary = wallet.getBalance(LABEL_MARY);
+        BigDecimal btcMary = wallet.getBalance(addrMary);
         Assert.assertTrue(btcMary.doubleValue() > 0);
 
         // Verify that OP_RETURN data has been recorded

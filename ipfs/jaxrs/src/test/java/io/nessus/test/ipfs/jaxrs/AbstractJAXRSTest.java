@@ -22,83 +22,55 @@ package io.nessus.test.ipfs.jaxrs;
 
 import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
 
-import java.util.Arrays;
-import java.util.List;
+import java.math.BigDecimal;
+import java.nio.file.Path;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 
-import io.ipfs.multihash.Multihash;
-import io.nessus.AbstractWallet;
-import io.nessus.Blockchain;
-import io.nessus.Network;
-import io.nessus.UTXO;
-import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
+import io.nessus.bitcoin.AbstractBitcoinTest;
 import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
-import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.core.DefaultContentManager;
-import io.nessus.testing.AbstractBlockchainTest;
+import io.nessus.ipfs.IPFSClient;
+import io.nessus.utils.FileUtils;
 
-public abstract class AbstractJAXRSTest extends AbstractBlockchainTest {
+public abstract class AbstractJAXRSTest extends AbstractBitcoinTest {
 
-    protected static DefaultContentManager cntmgr;
-    protected static Blockchain blockchain;
-    protected static Network network;
-    protected static Wallet wallet;
+	protected static Config config;
+	protected static IPFSClient ipfsClient;
+    
+    @Before
+    public void before() throws Exception {
+    	super.before();
 
-    protected static Address addrBob;
-    protected static Address addrMary;
-
-    @BeforeClass
-    public static void beforeClass() throws Exception {
-
-        Config config = new ConfigBuilder()
-        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
-        		.build();
-        
-        cntmgr = new DefaultContentManager(config);
-        
-        blockchain = cntmgr.getBlockchain();
-        network = blockchain.getNetwork();
-        wallet = blockchain.getWallet();
-
-        importAddresses(wallet, AbstractJAXRSTest.class);
-
-        addrBob = wallet.getAddress(LABEL_BOB);
-        addrMary = wallet.getAddress(LABEL_MARY);
+    	if (ipfsClient == null) {
+    		
+            config = new ConfigBuilder()
+            		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+            		.build();
+            
+            ipfsClient = config.getIPFSClient();
+            
+            // Delete all local files
+            Path rootPath = config.getDataDir();
+            FileUtils.recursiveDelete(rootPath);
+            
+            // Give Bob & Mary some funds
+            wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
+            wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
+            generate(1, addrSink);
+    	}
     }
 
-    @AfterClass
-    public static void afterClass() throws Exception {
-
-    	AbstractWallet absw = (AbstractWallet) wallet;
-    	absw.redeemChange(LABEL_BOB, addrBob);
-    	absw.redeemChange(LABEL_MARY, addrMary);
+	Path getRootPath() {
+        Path rootPath = config.getDataDir();
+        rootPath.toFile().mkdirs();
+        return rootPath;
     }
 
-    protected void redeemLockedUtxos(Address addr) {
-
-        // Unlock all UTXOs
-        wallet.listLockUnspent(Arrays.asList(addr))
-            .forEach(utxo -> wallet.lockUnspent(utxo, true));
-
-        // Redeem all locked UTXOs
-        String label = addr.getLabels().get(0);
-        List<UTXO> utxos = wallet.listUnspent(Arrays.asList(addr));
-        String changeAddr = wallet.getChangeAddress(label).getAddress();
-        
-        wallet.sendToAddress(addr.getAddress(), changeAddr, Wallet.ALL_FUNDS, utxos);
-    }
-
-    FHandle findIpfsContent(Address addr, Multihash cid, Long timeout) throws Exception {
-        
-        List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
-        FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
-        Assert.assertNotNull(fhandle);
-        
-        return fhandle;
+    Path getPlainPath(Address owner) {
+		Path path = getRootPath().resolve("plain").resolve(owner.getAddress());
+        path.toFile().mkdirs();
+        return path;
     }
 }

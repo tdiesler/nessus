@@ -29,6 +29,7 @@ import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -62,11 +63,7 @@ public class ContentManagerTest extends AbstractIpfsTest {
     public void before() throws Exception {
         super.before();
         
-        AHandle ahandle = cntmgr.findAddressRegistation(addrBob, null);
-        if (ahandle == null) {
-        	ahandle = cntmgr.registerAddress(addrBob);
-        }
-        
+        AHandle ahandle = cntmgr.registerAddress(addrBob);
         Assert.assertNotNull(ahandle.isAvailable());
     }
     
@@ -265,16 +262,19 @@ public class ContentManagerTest extends AbstractIpfsTest {
         
         createContentManager(config);
         
-        cntmgr.removeLocalContent(addrBob, Paths.get("contentA"));
+    	// Unlock & send all to the sink
+    	unlockFileRegistrations(addrBob);
+    	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
+    	
+        // Send 1 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
+        
+        // Add some local content
+        addIpfsContent(addrBob, Paths.get("contentA/subA/file01.txt"));
+        addIpfsContent(addrBob, Paths.get("contentA/subB/subC/file02.txt"));
+        addIpfsContent(addrBob, Paths.get("contentA/file03.txt"));
         
         List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
-        if (fhandles.isEmpty()) {
-            addIpfsContent(addrBob, Paths.get("contentA/subA/file01.txt"));
-            addIpfsContent(addrBob, Paths.get("contentA/subB/subC/file02.txt"));
-            addIpfsContent(addrBob, Paths.get("contentA/file03.txt"));
-        }
-        
-        fhandles = cntmgr.findIpfsContent(addrBob, null);
         fhandles.forEach(fh -> LOG.info("{}", fh));
         Assert.assertEquals(3, fhandles.size());
         
@@ -300,15 +300,20 @@ public class ContentManagerTest extends AbstractIpfsTest {
         
         createContentManager(config);
         
-        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
-        if (fhandles.isEmpty()) {
-            long millis = System.currentTimeMillis();
-            addIpfsContent(addrBob, getTestPath(200), "test200_" + millis);
-            addIpfsContent(addrBob, getTestPath(201), "test201_" + millis);
-            addIpfsContent(addrBob, getTestPath(202), "test202_" + millis);
-        }
+    	// Unlock & send all to the sink
+    	unlockFileRegistrations(addrBob);
+    	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
+    	
+        // Send 1 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
         
-        fhandles = cntmgr.findIpfsContent(addrBob, null);
+    	// Add some content
+        long millis = System.currentTimeMillis();
+        addIpfsContent(addrBob, getTestPath(200), "test200_" + millis);
+        addIpfsContent(addrBob, getTestPath(201), "test201_" + millis);
+        addIpfsContent(addrBob, getTestPath(202), "test202_" + millis);
+        
+        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
         fhandles = awaitFileAvailability(fhandles, 3, true);
         
         // SET A BREAKPOINT HERE AND CONTINUE WITH A NEW IPFS INSTANCE
@@ -322,7 +327,7 @@ public class ContentManagerTest extends AbstractIpfsTest {
         
         fhandles = awaitFileAvailability(fhandles, 1, false);
         if (fhandles.size() == 0) {
-            long millis = System.currentTimeMillis();
+            millis = System.currentTimeMillis();
             addIpfsContent(addrBob, getTestPath(200), "test200_" + millis);
             addIpfsContent(addrBob, getTestPath(201), "test201_" + millis);
             addIpfsContent(addrBob, getTestPath(202), "test202_" + millis);
@@ -437,6 +442,13 @@ public class ContentManagerTest extends AbstractIpfsTest {
     @Test
     public void unregisterIPFS() throws Exception {
 
+    	// Unlock & send all to the sink
+    	unlockFileRegistrations(addrBob);
+    	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
+    	
+        // Send 1 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
+        
         InputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
         FHandle fhA = cntmgr.addIpfsContent(addrBob, Paths.get("kermit.txt"), input);
         

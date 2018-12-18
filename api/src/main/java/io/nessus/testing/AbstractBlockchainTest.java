@@ -24,18 +24,22 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.AbstractWallet;
+import io.nessus.AbstractWallet.Grouping;
 import io.nessus.Blockchain;
-import io.nessus.BlockchainFactory;
 import io.nessus.Config;
 import io.nessus.Network;
 import io.nessus.UTXO;
 import io.nessus.Wallet;
+import io.nessus.Wallet.Address;
 
 public abstract class AbstractBlockchainTest {
 
@@ -43,14 +47,75 @@ public abstract class AbstractBlockchainTest {
 
     public static final String LABEL_BOB = "Bob";
     public static final String LABEL_MARY = "Mary";
-    public static final String LABEL_LUI = "Lui";
-    public static final String LABEL_SINK = "Sink";
+    public static final String LABEL_SINK = "";
     
     public static final String ADDRESS_BOB = "n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE";
     public static final String ADDRESS_MARY = "mm2PoHeFncAStYeZJSSTa4bmUVXRa3L6PL";
-    public static final String ADDRESS_LUI = "mosjJrQTL7HdsaXNSjRZ52y47WygLECxYQ";
     
-    protected static void importAddresses(Wallet wallet, Class<?> configSource) throws IOException {
+    protected static Blockchain blockchain;
+    protected static Network network;
+    protected static Wallet wallet;
+    
+    protected static Address addrBob;
+    protected static Address addrMary;
+    protected static Address addrSink;
+    
+    @Before
+    public void before() throws Exception {
+
+    	if (blockchain == null) {
+    		
+        	blockchain = getBlockchain();
+        	network = blockchain.getNetwork();
+        	wallet = blockchain.getWallet();
+
+        	// Create the default address on demnad 
+        	
+        	addrSink = wallet.getAddress(LABEL_SINK);
+        	if (addrSink == null) 
+        		addrSink = wallet.newAddress(LABEL_SINK);
+        	
+            // Import the configured addresses and generate a few coins
+        	
+            importAddresses(getClass());
+            
+            // Generate initial coins
+            
+            BigDecimal balance = wallet.getBalance(addrSink);
+            if (BigDecimal.ZERO.compareTo(balance) <= 0)
+            	generate(101, addrSink);
+            
+            addrBob = wallet.findAddress(ADDRESS_BOB);
+            addrMary = wallet.findAddress(ADDRESS_MARY);
+            
+            // Unlock all UTXOs
+            
+            List<Address> addrs = wallet.getAddresses();
+            wallet.listLockUnspent(addrs).forEach(utxo -> {
+            	wallet.lockUnspent(utxo, true);
+            });
+            
+            // Send everything to the sink
+            
+            List<UTXO> utxos = wallet.listUnspent(addrs);
+            if (!utxos.isEmpty()) {
+                String rawSink = addrSink.getAddress();
+                wallet.sendToAddress(rawSink, rawSink, Wallet.ALL_FUNDS, utxos);
+                generate(1, addrSink);
+            }
+    	}
+    }
+    
+	protected abstract Blockchain createBlockchain();
+
+	protected Blockchain getBlockchain() {
+		if (blockchain == null) {
+			blockchain = createBlockchain();
+		}
+		return blockchain;
+	}
+
+    protected void importAddresses(Class<?> configSource) throws IOException {
         
         URL configURL = configSource.getResource("/initial-import.json");
         if (configURL != null) {
@@ -59,28 +124,21 @@ public abstract class AbstractBlockchainTest {
         }
     }
     
-    protected static void generate(Blockchain blockchain) {
-        Wallet wallet = blockchain.getWallet();
-        Network network = blockchain.getNetwork();
-        BigDecimal balance = wallet.getBalance("");
-        if (balance.doubleValue() == 0.0) {
-            List<String> blocks = network.generate(101, null);
-            Assert.assertEquals(101, blocks.size());
-        }
+    protected void generate(int blocks, Address addr) {
+        List<String> hashs = network.generate(blocks, addr);
+        Assert.assertEquals(blocks, hashs.size());
     }
     
-    protected static BigDecimal getUTXOAmount(List<UTXO> utxos) {
+    protected BigDecimal getUTXOAmount(List<UTXO> utxos) {
         return AbstractWallet.getUTXOAmount(utxos);
     }
     
     protected void showAccountBalances() {
-        Blockchain blockchain = BlockchainFactory.getBlockchain();
-        Wallet wallet = blockchain.getWallet();
-        for (String label : wallet.getLabels()) {
-            if (!label.equals(Wallet.LABEL_CHANGE)) {
-                BigDecimal val = wallet.getBalance(label);
-                LOG.info(String.format("%-5s: %13.8f", label, val));
-            }
+    	Map<String, List<Grouping>> groups = ((AbstractWallet) wallet).listAddressGroupings();
+    	List<String> labels = groups.keySet().stream().sorted().collect(Collectors.toList());
+        for (String label : labels) {
+        	Double val = groups.get(label).stream().mapToDouble(gr -> gr.balance.doubleValue()).sum();
+            LOG.info(String.format("%-5s: %13.8f", label, val));
         }
     }
 }

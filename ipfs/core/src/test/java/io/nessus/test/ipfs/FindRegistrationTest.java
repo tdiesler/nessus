@@ -15,18 +15,20 @@ public class FindRegistrationTest extends AbstractIpfsTest {
     @Test
     public void findAddrReg() throws Exception {
 
-        // Send 1 BTC to Bob
+    	// Unlock & send all to the sink
+    	unlockAddressRegistrations(addrBob);
+    	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
     	
-        BigDecimal balBob = wallet.getBalance(addrBob);
-        if (balBob.doubleValue() < 1.0)
-            wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
+        // Send 1 BTC to Bob
+        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
         
         AHandle ahandle = cntmgr.findAddressRegistation(addrBob, null);
-        if (ahandle == null) {
-        	ahandle = cntmgr.registerAddress(addrBob);
-            ahandle = cntmgr.findAddressRegistation(addrBob, null);
-        }
-
+        Assert.assertNull(ahandle);
+        
+    	ahandle = cntmgr.registerAddress(addrBob);
+        Assert.assertNotNull(ahandle.getPubKey());
+        
+        ahandle = cntmgr.findAddressRegistation(addrBob, null);
         Assert.assertNotNull(ahandle.getPubKey());
     }
 
@@ -34,50 +36,44 @@ public class FindRegistrationTest extends AbstractIpfsTest {
     public void findMissingAddrReg() throws Exception {
 
         // Create a new address for Lui
-        
-        Wallet wallet = cntmgr.getBlockchain().getWallet();
+        String LABEL_LUI = "Lui";
         Address addrLui = wallet.newAddress(LABEL_LUI);
-        try {
-        	
-            AHandle ahA = cntmgr.findAddressRegistation(addrLui, null);
-            Assert.assertNull(ahA);
-            
-            // Send 1 BTC to Lui
-        	
-            BigDecimal balBob = wallet.getBalance(addrLui);
-            if (balBob.doubleValue() < 1.0)
-                wallet.sendToAddress(addrLui.getAddress(), new BigDecimal("1.0"));
-            
-            // Register an address without IPFS add
-            
-            AHandle ahB = cntmgr.registerAddress(addrLui, true);
-            Assert.assertNotNull(ahB.getPubKey());
-            Assert.assertTrue(ahB.isAvailable());
-            Assert.assertNotNull(ahB.getCid());
-            
-            // Clear the IPFS cache
-            
-            cntmgr.getIPFSCache().clear();
-                        
-            AHandle ahC = cntmgr.findAddressRegistation(addrLui, 5000L);
-            Assert.assertFalse(ahC.isAvailable());
-            
-            // Add the IPFS file
-            AHandleManager ahmgr = cntmgr.getAHandleManager();
-            AHandle ahD = ahmgr.addIpfsContent(ahB, false);
-            Assert.assertEquals(ahB.getCid(), ahD.getCid());
-            
-            // Clear the IPFS cache again
-            
-            cntmgr.getIPFSCache().clear();
-                        
-            AHandle ahE = cntmgr.findAddressRegistation(addrLui, null);
-            Assert.assertTrue(ahE.isAvailable());
-            
-        } finally {
-        	cntmgr.unregisterAddress(addrLui);
-        }
-        
-    }
 
+        AHandle ahA = cntmgr.findAddressRegistation(addrLui, null);
+        Assert.assertNull(ahA);
+        
+        // Send 1 BTC to Lui
+    	
+        BigDecimal balBob = wallet.getBalance(addrLui);
+        if (balBob.doubleValue() < 1.0)
+            wallet.sendToAddress(addrLui.getAddress(), new BigDecimal("1.0"));
+        
+        // Register an address without IPFS add
+        
+        AHandle ahB = cntmgr.registerAddress(addrLui, true);
+        Assert.assertNotNull(ahB.getPubKey());
+        Assert.assertTrue(ahB.isAvailable());
+        Assert.assertNotNull(ahB.getCid());
+        
+        // Clear the IPFS cache
+        
+        cntmgr.getIPFSCache().clear();
+                    
+        AHandle ahC = cntmgr.findAddressRegistation(addrLui, 5000L);
+        Assert.assertFalse(ahC.isAvailable());
+        
+        // Add the IPFS file
+        AHandleManager ahmgr = cntmgr.getAHandleManager();
+        AHandle ahD = ahmgr.addIpfsContent(ahB, false);
+        Assert.assertEquals(ahB.getCid(), ahD.getCid());
+        
+        // Clear the IPFS cache again
+        
+        cntmgr.getIPFSCache().clear();
+                    
+        AHandle ahE = cntmgr.findAddressRegistation(addrLui, null);
+        Assert.assertTrue(ahE.isAvailable());
+
+    	cntmgr.unregisterAddress(addrLui);
+    }
 }

@@ -45,7 +45,7 @@ public class BitcoinNetwork extends AbstractNetwork implements Network {
         
         // https://en.bitcoin.it/wiki/Transaction_fees#Settings
         BigDecimal feeRate = client.estimateSmartFee(blocks).feeRate();
-        feeRate = feeRate != null ? feeRate : new BigDecimal("0.00001");
+        feeRate = feeRate != null ? feeRate : new BigDecimal("0.00004000");
         
         return feeRate;
     }
@@ -61,11 +61,9 @@ public class BitcoinNetwork extends AbstractNetwork implements Network {
         return 600;
     }
 
-    /**
-     * 546 satoshis at the default rate of 3000 sat/kB.
-     */
     @Override
     public BigDecimal getDustThreshold() {
+    	// 546 satoshis at the default rate of 3000 sat/kB.
         // https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.cpp#L18
         return new BigDecimal("0.00000546");
     }

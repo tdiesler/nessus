@@ -84,7 +84,7 @@ public interface Wallet {
     List<Address> getAddresses(String label);
 
     /**
-     * Get a random change address for a given label.
+     * Get a change address for a given label.
      * 
      * If there is no change address yet, it creates one. 
      */
@@ -112,7 +112,13 @@ public interface Wallet {
     String sendToAddress(String toAddr, BigDecimal amount);
 
     /**
-     * Sends funds that are associated with a given label to an address
+     * Sends funds associated with a given address to an address
+     * @return The transaction id
+     */
+    String sendFromAddress(Address fromAddr, String toAddr, BigDecimal amount);
+
+    /**
+     * Sends funds associated with a given label to an address
      * @return The transaction id
      */
     String sendFromLabel(String label, String toAddr, BigDecimal amount);

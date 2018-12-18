@@ -20,7 +20,6 @@ package io.nessus.test.ipfs;
  * #L%
  */
 
-import static io.nessus.Wallet.ALL_FUNDS;
 import static wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient.DEFAULT_JSONRPC_REGTEST_URL;
 
 import java.io.ByteArrayInputStream;
@@ -35,16 +34,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 
 import io.ipfs.multihash.Multihash;
-import io.nessus.Blockchain;
-import io.nessus.Network;
-import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
+import io.nessus.bitcoin.AbstractBitcoinTest;
 import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
@@ -52,75 +47,43 @@ import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.core.AHandle;
 import io.nessus.ipfs.core.DefaultContentManager;
-import io.nessus.testing.AbstractBlockchainTest;
 import io.nessus.utils.FileUtils;
 
-public class AbstractIpfsTest extends AbstractBlockchainTest {
+public class AbstractIpfsTest extends AbstractBitcoinTest {
 
-    static DefaultContentManager cntmgr;
-    static IPFSClient ipfsClient;
-    static Blockchain blockchain;
-    static Network network;
-    static Wallet wallet;
-    
-    Address addrBob;
-    Address addrMary;
-    
-    @BeforeClass
-    public static void abstractBeforeClass() throws Exception {
-        
-        Config config = new ConfigBuilder()
-        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
-        		.build();
-        
-        cntmgr = new DefaultContentManager(config);
-        
-        ipfsClient = cntmgr.getIPFSClient();
-        
-        blockchain = cntmgr.getBlockchain();
-        network = blockchain.getNetwork();
-        wallet = blockchain.getWallet();
-        
-        importAddresses(wallet, AbstractIpfsTest.class);
-        
-        // Delete all local files
-        
-        Path rootPath = cntmgr.getRootPath();
-        FileUtils.recursiveDelete(rootPath);
-    }
+	protected static DefaultContentManager cntmgr;
+	protected static IPFSClient ipfsClient;
     
     @Before
     public void before() throws Exception {
+    	super.before();
 
-        addrBob = wallet.findAddress(ADDRESS_BOB);
-        addrMary = wallet.findAddress(ADDRESS_MARY);
+    	if (cntmgr == null) {
+    		
+            Config config = new ConfigBuilder()
+            		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
+            		.build();
+            
+    		cntmgr = createContentManager(config);
+    	}
+    }
+
+    DefaultContentManager createContentManager(Config config) throws Exception {
+        LOG.info("");
         
+        cntmgr = new DefaultContentManager(config);
+        ipfsClient = cntmgr.getIPFSClient();
+        
+        // Delete all local files
+        Path rootPath = cntmgr.getRootPath();
+        FileUtils.recursiveDelete(rootPath);
+        
+        // Give Bob & Mary some funds
         wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
         wallet.sendToAddress(addrMary.getAddress(), new BigDecimal("1.0"));
+        generate(1, addrSink);
         
-        generate(blockchain);
-    }
-
-    @After
-    public void after() {
-        
-        // Unlock all UTXOs
-        List<Address> addresses = Arrays.asList(addrBob, addrMary);
-        addresses.forEach(addr -> {
-            unlockAddressRegistrations(addr);
-            unlockFileRegistrations(addr);
-        });
-
-        // Bob & Mary send everything to the Sink  
-        Address addrSink = wallet.getAddress(LABEL_SINK);
-        wallet.sendFromLabel(LABEL_BOB, addrSink.getAddress(), ALL_FUNDS);
-        wallet.sendFromLabel(LABEL_MARY, addrSink.getAddress(), ALL_FUNDS);
-        network.generate(1);
-    }
-
-    DefaultContentManager createContentManager(Config config) {
-        LOG.info("");
-        return cntmgr = new DefaultContentManager(config);
+        return cntmgr;
     }
     
     void unlockAddressRegistrations(Address addr) {

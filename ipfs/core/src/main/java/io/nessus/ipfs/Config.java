@@ -123,7 +123,7 @@ public class Config {
         return new MultiAddress(ipfsAddr);
     }
     
-	public IPFSClient getIpfsClient () {
+	public IPFSClient getIPFSClient () {
         MultiAddress ipfsAddr = getIpfsAddress();
         IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
         return ipfsClient;

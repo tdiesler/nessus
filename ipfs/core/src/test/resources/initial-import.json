@@ -1,7 +1,7 @@
 {
     "wallet": {
         "addresses": [
-            {
+           {
                 "privKey": "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2",
                 "labels": [ "Bob" ]
             },
@@ -10,21 +10,13 @@
                 "labels": [ "Bob", "(change)" ]
             },
             {
-                "privKey": "cSH7QXRDUQqTgecFyubyKugtmKNKPEFkvAKpcDf1EZBDMcEKfbPc",
-                "labels": [ "Lui" ]
-            },
-            {
                 "privKey": "cMcT5vjU5UiF2mh8WE6EsD3YdFEuFuUKm6rCcA8UuR9FUS6VLeRx",
                 "labels": [ "Mary" ]
             },
             {
                 "privKey": "cTT6AV1D1yU5C9gpjmWuPHhvvHAd8UJvz9QDL7yYAdE68WtBZKmQ",
                 "labels": [ "Mary", "(change)" ]
-            },
-            {
-                "pubKey": "moN1yVCXs6ropmrvucRQCusg9ydwz9eRnu",
-                "labels": [ "Sink" ]
-            }
+			}
         ]
     }
 }

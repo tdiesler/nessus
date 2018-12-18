@@ -114,7 +114,7 @@ public class DefaultContentManager implements ContentManager {
     public DefaultContentManager(Config config) {
     	this.config = config;
 
-        ipfsClient = config.getIpfsClient();
+        ipfsClient = config.getIPFSClient();
         blockchain = config.getBlockchain();
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
