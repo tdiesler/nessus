@@ -11,7 +11,8 @@ import io.nessus.utils.SystemUtils;
 
 public final class JAXRSConfig extends Config {
 
-    private static final String DEFAULT_NESSUS_JAXRS_HOST = "0.0.0.0";
+    private static final String DEFAULT_NESSUS_CONTEXT_PATH = "/nessus";
+	private static final String DEFAULT_NESSUS_JAXRS_HOST = "0.0.0.0";
     private static final int DEFAULT_NESSUS_JAXRS_PORT = 8081;
 
     @Option(name = "--host", usage = "The Nessus JAXRS host")
@@ -20,12 +21,16 @@ public final class JAXRSConfig extends Config {
     @Option(name = "--port", usage = "The Nessus JAXRS port")
     int jaxrsPort = DEFAULT_NESSUS_JAXRS_PORT;
 
+    @Option(name = "--ctxpath", usage = "The JAXRS context path")
+    String contextPath = DEFAULT_NESSUS_CONTEXT_PATH;
+
     public JAXRSConfig() {
     }
     
     private JAXRSConfig(String ipfsAddr, long ipfsTimeout, int ipfsAttempts, int ipfsThreads, String bcImpl, String bcUrl, 
-    		String bcHost, int bcPort, String bcUser, String bcPass, String jaxrsHost, int jaxrsPort, Path dataDir, boolean overwrite) {
+    		String bcHost, int bcPort, String bcUser, String bcPass, String jaxrsHost, int jaxrsPort, String contextPath, Path dataDir, boolean overwrite) {
     	super(ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, dataDir, overwrite);
+    	this.contextPath = contextPath;
         this.jaxrsHost = jaxrsHost;
         this.jaxrsPort = jaxrsPort;
     }
@@ -43,6 +48,7 @@ public final class JAXRSConfig extends Config {
     
     public static class Builder extends AbstractBuilder<Builder, JAXRSConfig> {
         
+        String contextPath = DEFAULT_NESSUS_CONTEXT_PATH;
         String jaxrsHost = DEFAULT_NESSUS_JAXRS_HOST;
         int jaxrsPort = DEFAULT_NESSUS_JAXRS_PORT;
         
@@ -56,8 +62,13 @@ public final class JAXRSConfig extends Config {
             return this;
         }
         
+        public Builder contextPath(String contextPath) {
+            this.contextPath = contextPath;
+            return this;
+        }
+        
         public JAXRSConfig build() {
-            return new JAXRSConfig(ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, jaxrsHost, jaxrsPort, dataDir, overwrite);
+            return new JAXRSConfig(ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, jaxrsHost, jaxrsPort, contextPath, dataDir, overwrite);
         }
     }
 }

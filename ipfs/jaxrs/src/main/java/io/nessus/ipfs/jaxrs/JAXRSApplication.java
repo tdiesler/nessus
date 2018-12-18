@@ -34,7 +34,6 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -53,7 +52,6 @@ import io.nessus.utils.AssertArgument;
 import io.undertow.Undertow;
 import io.undertow.Undertow.Builder;
 
-@ApplicationPath("/nessus")
 public class JAXRSApplication extends Application {
 
     private static final Logger LOG = LoggerFactory.getLogger(JAXRSApplication.class);
@@ -106,7 +104,9 @@ public class JAXRSApplication extends Application {
 
         Builder builder = Undertow.builder().addHttpListener(config.jaxrsPort, config.jaxrsHost);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
-        undertowServer.deploy(JAXRSApplication.class);
+        
+        String ctxpath = config.contextPath;
+        undertowServer.deploy(JAXRSApplication.class, ctxpath);
 
         jaxrsServer = new JAXRSServer(undertowServer, config);
         LOG.info("Nessus JAXRS: {}",  jaxrsServer.getRootURL());
