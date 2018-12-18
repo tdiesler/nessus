@@ -29,11 +29,9 @@ import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -42,7 +40,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import io.ipfs.multihash.Multihash;
-import io.nessus.Wallet;
 import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
@@ -252,94 +249,6 @@ public class ContentManagerTest extends AbstractIpfsTest {
     }
 
     @Test
-    public void spendFileRegs() throws Exception {
-
-		Config config = new ConfigBuilder()
-        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
-                .ipfsAttempts(attempts)
-                .ipfsTimeout(timeout)
-        		.build();
-        
-        createContentManager(config);
-        
-    	// Unlock & send all to the sink
-    	unlockFileRegistrations(addrBob);
-    	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
-    	
-        // Send 1 BTC to Bob
-        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
-        
-        // Add some local content
-        addIpfsContent(addrBob, Paths.get("contentA/subA/file01.txt"));
-        addIpfsContent(addrBob, Paths.get("contentA/subB/subC/file02.txt"));
-        addIpfsContent(addrBob, Paths.get("contentA/file03.txt"));
-        
-        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
-        fhandles.forEach(fh -> LOG.info("{}", fh));
-        Assert.assertEquals(3, fhandles.size());
-        
-        awaitFileAvailability(fhandles, 3, true);
-        
-        // Spend Bob's file registrations
-        unlockFileRegistrations(addrBob);
-        wallet.sendFromLabel(LABEL_BOB, addrBob.getAddress(), Wallet.ALL_FUNDS);
-        
-        // Verify that no IPFS files are found
-        fhandles = cntmgr.findIpfsContent(addrBob, null);
-        Assert.assertTrue(fhandles.isEmpty());
-    }
-
-    @Test
-    public void findMissingIPFS() throws Exception {
-
-		Config config = new ConfigBuilder()
-        		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
-                .ipfsAttempts(attempts)
-                .ipfsTimeout(timeout)
-        		.build();
-        
-        createContentManager(config);
-        
-    	// Unlock & send all to the sink
-    	unlockFileRegistrations(addrBob);
-    	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
-    	
-        // Send 1 BTC to Bob
-        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
-        
-    	// Add some content
-        long millis = System.currentTimeMillis();
-        addIpfsContent(addrBob, getTestPath(200), "test200_" + millis);
-        addIpfsContent(addrBob, getTestPath(201), "test201_" + millis);
-        addIpfsContent(addrBob, getTestPath(202), "test202_" + millis);
-        
-        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
-        fhandles = awaitFileAvailability(fhandles, 3, true);
-        
-        // SET A BREAKPOINT HERE AND CONTINUE WITH A NEW IPFS INSTANCE
-        
-        createContentManager(config);
-        
-        fhandles = cntmgr.findIpfsContent(addrBob, null);
-        fhandles.forEach(fh -> LOG.info("{}", fh));
-        
-        // Verify that no IPFS files are found
-        
-        fhandles = awaitFileAvailability(fhandles, 1, false);
-        if (fhandles.size() == 0) {
-            millis = System.currentTimeMillis();
-            addIpfsContent(addrBob, getTestPath(200), "test200_" + millis);
-            addIpfsContent(addrBob, getTestPath(201), "test201_" + millis);
-            addIpfsContent(addrBob, getTestPath(202), "test202_" + millis);
-        }
-        
-        fhandles = cntmgr.findIpfsContent(addrBob, null);
-        fhandles.forEach(fh -> LOG.info("{}", fh));
-        
-        awaitFileAvailability(fhandles, 3, true);
-    }
-
-    @Test
     public void preventOverwrite() throws Exception {
 
         Path path = Paths.get("override");
@@ -424,45 +333,5 @@ public class ContentManagerTest extends AbstractIpfsTest {
         
         Assert.assertFalse(fullPath.toFile().exists());
         Assert.assertFalse(fullPath.getParent().toFile().exists());
-    }
-
-    @Test
-    public void unregisterAddress() throws Exception {
-
-        AHandle ahandle = cntmgr.findAddressRegistation(addrBob, null);
-        Assert.assertTrue(ahandle.isAvailable());
-        
-        AHandle ahres = cntmgr.unregisterAddress(addrBob);
-        Assert.assertFalse(ahres.isAvailable());
-        
-        ahres = cntmgr.findAddressRegistation(addrBob, null);
-        Assert.assertNull(ahres);
-    }
-    
-    @Test
-    public void unregisterIPFS() throws Exception {
-
-    	// Unlock & send all to the sink
-    	unlockFileRegistrations(addrBob);
-    	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
-    	
-        // Send 1 BTC to Bob
-        wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
-        
-        InputStream input = new ByteArrayInputStream("Hello Kermit".getBytes());
-        FHandle fhA = cntmgr.addIpfsContent(addrBob, Paths.get("kermit.txt"), input);
-        
-        input = new ByteArrayInputStream("Hello Piggy".getBytes());
-        FHandle fhB = cntmgr.addIpfsContent(addrBob, Paths.get("piggy.txt"), input);
-        
-        List<FHandle> fhandles = cntmgr.findIpfsContent(addrBob, null);
-        Assert.assertEquals(2, fhandles.size());
-        
-        List<Multihash> cids = Arrays.asList(fhA.getCid(), fhB.getCid());
-        List<Multihash> cres = cntmgr.unregisterIpfsContent(addrBob, cids);
-        Assert.assertEquals(2, cres.size());
-        
-        fhandles = cntmgr.findIpfsContent(addrBob, null);
-        Assert.assertEquals(0, fhandles.size());
     }
 }

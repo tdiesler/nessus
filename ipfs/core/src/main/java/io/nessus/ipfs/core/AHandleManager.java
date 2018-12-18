@@ -56,16 +56,44 @@ public class AHandleManager extends AbstractHandleManager {
 		super(cntmgr);
 	}
 
+	public AHandle addIpfsContent(AHandle ahandle, boolean dryRun) throws IOException {
+
+		IPFSClient ipfsClient = cntmgr.getIPFSClient();
+		FHeaderValues fhvals = cntmgr.getFHeaderValues();
+
+		Address owner = ahandle.getOwner();
+		String rawAddr = owner.getAddress();
+		PublicKey pubKey = ahandle.getPubKey();
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(baos))) {
+			pw.println(fhvals.PREFIX + "-Version: " + fhvals.VERSION);
+			pw.println(KEY_ADDRESS + ": " + rawAddr);
+			pw.println(KEY_LABEL + ": " + ahandle.getLabel());
+			pw.println(KEY_PUBKEY + ": " + RSAUtils.encodeKey(pubKey));
+		}
+
+		Multihash cid = ipfsClient.addSingle(baos.toByteArray(), dryRun);
+		AHandle ahres = new AHBuilder(ahandle).cid(cid).build();
+
+		return ahres;
+	}
+
 	public AHandle getIpfsContent(AHandle ahandle, long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(ahandle, "Null ahandle");
         AssertArgument.assertNotNull(ahandle.getOwner(), "Null owner");
         AssertArgument.assertNotNull(ahandle.getCid(), "Null cid");
 
+        Address owner = ahandle.getOwner();
+        Multihash cid = ahandle.getCid();
+        
+        IPFSCache ipfsCache = cntmgr.getIPFSCache();
+        AHandle ahres = ipfsCache.get(cid, AHandle.class);
+        if (ahres.isAvailable()) return ahres;
+        
 		IPFSClient ipfsClient = cntmgr.getIPFSClient();
 		FHeaderValues fhvals = cntmgr.getFHeaderValues();
 
-    	AHandle ahres = new AHBuilder(ahandle).build();
-		
     	long before = System.currentTimeMillis();
 		
         try {
@@ -80,9 +108,7 @@ public class AHandleManager extends AbstractHandleManager {
     		String encKey = props.getProperty(KEY_PUBKEY);
 
     		AssertState.assertEquals(fhvals.VERSION, version);
-
-    		Address owner = assertAddress(rawAddr);
-            AssertState.assertEquals(ahres.getOwner(), owner, "Unexpected owner: " + owner);
+            AssertState.assertEquals(owner.getAddress(), rawAddr, "Unexpected owner: " + rawAddr);
             
     		PublicKey pubKey = RSAUtils.decodePublicKey(encKey);
     		ahres = new AHBuilder(ahres)
@@ -105,38 +131,14 @@ public class AHandleManager extends AbstractHandleManager {
             
         } finally {
             
-            long elapsed = ahres.getElapsed() + System.currentTimeMillis() - before;
+            long elapsed = System.currentTimeMillis() - before;
             ahres = new AHBuilder(ahres)
-    				.elapsed(elapsed)
+    				.elapsed(ahres.getElapsed() + elapsed)
     				.build();
             
-            IPFSCache ipfsCache = cntmgr.getIPFSCache();
             ipfsCache.put(ahres, AHandle.class);
         }
         
-		return ahres;
-	}
-
-	public AHandle addIpfsContent(AHandle ahandle, boolean dryRun) throws IOException {
-
-		IPFSClient ipfsClient = cntmgr.getIPFSClient();
-		FHeaderValues fhvals = cntmgr.getFHeaderValues();
-
-		Address owner = ahandle.getOwner();
-		String rawAddr = owner.getAddress();
-		PublicKey pubKey = ahandle.getPubKey();
-
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(baos))) {
-			pw.println(fhvals.PREFIX + "-Version: " + fhvals.VERSION);
-			pw.println(KEY_ADDRESS + ": " + rawAddr);
-			pw.println(KEY_LABEL + ": " + ahandle.getLabel());
-			pw.println(KEY_PUBKEY + ": " + RSAUtils.encodeKey(pubKey));
-		}
-
-		Multihash cid = ipfsClient.addSingle(baos.toByteArray(), dryRun);
-		AHandle ahres = new AHBuilder(ahandle).cid(cid).build();
-
 		return ahres;
 	}
 
@@ -258,7 +260,7 @@ public class AHandleManager extends AbstractHandleManager {
                         .expired(true)
                         .build();
                 
-                LOG.warn("{}: {}", logPrefix("no merkle", attempt),  ahres);
+                LOG.warn("{}: {}", logPrefix("not found", attempt),  ahres);
             }
             
             else {

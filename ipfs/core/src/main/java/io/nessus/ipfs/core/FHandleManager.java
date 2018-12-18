@@ -81,69 +81,60 @@ public class FHandleManager extends AbstractHandleManager {
         Address owner = fhandle.getOwner();
         Multihash cid = fhandle.getCid();
         
-        Path cryptPath = cntmgr.getCryptPath(owner);
-        Path rootPath = cryptPath.resolve(cid.toBase58());
+        IPFSCache ipfsCache = cntmgr.getIPFSCache();
+        FHandle fhres = ipfsCache.get(cid, FHandle.class);
+        if (fhres.isAvailable()) return fhres;
         
         // Fetch the content from IPFS
         
-        if (!rootPath.toFile().exists()) {
+        long before = System.currentTimeMillis();
+        
+        try {
             
-            long before = System.currentTimeMillis();
+            Path cryptPath = cntmgr.getCryptPath(owner);
+        	IPFSClient ipfsClient = cntmgr.getIPFSClient();
+            Future<Path> future = ipfsClient.get(cid, cryptPath);
+            Path resPath = future.get(timeout, TimeUnit.MILLISECONDS);
             
-            try {
-                
-            	IPFSClient ipfsClient = cntmgr.getIPFSClient();
-                Future<Path> future = ipfsClient.get(cid, cryptPath);
-                Path resPath = future.get(timeout, TimeUnit.MILLISECONDS);
-                
-                AssertState.assertEquals(rootPath, resPath);
-                
-            } catch (InterruptedException | ExecutionException ex) {
-                
-                Throwable cause = ex.getCause();
-                if (cause instanceof IPFSException) 
-                    throw (IPFSException)cause;
-                else 
-                    throw new IPFSException(ex);
-                
-            } catch (TimeoutException ex) {
-                
-                throw new IPFSTimeoutException(ex);
-                
-            } finally {
-                
-                long elapsed = System.currentTimeMillis() - before;
-                fhandle = new FHBuilder(fhandle)
-                        .elapsed(elapsed)
-                        .build();
-                
-                IPFSCache ipfsCache = cntmgr.getIPFSCache();
-                ipfsCache.put(fhandle, FHandle.class);
+            URL furl = resPath.toUri().toURL();
+            fhres = new FHBuilder(fhres).url(furl).build();
+            
+            File rootFile = fhres.getFilePath().toFile();
+            AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootFile);
+            
+            if (rootFile.isDirectory()) {
+            	fhres = createIPFSFileTree(fhres);
+            } else {
+            	fhres = createFromFileHeader(null, fhres);
             }
+            
+            fhres = new FHBuilder(fhres)
+                    .available(true)
+                    .build();
+            
+            LOG.info("IPFS found: {}", fhres.toString(true));
+            
+        } catch (InterruptedException | ExecutionException ex) {
+            
+            Throwable cause = ex.getCause();
+            if (cause instanceof IPFSException) 
+                throw (IPFSException)cause;
+            else 
+                throw new IPFSException(ex);
+            
+        } catch (TimeoutException ex) {
+            
+            throw new IPFSTimeoutException(ex);
+            
+        } finally {
+            
+            long elapsed = System.currentTimeMillis() - before;
+            fhres = new FHBuilder(fhres)
+                    .elapsed(fhres.getElapsed() + elapsed)
+                    .build();
+            
+            ipfsCache.put(fhres, FHandle.class);
         }
-        
-        if (fhandle.getURL() == null) {
-            URL furl = rootPath.toUri().toURL();
-            fhandle = new FHBuilder(fhandle).url(furl).build();
-        }
-        
-        File rootFile = rootPath.toFile();
-        AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootFile);
-        
-        if (rootFile.isDirectory()) {
-            fhandle = createIPFSFileTree(fhandle);
-        } else {
-            fhandle = createFromFileHeader(null, fhandle);
-        }
-        
-        FHandle fhres = new FHBuilder(fhandle)
-                .available(true)
-                .build();
-        
-        LOG.info("IPFS found: {}", fhres.toString(true));
-
-        IPFSCache ipfsCache = cntmgr.getIPFSCache();
-        ipfsCache.put(fhres, FHandle.class);
         
         return fhres;
     }
@@ -372,7 +363,6 @@ public class FHandleManager extends AbstractHandleManager {
         public FHandle call() throws Exception {
             
             int attempt = fhandle.getAttempt() + 1;
-            
             FHandle fhaux = new FHBuilder(fhandle)
                     .attempt(attempt)
                     .build();
@@ -425,7 +415,7 @@ public class FHandleManager extends AbstractHandleManager {
                         .expired(true)
                         .build();
                 
-                LOG.warn("{}: {}", logPrefix("no merkle", attempt),  fhres);
+                LOG.warn("{}: {}", logPrefix("not found", attempt),  fhres);
             }
             
             else {

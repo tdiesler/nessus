@@ -34,6 +34,7 @@ import java.net.URL;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -331,21 +332,36 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(dstPath, "Null path");
         AssertArgument.assertNotNull(input, "Null input");
+    	
+        return addIpfsContent(owner, dstPath, input, false);
+    }
+    
+    public FHandle addIpfsContent(Address owner, Path dstPath, InputStream input, boolean dryRun) throws IOException, GeneralSecurityException {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(dstPath, "Null path");
+        AssertArgument.assertNotNull(input, "Null input");
         
         assertArgumentHasPrivateKey(owner);
         
         boolean fileOverwrite = config.isOverwrite();
-        Path plainPath = assertValidPlainPath(owner, dstPath);
+        Path plainPath = assertValidPlainPath(owner, dstPath, false);
         NessusUserFault.assertTrue(fileOverwrite || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
         
         plainPath.getParent().toFile().mkdirs();
         Files.copy(input, plainPath, StandardCopyOption.REPLACE_EXISTING);
         
-        return addIpfsContent(owner, dstPath);
+        return addIpfsContent(owner, dstPath, dryRun);
     }
 
     @Override
     public FHandle addIpfsContent(Address owner, Path srcPath) throws IOException, GeneralSecurityException {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(srcPath, "Null srcPath");
+    	
+        return addIpfsContent(owner, srcPath, false);
+    }
+    
+    public FHandle addIpfsContent(Address owner, Path srcPath, boolean dryRun) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(srcPath, "Null srcPath");
         
@@ -363,17 +379,17 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("IPFS add: {}", fhandle.toString(true));
         
-        Path auxPath = fhandle.getFilePath();
-        AssertState.assertTrue(auxPath.toFile().exists(), "Encrypted content does not exists: " + auxPath);
+        Path tmpPath = fhandle.getFilePath();
+        AssertState.assertTrue(tmpPath.toFile().exists(), "Encrypted content does not exists: " + tmpPath);
         
-        fhandle = fhmgr.addIpfsContent(fhandle, false);
+        fhandle = fhmgr.addIpfsContent(fhandle, dryRun);
         AssertState.assertNotNull(fhandle.getCid(), "No ipfs content ids");
         
         // Move the temp file to its crypt path
         
         Multihash cid = fhandle.getCid();
         Path fullPath = getCryptPath(owner).resolve(cid.toBase58());
-        Files.move(auxPath, fullPath, StandardCopyOption.ATOMIC_MOVE);
+        Files.move(tmpPath, fullPath, StandardCopyOption.ATOMIC_MOVE);
         
         URL furl = fullPath.toUri().toURL();
         fhandle = new FHBuilder(fhandle)
@@ -417,7 +433,7 @@ public class DefaultContentManager implements ContentManager {
 
     public FHandle buildTreeFromPath(Address owner, Path path) throws IOException {
         
-        Path plainPath = assertValidPlainPath(owner, path);
+        Path plainPath = assertValidPlainPath(owner, path, false);
         AssertState.assertTrue(plainPath.toFile().exists(), "Local content does not exists: " + plainPath);
         
         boolean isDirectory = plainPath.toFile().isDirectory();
@@ -686,7 +702,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(owner, "Null owner");
         AssertArgument.assertNotNull(path, "Null path");
         
-        Path plainPath = assertValidPlainPath(owner, path);
+        Path plainPath = assertValidPlainPath(owner, path, false);
         if (!plainPath.toFile().isFile())
             return null;
 
@@ -696,9 +712,10 @@ public class DefaultContentManager implements ContentManager {
     @Override
     public boolean removeLocalContent(Address owner, Path path) throws IOException {
         AssertArgument.assertNotNull(owner, "Null owner");
-        AssertArgument.assertNotNull(path, "Null path");
         
-        Path plainPath = assertValidPlainPath(owner, path);
+        path = path != null ? path : Paths.get("");
+        Path plainPath = assertValidPlainPath(owner, path, true);
+        
         boolean removed = FileUtils.recursiveDelete(plainPath);
         AssertState.assertTrue(removed, "Cannot remove: " + plainPath);
         
@@ -739,7 +756,7 @@ public class DefaultContentManager implements ContentManager {
         return cryptPath;
     }
 
-    private Path getTempPath() {
+    public Path getTempPath() {
         Path tmpPath = getRootPath().resolve("tmp");
         tmpPath.toFile().mkdirs();
         return tmpPath;
@@ -1008,7 +1025,7 @@ public class DefaultContentManager implements ContentManager {
             AssertArgument.assertTrue(!dstPath.isAbsolute(), "Given path must be relative: " + dstPath);
             
             boolean fileOverwrite = config.isOverwrite();
-            Path plainPath = assertValidPlainPath(owner, dstPath);
+            Path plainPath = assertValidPlainPath(owner, dstPath, false);
             NessusUserFault.assertTrue(fileOverwrite || !plainPath.toFile().exists(), "Local content already exists: " + dstPath);
             
             Path tmpPath = fhres.getFilePath();
@@ -1171,13 +1188,13 @@ public class DefaultContentManager implements ContentManager {
 		return ahandle.getPubKey();
 	}
 
-    private Path assertValidPlainPath(Address owner, Path path) {
+    private Path assertValidPlainPath(Address owner, Path path, boolean allowEmpty) {
         
         AssertArgument.assertNotNull(path, "Null path");
         AssertArgument.assertTrue(!path.isAbsolute(), "Not a relative path: " + path);
         
         String pstr = path.toString();
-        AssertArgument.assertTrue(pstr.trim().length() > 0, "Empty path");
+        AssertArgument.assertTrue(allowEmpty || pstr.trim().length() > 0, "Empty path");
         
         return getPlainPath(owner).resolve(path);
     }

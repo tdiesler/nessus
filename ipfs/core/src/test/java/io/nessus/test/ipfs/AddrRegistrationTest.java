@@ -10,7 +10,7 @@ import io.nessus.Wallet.Address;
 import io.nessus.ipfs.core.AHandle;
 import io.nessus.ipfs.core.AHandleManager;
 
-public class FindRegistrationTest extends AbstractIpfsTest {
+public class AddrRegistrationTest extends AbstractIpfsTest {
 
     @Test
     public void findAddrReg() throws Exception {
@@ -36,17 +36,14 @@ public class FindRegistrationTest extends AbstractIpfsTest {
     public void findMissingAddrReg() throws Exception {
 
         // Create a new address for Lui
-        String LABEL_LUI = "Lui";
-        Address addrLui = wallet.newAddress(LABEL_LUI);
+        Address addrLui = wallet.newAddress("Lui");
 
         AHandle ahA = cntmgr.findAddressRegistation(addrLui, null);
         Assert.assertNull(ahA);
         
         // Send 1 BTC to Lui
     	
-        BigDecimal balBob = wallet.getBalance(addrLui);
-        if (balBob.doubleValue() < 1.0)
-            wallet.sendToAddress(addrLui.getAddress(), new BigDecimal("1.0"));
+        wallet.sendToAddress(addrLui.getAddress(), new BigDecimal("1.0"));
         
         // Register an address without IPFS add
         
@@ -75,5 +72,18 @@ public class FindRegistrationTest extends AbstractIpfsTest {
         Assert.assertTrue(ahE.isAvailable());
 
     	cntmgr.unregisterAddress(addrLui);
+    }
+
+    @Test
+    public void unregisterAddress() throws Exception {
+
+        AHandle ahandle = cntmgr.findAddressRegistation(addrBob, null);
+        Assert.assertTrue(ahandle.isAvailable());
+        
+        AHandle ahres = cntmgr.unregisterAddress(addrBob);
+        Assert.assertFalse(ahres.isAvailable());
+        
+        ahres = cntmgr.findAddressRegistation(addrBob, null);
+        Assert.assertNull(ahres);
     }
 }

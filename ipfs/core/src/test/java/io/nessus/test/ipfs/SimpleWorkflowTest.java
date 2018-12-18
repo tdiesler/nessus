@@ -19,7 +19,7 @@ import io.nessus.ipfs.Config;
 import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.FHandle;
 
-public class BasicWorkflowTest extends AbstractIpfsTest {
+public class SimpleWorkflowTest extends AbstractIpfsTest {
 
     long timeout = 2000L;
     int attempts = 5;
