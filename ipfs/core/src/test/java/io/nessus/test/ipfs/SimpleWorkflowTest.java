@@ -15,8 +15,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.ipfs.multihash.Multihash;
-import io.nessus.ipfs.Config;
-import io.nessus.ipfs.Config.ConfigBuilder;
+import io.nessus.ipfs.ContentManagerConfig;
+import io.nessus.ipfs.ContentManagerConfig.ContentManagerConfigBuilder;
 import io.nessus.ipfs.FHandle;
 
 public class SimpleWorkflowTest extends AbstractIpfsTest {
@@ -27,7 +27,7 @@ public class SimpleWorkflowTest extends AbstractIpfsTest {
     @Test
     public void basicWorkflow() throws Exception {
         
-		Config config = new ConfigBuilder()
+		ContentManagerConfig config = new ContentManagerConfigBuilder()
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
                 .ipfsAttempts(attempts)
                 .ipfsTimeout(timeout)

@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
 
 import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.Config;
+import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.FHandle.FHReference;
@@ -392,7 +392,7 @@ public class FHandleManager extends AbstractHandleManager {
         private FHandle processException(FHandle fhandle, Exception ex) throws InterruptedException {
             
             IPFSCache ipfsCache = cntmgr.getIPFSCache();
-            Config config = cntmgr.getConfig();
+            ContentManagerConfig config = cntmgr.getConfig();
             
             Multihash cid = fhandle.getCid();
             FHandle fhres = ipfsCache.get(cid, FHandle.class);
@@ -431,7 +431,7 @@ public class FHandleManager extends AbstractHandleManager {
         }
 
         private String logPrefix(String action, int attempt) {
-            Config config = cntmgr.getConfig();
+        	ContentManagerConfig config = cntmgr.getConfig();
             int ipfsAttempts = config.getIpfsAttempts();
             String trdName = Thread.currentThread().getName();
             return String.format("IPFS %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);

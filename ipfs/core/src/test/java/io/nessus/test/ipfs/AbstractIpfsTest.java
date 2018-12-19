@@ -40,8 +40,8 @@ import org.junit.Before;
 import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.AbstractBitcoinTest;
-import io.nessus.ipfs.Config;
-import io.nessus.ipfs.Config.ConfigBuilder;
+import io.nessus.ipfs.ContentManagerConfig;
+import io.nessus.ipfs.ContentManagerConfig.ContentManagerConfigBuilder;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.IPFSClient;
@@ -60,7 +60,7 @@ public class AbstractIpfsTest extends AbstractBitcoinTest {
 
     	if (cntmgr == null) {
     		
-            Config config = new ConfigBuilder()
+    		ContentManagerConfig config = new ContentManagerConfigBuilder()
             		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
             		.build();
             
@@ -68,7 +68,7 @@ public class AbstractIpfsTest extends AbstractBitcoinTest {
     	}
     }
 
-    DefaultContentManager createContentManager(Config config) throws Exception {
+    DefaultContentManager createContentManager(ContentManagerConfig config) throws Exception {
         LOG.info("");
         
         cntmgr = new DefaultContentManager(config);

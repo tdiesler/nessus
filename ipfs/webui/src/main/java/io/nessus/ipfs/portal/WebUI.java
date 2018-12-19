@@ -13,9 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
-import io.nessus.ipfs.Config;
+import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
-import io.nessus.ipfs.jaxrs.JAXRSConfig;
 import io.nessus.ipfs.jaxrs.JAXRSSanityCheck;
 import io.nessus.utils.SystemUtils;
 import io.undertow.Undertow;
@@ -25,10 +24,6 @@ public class WebUI {
 
     private static final Logger LOG = LoggerFactory.getLogger(WebUI.class);
 
-    public static final String ENV_NESSUS_WEBUI_ADDR = "NESSUS_WEBUI_ADDR";
-    public static final String ENV_NESSUS_WEBUI_PORT = "NESSUS_WEBUI_PORT";
-    public static final String ENV_NESSUS_WEBUI_LABEL = "NESSUS_WEBUI_LABEL";
-    
     static final String implVersion;
     static final String implBuild;
     static {
@@ -42,24 +37,6 @@ public class WebUI {
         }
     }
     
-    public static void main(String[] args) throws Exception {
-
-        JAXRSConfig config = new JAXRSConfig();
-        CmdLineParser parser = new CmdLineParser(config);
-        
-        try {
-            parser.parseArgument(args);
-        } catch (CmdLineException ex) {
-            parser.printUsage(System.err);
-            throw ex;
-        }
-
-        JAXRSSanityCheck.verifyPlatform();
-
-        WebUI webUI = new WebUI (config);
-        webUI.start();
-    }
-
     final String webuiHost;
     final String webuiPort;
     final URL gatewayUrl;
@@ -67,15 +44,36 @@ public class WebUI {
     final Blockchain blockchain;
     final JAXRSClient jaxrsClient;
     
-    public WebUI(JAXRSConfig config) throws Exception {
+    public static void main(String[] args) throws Exception {
+
+    	WebUIConfig config = new WebUIConfig();
+        CmdLineParser parser = new CmdLineParser(config);
+        
+        try {
+            parser.parseArgument(args);
+        } catch (CmdLineException ex) {
+        	helpScreen(parser);
+            throw ex;
+        }
+
+        if (config.help) {
+        	helpScreen(parser);
+        } else {
+            JAXRSSanityCheck.verifyPlatform();
+            WebUI webUI = new WebUI (config);
+            webUI.start();
+        }
+    }
+
+    public WebUI(WebUIConfig config) throws Exception {
         
         LOG.info("{} Version: {} Build: {}", getApplicationName(), implVersion, implBuild);
         
         blockchain = config.getBlockchain();
         JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
-        String envHost = SystemUtils.getenv(Config.ENV_IPFS_GATEWAY_ADDR, "127.0.0.1");
-        String envPort = SystemUtils.getenv(Config.ENV_IPFS_GATEWAY_PORT, "8080");
+        String envHost = SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_GATEWAY_ADDR, "127.0.0.1");
+        String envPort = SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_GATEWAY_PORT, "8080");
         gatewayUrl = new URL(String.format("http://%s:%s/ipfs", envHost, envPort));
         LOG.info("IPFS Gateway: {}", gatewayUrl);
 
@@ -84,8 +82,8 @@ public class WebUI {
 
         jaxrsClient = new JAXRSClient(jaxrsUrl);
 
-        webuiHost = SystemUtils.getenv(ENV_NESSUS_WEBUI_ADDR, "0.0.0.0");
-        webuiPort = SystemUtils.getenv(ENV_NESSUS_WEBUI_PORT, "8082");
+        webuiHost = SystemUtils.getenv(WebUIConfig.ENV_NESSUS_WEBUI_ADDR, "0.0.0.0");
+        webuiPort = SystemUtils.getenv(WebUIConfig.ENV_NESSUS_WEBUI_PORT, "8082");
         LOG.info("{} WebUI: http://" + envHost + ":" + envPort + "/portal", getApplicationName());
     }
 
@@ -106,5 +104,10 @@ public class WebUI {
 
     protected HttpHandler createHttpHandler(Blockchain blockchain, JAXRSClient jaxrsClient, URL gatewayUrl) throws Exception {
         return new ContentHandler(jaxrsClient, blockchain, gatewayUrl.toURI());
+    }
+
+    private static void helpScreen(CmdLineParser parser) {
+        System.err.println("run-webui [options...]");
+        parser.printUsage(System.err);
     }
 }

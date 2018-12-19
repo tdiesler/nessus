@@ -40,8 +40,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import io.ipfs.multihash.Multihash;
-import io.nessus.ipfs.Config;
-import io.nessus.ipfs.Config.ConfigBuilder;
+import io.nessus.ipfs.ContentManagerConfig;
+import io.nessus.ipfs.ContentManagerConfig.ContentManagerConfigBuilder;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.NessusUserFault;
 import io.nessus.ipfs.core.AHandle;
@@ -230,7 +230,7 @@ public class ContentManagerTest extends AbstractIpfsTest {
     @Test
     public void findTiming() throws Exception {
 
-		Config config = new ConfigBuilder()
+		ContentManagerConfig config = new ContentManagerConfigBuilder()
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
                 .ipfsAttempts(attempts)
                 .ipfsTimeout(timeout)
@@ -293,7 +293,7 @@ public class ContentManagerTest extends AbstractIpfsTest {
         
         // Use a content manager that allows overwrite
         
-		Config config = new ConfigBuilder()
+		ContentManagerConfig config = new ContentManagerConfigBuilder()
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
         		.overwrite(true)
         		.build();

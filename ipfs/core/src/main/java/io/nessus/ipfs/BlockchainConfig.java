@@ -2,32 +2,20 @@ package io.nessus.ipfs;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.kohsuke.args4j.Option;
 
-import io.ipfs.multiaddr.MultiAddress;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
-import io.nessus.ipfs.core.DefaultIPFSClient;
 import io.nessus.utils.SystemUtils;
 
-public class Config {
+public class BlockchainConfig {
 
-    public static final String ENV_IPFS_JSONRPC_ADDR = "IPFS_JSONRPC_ADDR";
-    public static final String ENV_IPFS_JSONRPC_PORT = "IPFS_JSONRPC_PORT";
-    
-    public static final String ENV_IPFS_GATEWAY_ADDR = "IPFS_GATEWAY_ADDR";
-    public static final String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
-    
     public static final String ENV_BLOCKCHAIN_JSONRPC_ADDR = "BLOCKCHAIN_JSONRPC_ADDR";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PORT = "BLOCKCHAIN_JSONRPC_PORT";
     public static final String ENV_BLOCKCHAIN_JSONRPC_USER = "BLOCKCHAIN_JSONRPC_USER";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PASS = "BLOCKCHAIN_JSONRPC_PASS";
 
-    private static final String DEFAULT_IPFS_ADDR = "/ip4/127.0.0.1/tcp/5001";
-    
     private static final String DEFAULT_BLOCKCHAIN_IMPL = "io.nessus.bitcoin.BitcoinBlockchain";
     
     private static final String DEFAULT_BLOCKCHAIN_URL = "http://127.0.0.1:18332";
@@ -54,81 +42,22 @@ public class Config {
     @Option(name = "--bcpass", usage = "The Blockchain RPC password")
     String bcPass = DEFAULT_BLOCKCHAIN_PASSWORD;
     
-    @Option(name = "--ipfs", usage = "The IPFS API address")
-    String ipfsAddr = DEFAULT_IPFS_ADDR;
-
-    @Option(name = "--ipfs-timeout", usage = "The maximum number of millis for IPFS operations")
-    long ipfsTimeout = ContentManager.DEFAULT_IPFS_TIMEOUT;
+    @Option(name = "--help", help = true)
+    public boolean help;
     
-    @Option(name = "--ipfs-attempts", usage = "The max number of IPFS operation attempts")
-    int ipfsAttempts = ContentManager.DEFAULT_IPFS_ATTEMPTS;
-    
-    @Option(name = "--ipfs-threads", usage = "The number of threads for IPFS operations")
-    int ipfsThreads = ContentManager.DEFAULT_IPFS_THREADS;
-    
-    @Option(name = "--datadir", usage = "The location of the internal data directory")
-    Path dataDir = Paths.get(System.getProperty("user.home"), ".nessus");
-    
-    @Option(name = "--overwrite", usage = "Whether to overwrite existing files")
-    boolean overwrite;
-
-    public Config() {
+    public BlockchainConfig() {
     }
     
-    protected Config(String ipfsAddr, long ipfsTimeout, int ipfsAttempts, int ipfsThreads, String bcImpl, String bcUrl,
-    		String bcHost, int bcPort, String bcUser, String bcPass, Path dataDir, boolean overwrite) {
+    protected BlockchainConfig(String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass) {
     	
-        this.ipfsAddr = ipfsAddr;
-        this.ipfsTimeout = ipfsTimeout;
-        this.ipfsAttempts = ipfsAttempts;
-        this.ipfsThreads = ipfsThreads;
         this.bcUrl = bcUrl;
         this.bcImpl = bcImpl;
         this.bcHost = bcHost;
         this.bcPort = bcPort;
         this.bcUser = bcUser;
         this.bcPass = bcPass;
-        this.overwrite = overwrite;
-        
-        if (dataDir != null)
-        	this.dataDir = dataDir;
     }
 
-    public long getIpfsTimeout() {
-        return ipfsTimeout;
-    }
-
-    public int getIpfsAttempts() {
-        return ipfsAttempts;
-    }
-
-    public int getIpfsThreads() {
-        return ipfsThreads;
-    }
-
-    public Path getDataDir() {
-        return dataDir;
-    }
-
-    public boolean isOverwrite() {
-		return overwrite;
-	}
-
-	public MultiAddress getIpfsAddress() {
-        if (DEFAULT_IPFS_ADDR.equals(ipfsAddr)) {
-            String host = SystemUtils.getenv(ENV_IPFS_JSONRPC_ADDR, "127.0.0.1");
-            String port = SystemUtils.getenv(ENV_IPFS_JSONRPC_PORT, "5001");
-            ipfsAddr = String.format("/ip4/%s/tcp/%s", host, port);
-        }
-        return new MultiAddress(ipfsAddr);
-    }
-    
-	public IPFSClient getIPFSClient () {
-        MultiAddress ipfsAddr = getIpfsAddress();
-        IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
-        return ipfsClient;
-	}
-	
     public URL getBlockchainUrl() throws MalformedURLException {
         
         if (!DEFAULT_BLOCKCHAIN_URL.equals(bcUrl)) 
@@ -154,7 +83,7 @@ public class Config {
         if (DEFAULT_BLOCKCHAIN_IMPL.equals(bcImpl)) {
             bcImpl = SystemUtils.getenv(BlockchainFactory.BLOCKCHAIN_CLASS_NAME, bcImpl);
         }
-        ClassLoader loader = Config.class.getClassLoader();
+        ClassLoader loader = BlockchainConfig.class.getClassLoader();
         return (Class<Blockchain>) loader.loadClass(bcImpl);
     }
     
@@ -170,68 +99,14 @@ public class Config {
         return blockchain;
     }
 
-    public String toString() {
-        return String.format("[dataDir=%s, timeout=%s, attempts=%s, threads=%s, overwrite=%b]", 
-                dataDir, ipfsTimeout, ipfsAttempts, ipfsThreads, overwrite);
-    }
-    
-    public static class ConfigBuilder extends AbstractBuilder<ConfigBuilder, Config> {
-    	
-        public Config build() {
-            return new Config(ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, dataDir, overwrite);
-        }
-    }
-    
-    public static class AbstractBuilder<B extends AbstractBuilder<?, ?>, C extends Config> {
+    protected static class AbstractConfigBuilder<B extends AbstractConfigBuilder<?, ?>, C extends BlockchainConfig> {
         
-        protected String ipfsAddr = DEFAULT_IPFS_ADDR;
         protected String bcUrl = DEFAULT_BLOCKCHAIN_URL;
         protected String bcImpl = DEFAULT_BLOCKCHAIN_IMPL;
         protected String bcHost = DEFAULT_BLOCKCHAIN_HOST;
         protected int bcPort = DEFAULT_BLOCKCHAIN_PORT;
         protected String bcUser = DEFAULT_BLOCKCHAIN_USER;
         protected String bcPass = DEFAULT_BLOCKCHAIN_PASSWORD;
-        protected long ipfsTimeout = ContentManager.DEFAULT_IPFS_TIMEOUT;
-        protected int ipfsAttempts = ContentManager.DEFAULT_IPFS_ATTEMPTS;
-        protected int ipfsThreads = ContentManager.DEFAULT_IPFS_THREADS;
-        protected boolean overwrite;
-        protected Path dataDir;
-        
-        @SuppressWarnings("unchecked")
-		public B datadir(Path dataDir) {
-            this.dataDir = dataDir;
-            return (B) this;
-        }
-        
-        @SuppressWarnings("unchecked")
-		public B overwrite(boolean overwrite) {
-            this.overwrite = overwrite;
-            return (B) this;
-        }
-        
-        @SuppressWarnings("unchecked")
-		public B ipfsAddr(String addr) {
-            this.ipfsAddr = addr;
-            return (B) this;
-        }
-        
-        @SuppressWarnings("unchecked")
-		public B ipfsTimeout(long timeout) {
-            this.ipfsTimeout = timeout;
-            return (B) this;
-        }
-        
-        @SuppressWarnings("unchecked")
-		public B ipfsAttempts(int attempts) {
-            this.ipfsAttempts = attempts;
-            return (B) this;
-        }
-        
-        @SuppressWarnings("unchecked")
-		public B ipfsThreads(int threads) {
-            this.ipfsThreads = threads;
-            return (B) this;
-        }
         
         @SuppressWarnings("unchecked")
         public B bcimpl(Class<Blockchain> impl) {

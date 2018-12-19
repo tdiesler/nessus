@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.Config;
+import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.utils.AssertState;
 
 class AbstractHandleManager {
@@ -23,7 +23,7 @@ class AbstractHandleManager {
 	AbstractHandleManager(DefaultContentManager cntmgr) {
 		this.cntmgr = cntmgr;
 		
-		Config config = cntmgr.getConfig();
+		ContentManagerConfig config = cntmgr.getConfig();
         int ipfsThreads = config.getIpfsThreads();
         executorService = Executors.newFixedThreadPool(ipfsThreads, new ThreadFactory() {
             AtomicInteger count = new AtomicInteger();

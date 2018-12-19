@@ -34,10 +34,6 @@ import io.nessus.ipfs.core.AHandle;
 
 public interface ContentManager {
 
-    static final long DEFAULT_IPFS_TIMEOUT = 6000; // 6 sec
-    static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
-    static final int DEFAULT_IPFS_THREADS = 12;
-
     /**
      * Get the Blockchain
      */

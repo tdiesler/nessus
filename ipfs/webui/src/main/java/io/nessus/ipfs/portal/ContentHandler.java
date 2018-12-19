@@ -519,7 +519,7 @@ public class ContentHandler implements HttpHandler {
 
         List<SAHandle> addrs = findAddressInfo(null, null);
 
-        String envLabel = SystemUtils.getenv(WebUI.ENV_NESSUS_WEBUI_LABEL, "Bob");
+        String envLabel = SystemUtils.getenv(WebUIConfig.ENV_NESSUS_WEBUI_LABEL, "Bob");
         context.put("envLabel", envLabel);
         context.put("addrs", addrs);
 

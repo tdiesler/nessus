@@ -13,10 +13,19 @@ public class JAXRSMain {
         try {
             parser.parseArgument(args);
         } catch (CmdLineException ex) {
-            parser.printUsage(System.err);
+        	helpScreen(parser);
             throw ex;
         }
         
-        JAXRSApplication.serverStart(config);
+        if (config.help) {
+        	helpScreen(parser);
+        } else {
+            JAXRSApplication.serverStart(config);
+        }
+    }
+
+    private static void helpScreen(CmdLineParser parser) {
+        System.err.println("run-jaxrs [options...]");
+        parser.printUsage(System.err);
     }
 }

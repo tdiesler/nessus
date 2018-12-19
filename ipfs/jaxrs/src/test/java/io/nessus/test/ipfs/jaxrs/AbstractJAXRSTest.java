@@ -29,14 +29,14 @@ import org.junit.Before;
 
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.AbstractBitcoinTest;
-import io.nessus.ipfs.Config;
-import io.nessus.ipfs.Config.ConfigBuilder;
 import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.jaxrs.JAXRSConfig;
+import io.nessus.ipfs.jaxrs.JAXRSConfig.JAXRSConfigBuilder;
 import io.nessus.utils.FileUtils;
 
 public abstract class AbstractJAXRSTest extends AbstractBitcoinTest {
 
-	protected static Config config;
+	protected static JAXRSConfig config;
 	protected static IPFSClient ipfsClient;
     
     @Before
@@ -45,7 +45,7 @@ public abstract class AbstractJAXRSTest extends AbstractBitcoinTest {
 
     	if (ipfsClient == null) {
     		
-            config = new ConfigBuilder()
+            config = new JAXRSConfigBuilder()
             		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
             		.build();
             

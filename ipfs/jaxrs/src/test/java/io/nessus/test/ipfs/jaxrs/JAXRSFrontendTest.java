@@ -42,6 +42,7 @@ import io.nessus.ipfs.jaxrs.JAXRSApplication;
 import io.nessus.ipfs.jaxrs.JAXRSApplication.JAXRSServer;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.JAXRSConfig;
+import io.nessus.ipfs.jaxrs.JAXRSConfig.JAXRSConfigBuilder;
 import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.utils.FileUtils;
@@ -58,7 +59,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
     	if (server == null) {
     		
-            config = new JAXRSConfig.Builder().bcport(18443).build();
+            config = new JAXRSConfigBuilder().bcport(18443).build();
             server = JAXRSApplication.serverStart(config);
 
             URL jaxrsUrl = config.getJaxrsUrl();

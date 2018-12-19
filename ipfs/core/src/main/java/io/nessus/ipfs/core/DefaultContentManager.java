@@ -71,8 +71,8 @@ import io.nessus.cipher.RSACipher;
 import io.nessus.cipher.utils.AESUtils;
 import io.nessus.cipher.utils.RSAUtils;
 import io.nessus.ipfs.AbstractHandle;
-import io.nessus.ipfs.Config;
 import io.nessus.ipfs.ContentManager;
+import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.FHandle.Visitor;
@@ -90,7 +90,7 @@ public class DefaultContentManager implements ContentManager {
 
     static final Logger LOG = LoggerFactory.getLogger(DefaultContentManager.class);
 
-    protected final Config config;
+    protected final ContentManagerConfig config;
     protected final IPFSClient ipfsClient;
     protected final Blockchain blockchain;
     protected final Network network;
@@ -112,7 +112,7 @@ public class DefaultContentManager implements ContentManager {
     private final IPFSCache ipfsCache = new IPFSCache();
     private final TxDataHandler dataHandler;
     
-    public DefaultContentManager(Config config) {
+    public DefaultContentManager(ContentManagerConfig config) {
     	this.config = config;
 
         ipfsClient = config.getIPFSClient();
@@ -129,7 +129,7 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("{}{}", getClass().getSimpleName(), config);
     }
 
-    public Config getConfig() {
+    public ContentManagerConfig getConfig() {
         return config;
     }
 

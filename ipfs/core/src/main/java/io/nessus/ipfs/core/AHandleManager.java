@@ -37,7 +37,7 @@ import java.util.concurrent.TimeoutException;
 import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.utils.RSAUtils;
-import io.nessus.ipfs.Config;
+import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
 import io.nessus.ipfs.IPFSNotFoundException;
@@ -237,7 +237,7 @@ public class AHandleManager extends AbstractHandleManager {
         private AHandle processException(AHandle ahandle, Exception ex) throws InterruptedException {
             
             IPFSCache ipfsCache = cntmgr.getIPFSCache();
-            Config config = cntmgr.getConfig();
+            ContentManagerConfig config = cntmgr.getConfig();
             
             Multihash cid = ahandle.getCid();
             AHandle ahres = ipfsCache.get(cid, AHandle.class);
@@ -276,7 +276,7 @@ public class AHandleManager extends AbstractHandleManager {
         }
 
         private String logPrefix(String action, int attempt) {
-            Config config = cntmgr.getConfig();
+        	ContentManagerConfig config = cntmgr.getConfig();
             int ipfsAttempts = config.getIpfsAttempts();
             String trdName = Thread.currentThread().getName();
             return String.format("IPFS Addr %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);

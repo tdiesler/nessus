@@ -105,7 +105,7 @@ public class JAXRSApplication extends Application {
         Builder builder = Undertow.builder().addHttpListener(config.jaxrsPort, config.jaxrsHost);
         UndertowJaxrsServer undertowServer = new UndertowJaxrsServer().start(builder);
         
-        String ctxpath = config.contextPath;
+        String ctxpath = config.jaxrsPath;
         undertowServer.deploy(JAXRSApplication.class, ctxpath);
 
         jaxrsServer = new JAXRSServer(undertowServer, config);

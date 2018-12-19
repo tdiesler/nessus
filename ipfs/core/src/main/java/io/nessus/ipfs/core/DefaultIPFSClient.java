@@ -1,8 +1,5 @@
 package io.nessus.ipfs.core;
 
-import static io.nessus.ipfs.Config.ENV_IPFS_JSONRPC_ADDR;
-import static io.nessus.ipfs.Config.ENV_IPFS_JSONRPC_PORT;
-
 import java.io.ByteArrayOutputStream;
 
 /*-
@@ -49,8 +46,9 @@ import io.ipfs.api.NamedStreamable.ByteArrayWrapper;
 import io.ipfs.api.NamedStreamable.FileWrapper;
 import io.ipfs.multiaddr.MultiAddress;
 import io.ipfs.multihash.Multihash;
-import io.nessus.ipfs.IPFSException;
+import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.IPFSException;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
@@ -67,7 +65,8 @@ public class DefaultIPFSClient implements IPFSClient {
     private final ExecutorService executorService;
     
     public DefaultIPFSClient() {
-        this(SystemUtils.getenv(ENV_IPFS_JSONRPC_ADDR, "127.0.0.1"), Integer.parseInt(SystemUtils.getenv(ENV_IPFS_JSONRPC_PORT, "5001")));
+        this(SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_JSONRPC_ADDR, "127.0.0.1"), 
+        		Integer.parseInt(SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_JSONRPC_PORT, "5001")));
     }
     
     public DefaultIPFSClient(String host, Integer port) {

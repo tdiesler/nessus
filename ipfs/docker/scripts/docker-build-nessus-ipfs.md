@@ -40,7 +40,7 @@ mkdir -p docker
 
 tar xzf go-ipfs_*.tar.gz -C docker/
 
-export RUNNAME=run-nessus-ipfs.sh
+export RUNNAME=run-ipfs.sh
 cat << EOF > docker/$RUNNAME
 #!/bin/bash
 
@@ -67,12 +67,12 @@ COPY $RUNNAME /root/$RUNNAME
 RUN chmod +x /root/$RUNNAME
 
 # Make the entrypoint executable
-RUN ln -s /root/$RUNNAME /usr/local/bin/nessus-ipfs
+RUN ln -s /root/$RUNNAME /usr/local/bin/run-ipfs
 
 # Expose the API port
 EXPOSE 5001
 
-ENTRYPOINT ["nessus-ipfs"]
+ENTRYPOINT ["run-ipfs"]
 EOF
 
 docker rmi -f nessusio/ipfs
