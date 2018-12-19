@@ -16,8 +16,8 @@ import org.junit.Test;
 import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
+import io.nessus.ipfs.AHandle;
 import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.core.AHandle;
 import io.nessus.utils.FileUtils;
 
 public class FileRegistrationTest extends AbstractIpfsTest {

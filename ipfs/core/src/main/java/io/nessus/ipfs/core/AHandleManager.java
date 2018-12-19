@@ -27,6 +27,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -35,18 +36,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import io.ipfs.multihash.Multihash;
+import io.nessus.Tx;
+import io.nessus.TxOutput;
+import io.nessus.UTXO;
+import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.utils.RSAUtils;
+import io.nessus.ipfs.AHandle;
+import io.nessus.ipfs.AHandle.AHBuilder;
 import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.IPFSException;
 import io.nessus.ipfs.IPFSNotFoundException;
 import io.nessus.ipfs.IPFSTimeoutException;
-import io.nessus.ipfs.core.AHandle.AHBuilder;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 
-public class AHandleManager extends AbstractHandleManager {
+public class AHandleManager extends AbstractHandleManager<AHandle> {
 
 	private static final String KEY_LABEL = "Label";
 	private static final String KEY_ADDRESS = "Address";
@@ -91,13 +97,22 @@ public class AHandleManager extends AbstractHandleManager {
         AHandle ahres = ipfsCache.get(cid, AHandle.class);
         if (ahres.isAvailable()) return ahres;
         
-		IPFSClient ipfsClient = cntmgr.getIPFSClient();
-		FHeaderValues fhvals = cntmgr.getFHeaderValues();
-
+        // Fetch the content from IPFS
+        
+        int attempt = ahres.getAttempt() + 1;
+		ahres = new AHBuilder(ahres)
+                .attempt(attempt)
+                .build();
+        
+        LOG.info("{}: {}", logPrefix("attempt", attempt),  ahres);
+        
     	long before = System.currentTimeMillis();
 		
         try {
             
+    		IPFSClient ipfsClient = cntmgr.getIPFSClient();
+    		FHeaderValues fhvals = cntmgr.getFHeaderValues();
+
     		Properties props = new Properties();
     		Future<InputStream> future = ipfsClient.cat(ahres.getCid());
     		InputStream input = future.get(timeout, TimeUnit.MILLISECONDS);
@@ -115,8 +130,6 @@ public class AHandleManager extends AbstractHandleManager {
     				.pubKey(pubKey)
     				.build();
             
-            LOG.info("IPFS Addr found: {}", ahres);
-
         } catch (InterruptedException | ExecutionException ex) {
             
             Throwable cause = ex.getCause();
@@ -136,36 +149,31 @@ public class AHandleManager extends AbstractHandleManager {
     				.elapsed(ahres.getElapsed() + elapsed)
     				.build();
             
-            ipfsCache.put(ahres, AHandle.class);
+            ipfsCache.put(ahres);
         }
         
+        LOG.info("IPFS Addr found: {}", ahres);
+
 		return ahres;
 	}
 
-    public AHandle findIpfsContentAsync(AHandle ahandle, long timeout) {
+    public AHandle findIpfsContentAsync(Address owner, long timeout) {
         
-    	IPFSCache ipfsCache = cntmgr.getIPFSCache();
-    	Multihash cid = ahandle.getCid();
-    	
-    	AHandle ahres;
-    	
-        synchronized (ipfsCache) {
-        	ahres = ipfsCache.get(cid, AHandle.class);
-            if (ahres == null) {
-            	ahres = new AHBuilder(ahandle).elapsed(0L).build();
-                LOG.info("IPFS Addr submit: {}", ahres);
-                ipfsCache.put(ahres, AHandle.class);
-            }
-        }
-        
-        if (ahres.isAvailable())
-        	return ahres;
-        
+        AHandle ahandle = listUnspentHandles(owner, AHandle.class).stream()
+            	.filter(ah -> owner.equals(ah.getOwner()))
+            	.findFirst().orElse(null);
+            
+        if (ahandle == null) 
+        	return null;
+            
         Future<AHandle> future = executorService.submit(new Callable<AHandle>() {
 
             @Override
             public AHandle call() throws Exception {
                 
+            	IPFSCache ipfsCache = cntmgr.getIPFSCache();
+            	Multihash cid = ahandle.getCid();
+            	
             	AHandle ahaux = ipfsCache.get(cid, AHandle.class);
         		
                 while(!ahaux.isAvailable()) {
@@ -181,6 +189,8 @@ public class AHandleManager extends AbstractHandleManager {
             }
         });
         
+    	AHandle ahres = ahandle;
+    	
         try {
         	ahres = future.get(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException ex) {
@@ -192,6 +202,52 @@ public class AHandleManager extends AbstractHandleManager {
         return ahres;
     }
 
+	public byte[] createAddrData(Multihash cid) {
+		return dataHandler.createAddrData(cid);
+	}
+	
+    @Override
+    public AHandle getHandleFromTx(Address owner, UTXO utxo) {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(utxo, "Null utxo");
+
+        Wallet wallet = cntmgr.getBlockchain().getWallet();
+        Tx tx = wallet.getTransaction(utxo.getTxId());
+        if (!isOurs(tx)) return null;
+        
+        AHandle ahandle = null;
+
+        List<TxOutput> outs = tx.outputs();
+        TxOutput out0 = outs.get(outs.size() - 2);
+        TxOutput out1 = outs.get(outs.size() - 1);
+
+        // Expect OP_ADDR_DATA
+        byte[] txdata = out1.getData();
+        Multihash cid = dataHandler.extractAddrData(txdata);
+        Address outAddr = wallet.findAddress(out0.getAddress());
+        if (cid != null && outAddr != null) {
+
+            LOG.debug("Addr Tx: {} => {}", tx.txId(), cid);
+            
+            // Not owned by the given address
+            if (!owner.equals(outAddr)) return null;
+            
+            ahandle = new AHBuilder(owner, tx.txId(), cid).build();
+        }
+
+        // The AHandle is not fully initialized
+        // There has been no blocking IPFS access
+        
+        return ahandle;
+    }
+
+    private String logPrefix(String action, int attempt) {
+    	ContentManagerConfig config = cntmgr.getConfig();
+        int ipfsAttempts = config.getIpfsAttempts();
+        String trdName = Thread.currentThread().getName();
+        return String.format("IPFS Addr %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);
+    }
+    
     class AsyncGetCallable implements Callable<AHandle> {
         
         final long timeout;
@@ -207,39 +263,33 @@ public class AHandleManager extends AbstractHandleManager {
         @Override
         public AHandle call() throws Exception {
             
-            int attempt = ahandle.getAttempt() + 1;
-            AHandle ahaux = new AHBuilder(ahandle)
-                    .attempt(attempt)
-                    .build();
-            
             IPFSCache ipfsCache = cntmgr.getIPFSCache();
-            ipfsCache.put(ahaux, AHandle.class);
             
-            LOG.info("{}: {}", logPrefix("attempt", attempt),  ahaux);
-            
+        	AHandle ahaux = ahandle;
+        	Multihash cid = ahandle.getCid();
+        	
             try {
                 
-                ahaux = getIpfsContent(ahaux, timeout);
+                ahaux = getIpfsContent(ahandle, timeout);
                 
             } catch (Exception ex) {
                 
-                ahaux = processException(ahaux, ex);
+                ahaux = processException(cid, ex);
                 
             } finally {
                 
                 ahaux.setScheduled(false);
-                ipfsCache.put(ahaux, AHandle.class);
+                ipfsCache.put(ahaux);
             }
 
             return ahaux;
         }
         
-        private AHandle processException(AHandle ahandle, Exception ex) throws InterruptedException {
+        private AHandle processException(Multihash cid, Exception ex) throws InterruptedException {
             
             IPFSCache ipfsCache = cntmgr.getIPFSCache();
             ContentManagerConfig config = cntmgr.getConfig();
             
-            Multihash cid = ahandle.getCid();
             AHandle ahres = ipfsCache.get(cid, AHandle.class);
             int attempt = ahres.getAttempt();
             
@@ -273,13 +323,6 @@ public class AHandleManager extends AbstractHandleManager {
             }
             
             return ahres;
-        }
-
-        private String logPrefix(String action, int attempt) {
-        	ContentManagerConfig config = cntmgr.getConfig();
-            int ipfsAttempts = config.getIpfsAttempts();
-            String trdName = Thread.currentThread().getName();
-            return String.format("IPFS Addr %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);
         }
     }
 }

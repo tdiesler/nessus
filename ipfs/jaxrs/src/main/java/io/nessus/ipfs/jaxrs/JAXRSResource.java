@@ -40,9 +40,9 @@ import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.cipher.utils.RSAUtils;
+import io.nessus.ipfs.AHandle;
 import io.nessus.ipfs.ContentManager;
 import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.core.AHandle;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 
@@ -65,8 +65,8 @@ public class JAXRSResource implements JAXRSEndpoint {
         
         Address owner = assertWalletAddress(addr);
         AHandle ahandle = cntmgr.registerAddress(owner);
-        PublicKey pubKey = ahandle.getPubKey();
         
+        PublicKey pubKey = ahandle.getPubKey();
 		SAHandle shandle = createAddrHandle(owner, pubKey);
         LOG.info("/regaddr {} => {}", addr, shandle);
 
@@ -81,7 +81,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         Address owner = addr != null ? assertWalletAddress(addr) : null;
         
         Wallet wallet = cntmgr.getBlockchain().getWallet();
-        List<SAHandle> info = wallet.getAddresses().stream()
+        List<SAHandle> shandles = wallet.getAddresses().stream()
                 .filter(a -> !a.getLabels().contains(Wallet.LABEL_CHANGE))
                 .filter(a -> owner == null || a.equals(owner))
                 .filter(a -> label == null || a.getLabels().contains(label))
@@ -93,10 +93,12 @@ public class JAXRSResource implements JAXRSEndpoint {
                 })
                 .collect(Collectors.toList());
 
-        
-        LOG.info("/addrinfo {} {} => {}", label, addr, info);
+        if (shandles.size() < 2)
+        	LOG.info("/addrinfo {} {} => {}", label, addr, shandles);
+        else 
+        	LOG.info("/addrinfo {} {} => {} addrs", label, addr, shandles.size());
 
-        return info;
+        return shandles;
     }
 
     @Override
@@ -106,8 +108,8 @@ public class JAXRSResource implements JAXRSEndpoint {
         
         Address owner = assertWalletAddress(addr);
         AHandle ahandle = cntmgr.unregisterAddress(owner);
+
         PublicKey pubKey = ahandle != null ? ahandle.getPubKey() : null;
-        
         SAHandle shandle = createAddrHandle(owner, pubKey);
         LOG.info("/rmaddr {} => {}", addr, shandle);
 
@@ -128,9 +130,6 @@ public class JAXRSResource implements JAXRSEndpoint {
             fhandle = cntmgr.addIpfsContent(owner, Paths.get(path));
         }
 
-        AssertState.assertTrue(fhandle.getFilePath().toFile().exists());
-        AssertState.assertNotNull(fhandle.getCid());
-
         SFHandle shandle = new SFHandle(fhandle);
         LOG.info("/addipfs {}", shandle);
 
@@ -145,9 +144,6 @@ public class JAXRSResource implements JAXRSEndpoint {
         Address owner = assertWalletAddress(addr);
         FHandle fhandle = cntmgr.addIpfsContent(owner, Paths.get(path), input);
 
-        AssertState.assertTrue(fhandle.getFilePath().toFile().exists());
-        AssertState.assertNotNull(fhandle.getCid());
-
         SFHandle shandle = new SFHandle(fhandle);
         LOG.info("/addipfs {}", shandle);
 
@@ -161,9 +157,6 @@ public class JAXRSResource implements JAXRSEndpoint {
         
         Address owner = assertWalletAddress(addr);
         FHandle fhandle = cntmgr.getIpfsContent(owner, Multihash.fromBase58(cid), Paths.get(path), timeout);
-
-        AssertState.assertTrue(fhandle.getFilePath().toFile().exists());
-        AssertState.assertNull(fhandle.getCid());
 
         SFHandle shandle = new SFHandle(fhandle);
         LOG.info("/getipfs {} => {}", cid, shandle);
@@ -180,7 +173,6 @@ public class JAXRSResource implements JAXRSEndpoint {
         Address target = assertWalletAddress(rawTarget);
 
         FHandle fhandle = cntmgr.sendIpfsContent(owner, Multihash.fromBase58(cid), target, timeout);
-        AssertState.assertNotNull(fhandle.getCid());
 
         SFHandle shandle = new SFHandle(fhandle);
         LOG.info("/sendipfs {} => {}", cid, shandle);
@@ -193,15 +185,19 @@ public class JAXRSResource implements JAXRSEndpoint {
 
         assertBlockchainNetworkAvailable();
         
-        List<SFHandle> result = new ArrayList<>();
+        List<SFHandle> shandles = new ArrayList<>();
 
         Address owner = assertWalletAddress(addr);
         for (FHandle fh : cntmgr.findIpfsContent(owner, timeout)) {
-            result.add(new SFHandle(fh));
+            shandles.add(new SFHandle(fh));
         }
-        LOG.info("/findipfs {} => {} files", addr, result.size());
+        
+        if (shandles.size() < 2)
+            LOG.info("/findipfs {} => {}", addr, shandles);
+        else 
+            LOG.info("/findipfs {} => {} files", addr, shandles.size());
 
-        return result;
+        return shandles;
     }
 
     @Override
@@ -214,6 +210,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         List<Multihash> cids = rawids.stream().map(id -> Multihash.fromBase58(id)).collect(Collectors.toList());
         
         List<Multihash> result = cntmgr.unregisterIpfsContent(owner, cids);
+        
         LOG.info("/rmipfs {} {} => {}", addr, cids, result);
 
         return result.stream().map(cid -> cid.toBase58()).collect(Collectors.toList());
@@ -224,21 +221,24 @@ public class JAXRSResource implements JAXRSEndpoint {
 
         assertBlockchainNetworkAvailable();
         
-        List<SFHandle> result = new ArrayList<>();
+        List<SFHandle> shandles = new ArrayList<>();
 
         Address owner = assertWalletAddress(addr);
         if (path == null) {
             for (FHandle fhres : cntmgr.findLocalContent(owner)) {
-                result.add(new SFHandle(fhres));
+                shandles.add(new SFHandle(fhres));
             }
-            LOG.info("/findlocal {} => {} files", addr, result.size());
         } else {
             FHandle fhres = cntmgr.findLocalContent(owner, Paths.get(path));
-            if (fhres != null) result.add(new SFHandle(fhres));
-            LOG.info("/findlocal {} {} => {}", addr, path, fhres != null ? fhres.toString(true) : null);
+            if (fhres != null) shandles.add(new SFHandle(fhres));
         }
 
-        return result;
+        if (shandles.size() < 2)
+            LOG.info("/findlocal {} {} => {}", addr, path, shandles);
+        else 
+            LOG.info("/findlocal {} {} => {} files", addr, path, shandles.size());
+        
+        return shandles;
     }
 
     @Override
@@ -248,6 +248,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         
         Address owner = assertWalletAddress(addr);
         InputStream content = cntmgr.getLocalContent(owner, Paths.get(path));
+        
         LOG.info("/getlocal {} {}", addr, path);
 
         return content;
@@ -260,6 +261,7 @@ public class JAXRSResource implements JAXRSEndpoint {
         
         Address owner = assertWalletAddress(addr);
         boolean removed = cntmgr.removeLocalContent(owner, Paths.get(path));
+        
         LOG.info("/rmlocal {} {} => {}", addr, path, removed);
 
         return removed;

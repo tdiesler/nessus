@@ -7,7 +7,7 @@ import org.junit.Test;
 
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.core.AHandle;
+import io.nessus.ipfs.AHandle;
 import io.nessus.ipfs.core.AHandleManager;
 
 public class AddrRegistrationTest extends AbstractIpfsTest {

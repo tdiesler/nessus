@@ -29,9 +29,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import org.junit.Assert;
@@ -40,13 +37,14 @@ import org.junit.Before;
 import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.AbstractBitcoinTest;
+import io.nessus.ipfs.AHandle;
 import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.ContentManagerConfig.ContentManagerConfigBuilder;
 import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.core.AHandle;
+import io.nessus.ipfs.core.AHandleManager;
 import io.nessus.ipfs.core.DefaultContentManager;
+import io.nessus.ipfs.core.FHandleManager;
 import io.nessus.utils.FileUtils;
 
 public class AbstractIpfsTest extends AbstractBitcoinTest {
@@ -75,8 +73,8 @@ public class AbstractIpfsTest extends AbstractBitcoinTest {
         ipfsClient = cntmgr.getIPFSClient();
         
         // Delete all local files
-        Path rootPath = cntmgr.getRootPath();
-        FileUtils.recursiveDelete(rootPath);
+        FileUtils.recursiveDelete(cntmgr.getPlainPath(addrBob));
+        FileUtils.recursiveDelete(cntmgr.getPlainPath(addrMary));
         
         // Give Bob & Mary some funds
         wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));
@@ -86,16 +84,18 @@ public class AbstractIpfsTest extends AbstractBitcoinTest {
         return cntmgr;
     }
     
-    void unlockAddressRegistrations(Address addr) {
-        wallet.listLockUnspent(Arrays.asList(addr)).stream().forEach(utxo -> {
-            AHandle ahandle = cntmgr.getAHandleFromTx(utxo, null);
+    void unlockAddressRegistrations(Address owner) {
+        wallet.listLockUnspent(Arrays.asList(owner)).stream().forEach(utxo -> {
+        	AHandleManager ahmgr = cntmgr.getAHandleManager();
+            AHandle ahandle = ahmgr.getHandleFromTx(owner, utxo);
             if (ahandle != null) wallet.lockUnspent(utxo, true);
         });
     }
 
     void unlockFileRegistrations(Address owner) {
         wallet.listLockUnspent(Arrays.asList(owner)).stream().forEach(utxo -> {
-            FHandle fhandle = cntmgr.getFHandleFromTx(owner, utxo);
+        	FHandleManager fhmgr = cntmgr.getFHandleManager();
+            FHandle fhandle = fhmgr.getHandleFromTx(owner, utxo);
             if (fhandle != null) wallet.lockUnspent(utxo, true);
         });
     }
@@ -114,22 +114,6 @@ public class AbstractIpfsTest extends AbstractBitcoinTest {
         return cntmgr.addIpfsContent(addrBob, path, input);
     }
 
-    FHandle getIpfsContent(Address owner, Multihash cid) throws Exception {
-        FHandle fhandle = new FHBuilder(owner, cid).build();
-        long ipfsTimeout = cntmgr.getConfig().getIpfsTimeout();
-        try {
-            long before = System.currentTimeMillis();
-            Future<Path> future = ipfsClient.get(cid, Paths.get("target/" + cid));
-            Path path = future.get(ipfsTimeout, TimeUnit.MILLISECONDS);
-            long elapsed = System.currentTimeMillis() - before;
-            fhandle = new FHBuilder(fhandle).path(path).available(true).elapsed(elapsed).build();
-        } catch (TimeoutException ex) {
-            // ignore
-        }
-        LOG.info("ipfsGet: {}", fhandle);
-        return fhandle;
-    }
-    
     FHandle findIpfsContent(Address addr, Multihash cid, Long timeout) throws Exception {
         List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
         FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();

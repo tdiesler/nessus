@@ -30,6 +30,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import io.nessus.ipfs.CidPath;
 import io.nessus.ipfs.FHandle;
 
 public class SFHandle {
@@ -46,33 +47,34 @@ public class SFHandle {
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private boolean expired;
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-    private int attempts;
+    private int attempt;
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-    private Long elapsed;
+    private long elapsed;
     @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private List<SFHandle> children = new ArrayList<>();
 
     public SFHandle() {
     }
 
-    public SFHandle(String cid, String owner, String path, boolean available, boolean encrypted) {
+    public SFHandle(String owner, String cid, String path, boolean available, boolean encrypted) {
         this.cid = cid;
-        this.owner = owner;
         this.path = path;
+        this.owner = owner;
         this.available = available;
         this.encrypted = encrypted;
     }
 
     public SFHandle(FHandle fhandle) {
         Path path = fhandle.getPath();
-		this.cid = fhandle.getCidPath();
+		CidPath cid = fhandle.getCidPath();
+		this.cid = cid != null ? cid.toString() : null;
         this.owner = fhandle.getOwner().getAddress();
         this.path = path != null ? path.toString() : null;
         this.txId = fhandle.getTxId();
         this.encrypted = fhandle.isEncrypted();
         this.available = fhandle.isAvailable();
         this.expired = fhandle.isExpired();
-        this.attempts = fhandle.getAttempt();
+        this.attempt = fhandle.getAttempt();
         this.elapsed = fhandle.getElapsed();
         fhandle.getChildren().forEach(ch -> addChild(new SFHandle(ch)));
     }
@@ -133,12 +135,12 @@ public class SFHandle {
         this.expired = expired;
     }
 
-    public int getAttempts() {
-        return attempts;
+    public int getAttempt() {
+        return attempt;
     }
 
-    public void setAttempts(int attempts) {
-        this.attempts = attempts;
+    public void setAttempt(int attempt) {
+        this.attempt = attempt;
     }
 
     public Long getElapsed() {
@@ -182,7 +184,7 @@ public class SFHandle {
     }
 
     public String toString() {
-        return String.format("[cid=%s, owner=%s, path=%s, avl=%b, exp=%b, try=%d, time=%s]",
-                cid, owner, path, available, expired, attempts, elapsed);
+    	return String.format("[addr=%s, cid=%s, path=%s, avl=%d, exp=%d, try=%d, time=%s]", 
+    			owner, cid, path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
     }
 }

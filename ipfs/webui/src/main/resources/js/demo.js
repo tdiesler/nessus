@@ -20,7 +20,7 @@ function treeMenuIpfs(node) {
      * [A] get, show, send, remove
      * [B] get, ----, send, remove
      * [C] ---, ----, ----, ------
-     * [D] get, show, send, ------
+     * [D] ---, show, ----, ------
      */
 
     var hasParent = node.parent != "#";
@@ -38,26 +38,24 @@ function treeMenuIpfs(node) {
 
     var itemGet = { 
     		"label": "get", 
+            "_disabled": typeC || typeD,
     		"action": function (obj) { window.open(hrefGet, "_self"); } 
     }
     var itemShow = { 
     		"label": "show", 
-            "_disabled": typeB,
+            "_disabled": typeB || typeC,
     		"action": function (obj) { window.open(hrefShow); } 
     }
     var itemSend = { 
     		"label": "send", 
-            "_disabled": data.nosend,
+            "_disabled": typeC || typeD || data.nosend,
     		"action": function (obj) { window.open(hrefSend, "_self"); } 
     }
     var itemRemove = { 
     		"label": "remove", 
-            "_disabled": typeD,
+            "_disabled": typeC || typeD,
     		"action": function (obj) { window.open(hrefRemove, "_self"); } 
     }
-    
-    // No menu for TypeC
-    if (typeC) return "";
     
     var items = {
 	        "get": itemGet,

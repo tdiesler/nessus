@@ -14,7 +14,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
-import io.nessus.Wallet.Address;
 import io.nessus.ipfs.jaxrs.SFHandle;
 
 public class TreeData {
@@ -61,31 +60,24 @@ public class TreeData {
             this.text = text;
         }
 
-        public TreeNode(Address addr, Path path, String cid) {
-
-            data.put("addr", addr.getAddress());
-            data.put("path", path.toString());
-            
-            if (cid == null) {
-                text = String.format("%s", path.getFileName());
-            } else {
-                text = String.format("%s %s", cid, path.getFileName());
-                data.put("cid", cid);
-            }
-        }
-
         public TreeNode(TreeNode parent, SFHandle sfh) {
-            
-            data.put("addr", sfh.getOwner());
-            data.put("path", sfh.getPath());
             
             Path path = Paths.get(sfh.getPath());
             String cid = sfh.getCid();
             
-            if (parent != null || cid == null) {
-                text = String.format("%s", path.getFileName());
+            data.put("addr", sfh.getOwner());
+            data.put("path", sfh.getPath());
+            
+            if (parent == null && cid != null) {
+                text = String.format("%s %s", cid, path);
             } else {
-                text = String.format("%s %s", cid, path.getFileName());
+                text = String.format("%s", path.getFileName());
+            }
+            
+            // [A] Top level file 
+            // [B] Top level directory
+            // [D] Sub level file
+            if (parent == null || sfh.getChildren().isEmpty()) {
                 data.put("cid", cid);
             }
         }

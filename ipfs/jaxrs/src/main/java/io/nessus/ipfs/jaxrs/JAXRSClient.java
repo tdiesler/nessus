@@ -109,11 +109,14 @@ public class JAXRSClient implements JAXRSEndpoint {
         if (addr != null) target = target.queryParam("addr", addr);
 
         Response res = processResponse(target.request().get(Response.class));
-        List<SAHandle> result = Arrays.asList(res.readEntity(SAHandle[].class));
+        List<SAHandle> shandles = Arrays.asList(res.readEntity(SAHandle[].class));
 
-        LOG.info("/addrinfo {} {} => {}", label, addr, result);
+        if (shandles.size() < 2)
+        	LOG.info("/addrinfo {} {} => {}", label, addr, shandles);
+        else 
+        	LOG.info("/addrinfo {} {} => {} addrs", label, addr, shandles.size());
 
-        return result;
+        return shandles;
     }
 
     @Override
@@ -207,10 +210,14 @@ public class JAXRSClient implements JAXRSEndpoint {
 
         Response res = processResponse(target.request().get(Response.class));
 
-        List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
-        LOG.info("/findipfs {} => {} files", addr, result.size());
+        List<SFHandle> shandles = Arrays.asList(res.readEntity(SFHandle[].class));
+        
+        if (shandles.size() < 2)
+            LOG.info("/findipfs {} => {}", addr, shandles);
+        else 
+            LOG.info("/findipfs {} => {} files", addr, shandles.size());
 
-        return result;
+        return shandles;
     }
 
     @Override
@@ -238,10 +245,14 @@ public class JAXRSClient implements JAXRSEndpoint {
         
         Response res = processResponse(target.request().get(Response.class));
 
-        List<SFHandle> result = Arrays.asList(res.readEntity(SFHandle[].class));
-        LOG.info("/findlocal {} => {} files", addr, result.size());
+        List<SFHandle> shandles = Arrays.asList(res.readEntity(SFHandle[].class));
+        
+        if (shandles.size() < 2)
+            LOG.info("/findlocal {} {} => {}", addr, path, shandles);
+        else 
+            LOG.info("/findlocal {} {} => {} files", addr, path, shandles.size());
 
-        return result;
+        return shandles;
     }
 
     @Override

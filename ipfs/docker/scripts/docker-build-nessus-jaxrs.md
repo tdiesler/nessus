@@ -25,9 +25,9 @@ ENTRYPOINT ["run-jaxrs"]
 EOF
 
 docker build -t nessusio/ipfs-jaxrs docker/
-docker push nessusio/ipfs-jaxrs
-
 docker tag nessusio/ipfs-jaxrs nessusio/ipfs-jaxrs:$NVERSION
+
+docker push nessusio/ipfs-jaxrs
 docker push nessusio/ipfs-jaxrs:$NVERSION
 ```
 

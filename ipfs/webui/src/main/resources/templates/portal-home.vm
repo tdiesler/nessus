@@ -81,7 +81,7 @@
 
 <tr><td>&nbsp;</td></tr>
 
-<tr><td><h2>Import Key</h2></td></tr>
+<tr><td><h2>Import Key/Address</h2></td></tr>
 <form action="/portal/impkey">
 <tr><td><input name="label" type="text" value="$envLabel"></td><td><input name="impkey" type="text" size="40"></td><td><input type="submit"></td></tr>
 </form>

@@ -39,6 +39,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import io.ipfs.multihash.Multihash;
+import io.nessus.Tx;
+import io.nessus.TxOutput;
+import io.nessus.UTXO;
+import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
@@ -51,7 +55,7 @@ import io.nessus.ipfs.IPFSTimeoutException;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 
-public class FHandleManager extends AbstractHandleManager {
+public class FHandleManager extends AbstractHandleManager<FHandle> {
 	
 	FHandleManager(DefaultContentManager cntmgr) {
 		super(cntmgr);
@@ -87,6 +91,13 @@ public class FHandleManager extends AbstractHandleManager {
         
         // Fetch the content from IPFS
         
+        int attempt = fhres.getAttempt() + 1;
+        fhres = new FHBuilder(fhres)
+                .attempt(attempt)
+                .build();
+        
+        LOG.info("{}: {}", logPrefix("attempt", attempt),  fhres);
+        
         long before = System.currentTimeMillis();
         
         try {
@@ -112,8 +123,6 @@ public class FHandleManager extends AbstractHandleManager {
                     .available(true)
                     .build();
             
-            LOG.info("IPFS found: {}", fhres.toString(true));
-            
         } catch (InterruptedException | ExecutionException ex) {
             
             Throwable cause = ex.getCause();
@@ -133,27 +142,17 @@ public class FHandleManager extends AbstractHandleManager {
                     .elapsed(fhres.getElapsed() + elapsed)
                     .build();
             
-            ipfsCache.put(fhres, FHandle.class);
+            ipfsCache.put(fhres);
         }
+        
+        LOG.info("IPFS found: {}", fhres.toString(true));
         
         return fhres;
     }
 
-    public List<FHandle> findIpfsContentAsync(List<FHandle> fhandles, long timeout) throws IOException {
+    public List<FHandle> findIpfsContentAsync(Address owner, long timeout) throws IOException {
         
-    	IPFSCache ipfsCache = cntmgr.getIPFSCache();
-    	
-        synchronized (ipfsCache) {
-            for (FHandle fhaux : fhandles) {
-            	Multihash cid = fhaux.getCid();
-                FHandle fhc = ipfsCache.get(cid, FHandle.class);
-                if (fhc == null) {
-                    fhc = new FHBuilder(fhaux).elapsed(0L).build();
-                    LOG.info("IPFS submit: {}", fhc);
-                    ipfsCache.put(fhc, FHandle.class);
-                }
-            }
-        }
+        List<FHandle> fhandles = listUnspentHandles(owner, FHandle.class);
         
         Future<List<FHandle>> future = executorService.submit(new Callable<List<FHandle>>() {
 
@@ -189,6 +188,47 @@ public class FHandleManager extends AbstractHandleManager {
         return results;
     }
 
+	public byte[] createFileData(FHandle fhandle) {
+		return dataHandler.createFileData(fhandle);
+	}
+	
+	@Override
+    public FHandle getHandleFromTx(Address owner, UTXO utxo) {
+        AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(utxo, "Null utxo");
+
+        Wallet wallet = cntmgr.getBlockchain().getWallet();
+        Tx tx = wallet.getTransaction(utxo.getTxId());
+        if (!isOurs(tx)) return null;
+        
+        FHandle fhandle = null;
+
+        List<TxOutput> outs = tx.outputs();
+        TxOutput out0 = outs.get(outs.size() - 2);
+        TxOutput out1 = outs.get(outs.size() - 1);
+
+        // Expect OP_FILE_DATA
+        byte[] txdata = out1.getData();
+        Multihash cid = dataHandler.extractFileData(txdata);
+        Address outAddr = wallet.findAddress(out0.getAddress());
+        if (cid != null && outAddr != null) {
+
+            LOG.debug("File Tx: {} => {}", tx.txId(), cid);
+            
+            // Not owned by the given address
+            if (!owner.equals(outAddr)) return null;
+            
+            fhandle = new FHBuilder(owner, tx.txId(), cid)
+                    .owner(owner)
+                    .build();
+        }
+
+        // The FHandle is not fully initialized
+        // There has been no blocking IPFS access
+        
+        return fhandle;
+    }
+    
     private FHandle createIPFSFileTree(FHandle fhandle) throws IOException {
         
         Stack<FHandle> fhstack = new Stack<>();
@@ -347,6 +387,13 @@ public class FHandleManager extends AbstractHandleManager {
         }
     }
     
+    private String logPrefix(String action, int attempt) {
+    	ContentManagerConfig config = cntmgr.getConfig();
+        int ipfsAttempts = config.getIpfsAttempts();
+        String trdName = Thread.currentThread().getName();
+        return String.format("IPFS %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);
+    }
+    
     class AsyncGetCallable implements Callable<FHandle> {
         
         final long timeout;
@@ -362,15 +409,10 @@ public class FHandleManager extends AbstractHandleManager {
         @Override
         public FHandle call() throws Exception {
             
-            int attempt = fhandle.getAttempt() + 1;
-            FHandle fhaux = new FHBuilder(fhandle)
-                    .attempt(attempt)
-                    .build();
-            
-            IPFSCache ipfsCache = cntmgr.getIPFSCache();
-            ipfsCache.put(fhaux, FHandle.class);
-            
-            LOG.info("{}: {}", logPrefix("attempt", attempt),  fhaux);
+        	IPFSCache ipfsCache = cntmgr.getIPFSCache();
+        	
+            FHandle fhaux = fhandle;
+            Multihash cid = fhandle.getCid();
             
             try {
                 
@@ -378,23 +420,22 @@ public class FHandleManager extends AbstractHandleManager {
                 
             } catch (Exception ex) {
                 
-                fhaux = processException(fhaux, ex);
+                fhaux = processException(cid, ex);
                 
             } finally {
                 
                 fhaux.setScheduled(false);
-                ipfsCache.put(fhaux, FHandle.class);
+                ipfsCache.put(fhaux);
             }
 
             return fhaux;
         }
         
-        private FHandle processException(FHandle fhandle, Exception ex) throws InterruptedException {
+        private FHandle processException(Multihash cid, Exception ex) throws InterruptedException {
             
             IPFSCache ipfsCache = cntmgr.getIPFSCache();
             ContentManagerConfig config = cntmgr.getConfig();
             
-            Multihash cid = fhandle.getCid();
             FHandle fhres = ipfsCache.get(cid, FHandle.class);
             int attempt = fhres.getAttempt();
             
@@ -428,13 +469,6 @@ public class FHandleManager extends AbstractHandleManager {
             }
             
             return fhres;
-        }
-
-        private String logPrefix(String action, int attempt) {
-        	ContentManagerConfig config = cntmgr.getConfig();
-            int ipfsAttempts = config.getIpfsAttempts();
-            String trdName = Thread.currentThread().getName();
-            return String.format("IPFS %s [%s] [%d/%d]", action, trdName, attempt, ipfsAttempts);
         }
     }
 }

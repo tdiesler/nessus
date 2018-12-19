@@ -1,10 +1,5 @@
 package io.nessus.ipfs;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
-
 /*-
  * #%L
  * Nessus :: IPFS
@@ -25,6 +20,10 @@ import java.io.UnsupportedEncodingException;
  * #L%
  */
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.file.Path;
@@ -52,8 +51,8 @@ public class FHandle extends AbstractHandle {
     
     final List<FHandle> children = new ArrayList<>();
     
-    private FHandle(FHandle parent, Address owner, Path path, Multihash cid, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, Long elapsed) {
-    	super(owner, childcid(parent, cid), txId, available, expired, scheduled, attempt, elapsed);
+    private FHandle(FHandle parent, Address owner, CidPath cid, Path path, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, long elapsed) {
+    	super(owner, cid, txId, available, expired, scheduled, attempt, elapsed);
         boolean urlBased = path != null && furl != null;
         AssertArgument.assertTrue(urlBased || cid != null, "Neither url nor cid based");
         
@@ -63,10 +62,6 @@ public class FHandle extends AbstractHandle {
         this.secToken = secToken;
     }
     
-    private static Multihash childcid(FHandle parent, Multihash cid) {
-    	return parent != null ? parent.cid : cid;
-	}
-
 	public FHandle getRoot() {
         FHandle result = this;
         while (result.parent != null) {
@@ -92,14 +87,6 @@ public class FHandle extends AbstractHandle {
         return !children.isEmpty();
     }
     
-    public String getCidPath() {
-    	if (cid == null) return null;
-    	if (getRoot() == this) return cid.toBase58();
-    	Path rootPath = getRoot().getPath();
-		Path relpath = rootPath.relativize(path);
-        return cid + "/" + relpath;
-    }
-
     public URL getURL() {
         return furl;
     }
@@ -125,61 +112,6 @@ public class FHandle extends AbstractHandle {
         return secToken != null;
     }
 
-    public interface Visitor {
-        FHandle visit(FHandle fhandle) throws IOException, GeneralSecurityException;
-    }
-    
-    public static FHandle walkTree (FHandle fhandle, Visitor visitor) throws IOException, GeneralSecurityException {
-        FHandle fhroot = fhandle.getRoot();
-        FHReference fhref = new FHReference(fhroot);
-        walkTreeRecursive(fhref, fhroot.getPath(), visitor);
-        return fhref.getFHandle();
-    }
-    
-    private static boolean walkTreeRecursive(FHReference fhref, Path path, Visitor visitor) throws IOException, GeneralSecurityException {
-        
-        FHandle fhroot = fhref.getFHandle();
-        FHandle fhchild = fhroot.findChild(path);
-        
-        FHandle fhres = visitor.visit(fhchild);
-        boolean success = fhres != null;
-        
-        if (success) {
-            fhref.setFHandle(fhres.getRoot());
-            for (FHandle aux : fhres.getChildren()) {
-                success = walkTreeRecursive(fhref, aux.getPath(), visitor);
-                if (!success) break;
-            }
-        }
-        
-        return success;
-    }
-    
-    public static class FHReference {
-        
-        private FHandle fhref;
-
-        public FHReference() {
-        }
-
-        public FHReference(FHandle fh) {
-            this.fhref = fh;
-        }
-
-        public synchronized FHandle getFHandle() {
-            return fhref;
-        }
-
-        public synchronized void setFHandle(FHandle fh) {
-            this.fhref = fh;
-        }
-        
-        @Override
-        public synchronized String toString() {
-            return fhref.toString();
-        }
-    }
-    
     private void addChild(FHandle fhchild) {
         Path chpath = fhchild.getPath();
         Multihash chcid = fhchild.getCid();
@@ -227,46 +159,99 @@ public class FHandle extends AbstractHandle {
     @Override
     public String toString() {
         String addr = owner.getAddress();
-		return String.format("[cid=%s, owner=%s, path=%s, avl=%d, exp=%d, try=%d, time=%s]", 
-                getCidPath(), addr, path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
+    	return String.format("[addr=%s, cid=%s, path=%s, avl=%d, exp=%d, try=%d, time=%s]", 
+    			addr, cid, path, available ? 1 : 0, expired ? 1 : 0, attempt, elapsed);
     }
 
-    public static class FHBuilder {
+    public static class FHReference {
+        
+        private FHandle fhref;
+
+        public FHReference() {
+        }
+
+        public FHReference(FHandle fh) {
+            this.fhref = fh;
+        }
+
+        public synchronized FHandle getFHandle() {
+            return fhref;
+        }
+
+        public synchronized void setFHandle(FHandle fh) {
+            this.fhref = fh;
+        }
+        
+        @Override
+        public synchronized String toString() {
+            return fhref.toString();
+        }
+    }
+    
+    public static class FHWalker {
+    	
+        public interface Visitor {
+            FHandle visit(FHandle fhandle) throws IOException, GeneralSecurityException;
+        }
+        
+        public static FHandle walkTree (FHandle fhandle, Visitor visitor) throws IOException, GeneralSecurityException {
+            FHandle fhroot = fhandle.getRoot();
+            FHReference fhref = new FHReference(fhroot);
+            walkTreeRecursive(fhref, fhroot.getPath(), visitor);
+            return fhref.getFHandle();
+        }
+        
+        private static boolean walkTreeRecursive(FHReference fhref, Path path, Visitor visitor) throws IOException, GeneralSecurityException {
+            
+            FHandle fhroot = fhref.getFHandle();
+            FHandle fhchild = fhroot.findChild(path);
+            
+            FHandle fhres = visitor.visit(fhchild);
+            boolean success = fhres != null;
+            
+            if (success) {
+                fhref.setFHandle(fhres.getRoot());
+                for (FHandle aux : fhres.getChildren()) {
+                    success = walkTreeRecursive(fhref, aux.getPath(), visitor);
+                    if (!success) break;
+                }
+            }
+            
+            return success;
+        }
+    }
+    
+    public static class FHBuilder extends AbstractBuilder<FHBuilder, FHandle> {
         
         private FHandle parent;
-        private Address owner;
-        private Multihash cid;
         private Path path;
         private URL furl;
-        private String txId;
         private String secToken;
         private boolean available;
-        private boolean expired;
-        private int attempt;
-        private Long elapsed;
-        
-        private AtomicBoolean scheduled = new AtomicBoolean();
         
         private FHBuilder parentBuilder;
         private Map<Path, FHBuilder> childBuilders = new LinkedHashMap<>();
         
         public FHBuilder(FHandle fhandle) {
+        	super(fhandle);
             AssertArgument.assertTrue(fhandle.parent == null, "Cannot rebuild partial trees");
             init(null, fhandle);
         }
 
         public FHBuilder(Address owner, Path path, URL furl) {
-            this.owner = owner;
+        	super(owner);
+            AssertArgument.assertNotNull(path, "Null path");
+            AssertArgument.assertNotNull(furl, "Null furl");
             this.path = path;
             this.furl = furl;
         }
 
-        public FHBuilder(Address owner, Multihash cid) {
-            this.owner = owner;
-            this.cid = cid;
+        public FHBuilder(Address owner, String txId, Multihash cid) {
+        	super(owner, txId, cid);
         }
 
         private FHBuilder(FHBuilder parentBuilder, FHandle fhandle) {
+        	super(fhandle);
             init(parentBuilder, fhandle);
         }
 
@@ -305,7 +290,7 @@ public class FHandle extends AbstractHandle {
 
         public FHBuilder findChild(Multihash cid) {
             AssertArgument.assertNotNull(cid, "Null cid");
-            return findChildRecursive(rootBuilder(), cid);
+            return findChildRecursive(rootBuilder(), new CidPath(cid));
         }
         
         FHBuilder findChildRecursive(FHBuilder builder, Path path) {
@@ -321,7 +306,7 @@ public class FHandle extends AbstractHandle {
             return null;
         }
 
-        FHBuilder findChildRecursive(FHBuilder builder, Multihash cid) {
+        FHBuilder findChildRecursive(FHBuilder builder, CidPath cid) {
             
             if (cid.equals(builder.cid)) 
                 return builder;
@@ -339,18 +324,8 @@ public class FHandle extends AbstractHandle {
             return this;
         }
 
-        public FHBuilder cid(Multihash cid) {
-            this.cid = cid;
-            return this;
-        }
-        
         public FHBuilder path(Path path) {
             this.path = path;
-            return this;
-        }
-        
-        public FHBuilder owner(Address owner) {
-            this.owner = owner;
             return this;
         }
         
@@ -364,31 +339,12 @@ public class FHandle extends AbstractHandle {
             return this;
         }
         
-        public FHBuilder txId(String txId) {
-            this.txId = txId;
-            return this;
-        }
-        
         public FHBuilder available(boolean available) {
             this.available = available;
             return this;
         }
-        
-        public FHBuilder expired(boolean expired) {
-            this.expired = expired;
-            return this;
-        }
-        
-        public FHBuilder attempt(int attempt) {
-            this.attempt = attempt;
-            return this;
-        }
-        
-        public FHBuilder elapsed(long millis) {
-            this.elapsed = elapsed != null ? elapsed + millis : millis;
-            return this;
-        }
-        
+
+        @Override
         public FHandle build() {
             
             if (parentBuilder == null)
@@ -396,15 +352,27 @@ public class FHandle extends AbstractHandle {
             
             FHBuilder rootBuilder = rootBuilder(); 
             FHandle rootHandle = rootBuilder.buildInternal();
-            FHandle chandle = rootHandle.findChild(path);
+            FHandle childHandle = rootHandle.findChild(path);
             
-            return chandle;
+            return childHandle;
         }
         
         private FHandle buildInternal() {
-            FHandle fhandle = new FHandle(parent, owner, path, cid, furl, secToken, txId, available, expired, scheduled, attempt, elapsed);
+        	
+        	if (parent != null) {
+        		FHandle rootHandle = parent.getRoot();
+				Multihash rootCid = rootHandle.getCid();
+        		if (rootCid != null) {
+        	    	Path rootPath = rootHandle.getPath();
+        	    	Path relpath = rootPath.relativize(path);
+        			cid = new CidPath(rootCid, relpath);
+        		}
+        	}
+        	
+            FHandle fhandle = new FHandle(parent, owner, cid, path, furl, secToken, txId, available, expired, scheduled, attempt, elapsed);
             childBuilders.values().stream().map(cb -> cb.parent(fhandle).buildInternal()).collect(Collectors.toList());
             if (parent != null) parent.addChild(fhandle);
+            
             return fhandle;
         }
     }

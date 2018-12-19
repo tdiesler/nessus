@@ -22,9 +22,9 @@ ENTRYPOINT ["run-webui"]
 EOF
 
 docker build -t nessusio/ipfs-webui docker/
-docker push nessusio/ipfs-webui
-
 docker tag nessusio/ipfs-webui nessusio/ipfs-webui:$NVERSION
+
+docker push nessusio/ipfs-webui
 docker push nessusio/ipfs-webui:$NVERSION
 ```
 
@@ -56,7 +56,7 @@ This assumes you have the Blockchain and IPFS instances already running on your 
 
 export LOCALIP=192.168.178.20
 export RPCPORT=18443
-export LABEL=Mary
+export LABEL=Bob
 
 docker rm -f webui
 docker run --detach \

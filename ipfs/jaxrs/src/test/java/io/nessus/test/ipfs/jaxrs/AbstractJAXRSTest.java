@@ -53,7 +53,8 @@ public abstract class AbstractJAXRSTest extends AbstractBitcoinTest {
             
             // Delete all local files
             Path rootPath = config.getDataDir();
-            FileUtils.recursiveDelete(rootPath);
+            FileUtils.recursiveDelete(rootPath.resolve("plain").resolve(addrBob.getAddress()));
+            FileUtils.recursiveDelete(rootPath.resolve("plain").resolve(addrMary.getAddress()));
             
             // Give Bob & Mary some funds
             wallet.sendToAddress(addrBob.getAddress(), new BigDecimal("1.0"));

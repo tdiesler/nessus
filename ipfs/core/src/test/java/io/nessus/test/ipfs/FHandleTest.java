@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.ipfs.multihash.Multihash;
+import io.nessus.ipfs.CidPath;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.utils.FileUtils;
@@ -32,15 +32,15 @@ public class FHandleTest extends AbstractIpfsTest {
         
         // Change root properties & maintain children
         
-    	Multihash HASH = Multihash.fromBase58("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8");
+        CidPath cid = CidPath.parse("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8");
     	
-        FHandle fhandleB = new FHBuilder(fhandleA).cid(HASH).build();
+        FHandle fhandleB = new FHBuilder(fhandleA).cid(cid.getCid()).build();
         LOG.info(fhandleB.toString(true));
-        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8", fhandleB.getCidPath());
+        Assert.assertEquals(cid, fhandleB.getCidPath());
         Assert.assertEquals("contentA", fhandleB.getPath().toString());
         Assert.assertEquals(3, fhandleB.getChildren().size());
         FHandle fhChild = fhandleB.getChildren().get(1);
-        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB", fhChild.getCidPath());
+        Assert.assertEquals(cid.append("subB"), fhChild.getCidPath());
         String fhandleBstr = fhandleB.toString(true);
         
         // Modify a subtree element
@@ -49,7 +49,7 @@ public class FHandleTest extends AbstractIpfsTest {
         FHandle fhandleC = new FHBuilder(fhandleB).findChild(childPath).txId("fooTx").build();
         LOG.info(fhandleC.toString(true));
         Assert.assertEquals("fooTx", fhandleC.getTxId());
-        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB/subC/file02.txt", fhandleC.getCidPath());
+        Assert.assertEquals(cid.append("subB/subC/file02.txt"), fhandleC.getCidPath());
         Assert.assertEquals("contentA/subB/subC/file02.txt", fhandleC.getPath().toString());
         Assert.assertEquals(0, fhandleC.getChildren().size());
 
@@ -62,7 +62,7 @@ public class FHandleTest extends AbstractIpfsTest {
         LOG.info(fhandleD.toString(true));
         Assert.assertEquals("contentA", fhandleD.getPath().toString());
         Assert.assertEquals("fooTx", fhandleD.findChild(childPath).getTxId());
-        Assert.assertEquals("QmZBd64wnUqfpeaKFNTNqUxSZmzawD4pLi4k8GH6sYWJm8/subB/subC/file02.txt", fhandleD.findChild(childPath).getCidPath());
+        Assert.assertEquals(cid.append("subB/subC/file02.txt"), fhandleD.findChild(childPath).getCidPath());
     }
 
     @Test

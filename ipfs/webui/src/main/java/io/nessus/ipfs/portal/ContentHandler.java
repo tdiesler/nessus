@@ -451,7 +451,7 @@ public class ContentHandler implements HttpHandler {
         String cid = qparams.get("cid").getFirst();
 
         SAHandle ahandle = findAddressInfo(addr);
-        SFHandle fhandle = new SFHandle(cid, addr, path, true, true);
+        SFHandle fhandle = new SFHandle(addr, cid, path, true, true);
         context.put("gatewayUrl", gatewayUrl);
         context.put("addr", ahandle);
         context.put("file", fhandle);
@@ -510,7 +510,7 @@ public class ContentHandler implements HttpHandler {
         context.put("gatewayUrl", gatewayUrl);
         context.put("toaddrs", toaddrs);
         context.put("addr", ahandle);
-        context.put("file", new SFHandle(cid, addr, relPath, true, true));
+        context.put("file", new SFHandle(addr, cid, relPath, true, true));
 
         return "templates/portal-send.vm";
     }

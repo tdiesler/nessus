@@ -1,7 +1,5 @@
 #parse( "templates/header.vm" )
 
-<h1>Error</h1>
-
 $errmsg
 
 #parse( "templates/footer.vm" )

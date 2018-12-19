@@ -147,7 +147,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNull(fhandle.getCid());
+        Assert.assertNotNull(fhandle.getCid());
 
         // Send content from IPFS
 
@@ -171,14 +171,14 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         // Get content from IPFS
 
-        relPath = Paths.get("marry/userfile.txt");
+        relPath = Paths.get("mary/userfile.txt");
         FileUtils.recursiveDelete(getPlainPath(addrMary));
         fhandle = client.getIpfsContent(addrMary.getAddress(), fhandle.getCid(), relPath.toString(), timeout);
 
         Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNull(fhandle.getCid());
+        Assert.assertNotNull(fhandle.getCid());
         
         input = client.getLocalContent(addrMary.getAddress(), relPath.toString());
         br = new BufferedReader(new InputStreamReader(input));

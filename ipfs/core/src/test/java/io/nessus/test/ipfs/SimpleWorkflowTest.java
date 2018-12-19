@@ -92,7 +92,7 @@ public class SimpleWorkflowTest extends AbstractIpfsTest {
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNull(fhandle.getCid());
+        Assert.assertNotNull(fhandle.getCid());
         
         // Send content to IPFS
         
@@ -121,7 +121,7 @@ public class SimpleWorkflowTest extends AbstractIpfsTest {
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNull(fhandle.getCid());
+        Assert.assertNotNull(fhandle.getCid());
     }
 
     private void assertKeyEquals(PublicKey exp, PublicKey was) {

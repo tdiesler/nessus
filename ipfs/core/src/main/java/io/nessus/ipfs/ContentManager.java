@@ -30,7 +30,6 @@ import java.util.List;
 import io.ipfs.multihash.Multihash;
 import io.nessus.Blockchain;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.core.AHandle;
 
 public interface ContentManager {
 

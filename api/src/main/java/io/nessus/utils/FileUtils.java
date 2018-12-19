@@ -25,6 +25,7 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 
 public final class FileUtils {
@@ -57,7 +58,7 @@ public final class FileUtils {
     
     public static boolean recursiveCopy(Path srcPath, Path dstPath) throws IOException {
         AssertArgument.assertNotNull(srcPath, "Null srcPath");
-        AssertArgument.assertTrue(srcPath.toFile().exists(), "doen not exist: " + srcPath);
+        AssertArgument.assertTrue(srcPath.toFile().exists(), "Does not exist: " + srcPath);
         AssertArgument.assertNotNull(dstPath, "Null destPath");
         
         Files.walkFileTree(srcPath, new SimpleFileVisitor<Path>() {
@@ -74,5 +75,10 @@ public final class FileUtils {
         
         return !dstPath.toFile().exists();
     }
+
+	public static void atomicMove(Path srcPath, Path dstPath) throws IOException {
+        recursiveDelete(dstPath);
+        Files.move(srcPath, dstPath, StandardCopyOption.ATOMIC_MOVE);
+	}
 }
 
