@@ -34,15 +34,13 @@ docker push nessusio/ipfs-jaxrs:$NVERSION
 ### Run the JAXRS image
 
 ```
-export CNAME=jaxrs
-
-docker rm -f $CNAME
+docker rm -f jaxrs
 docker run --detach \
     --link ipfs:ipfs \
     --link btcd:blockchain \
     --privileged  -v ~/.nessus/plain:/root/.nessus/plain \
     --memory=50m --memory-swap=2g \
-    --name $CNAME \
+    --name jaxrs \
     nessusio/ipfs-jaxrs
 
 # Follow the info log
@@ -63,11 +61,10 @@ This assumes you have the Blockchain and IPFS instances already running on your 
 # Testnet: 18332
 # Regtest: 18443
 
-export CNAME=jaxrs
 export LOCALIP=192.168.178.20
 export RPCPORT=18443
 
-docker rm -f $CNAME
+docker rm -f jaxrs
 docker run --detach \
     -p 8081:8081 \
     --privileged  -v ~/.nessus/plain:/root/.nessus/plain \
@@ -78,7 +75,7 @@ docker run --detach \
     --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
     --memory=50m --memory-swap=2g \
-    --name $CNAME \
+    --name jaxrs \
     nessusio/ipfs-jaxrs
     
 docker logs jaxrs

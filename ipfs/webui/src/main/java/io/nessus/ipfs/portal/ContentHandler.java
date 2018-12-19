@@ -152,7 +152,7 @@ public class ContentHandler implements HttpHandler {
         try {
 
             // Assert Blockchain availability
-            assertBlockchainAvailable();
+            assertBlockchainAvailable(context);
 
             if (relPath.startsWith("/portal/addtxt")) {
                 actAddIpfsText(exchange, context);
@@ -470,7 +470,7 @@ public class ContentHandler implements HttpHandler {
         context.put("addr", ahandle);
         context.put("gatewayUrl", gatewayUrl);
 
-        List<SAHandle> toaddrs = client.findAddressInfo(null, null).stream()
+        List<SAHandle> toaddrs = findAddressInfo(null, null).stream()
                 .filter(ah -> !ah.getAddress().equals(addr))
                 .filter(ah -> ah.getEncKey() != null)
                 .collect(Collectors.toList());
@@ -502,7 +502,7 @@ public class ContentHandler implements HttpHandler {
         String cid = qparams.get("cid").getFirst();
 
         SAHandle ahandle = findAddressInfo(addr);
-        List<SAHandle> toaddrs = client.findAddressInfo(null, null).stream()
+        List<SAHandle> toaddrs = findAddressInfo(null, null).stream()
                 .filter(ah -> !ah.getAddress().equals(addr))
                 .filter(ah -> ah.getEncKey() != null)
                 .collect(Collectors.toList());
@@ -517,7 +517,7 @@ public class ContentHandler implements HttpHandler {
 
     private String pageHome(VelocityContext context) throws Exception {
 
-        List<SAHandle> addrs = client.findAddressInfo(null, null);
+        List<SAHandle> addrs = findAddressInfo(null, null);
 
         String envLabel = SystemUtils.getenv(WebUI.ENV_NESSUS_WEBUI_LABEL, "Bob");
         context.put("envLabel", envLabel);
@@ -568,12 +568,20 @@ public class ContentHandler implements HttpHandler {
 
     private SAHandle findAddressInfo(String addr) throws IOException {
         AssertArgument.assertNotNull(addr, "Null addr");
-        SAHandle ahandle = client.findAddressInfo(null, addr).stream()
-                .filter(ah -> ah.getAddress().equals(addr))
-                .findFirst().orElse(null);
+        SAHandle ahandle = findAddressInfo(null, addr).stream().findFirst().orElse(null);
         AssertState.assertNotNull(ahandle, "Cannot get address handle for: " + addr);
         return ahandle;
     }
+
+	private List<SAHandle> findAddressInfo(String label, String addr) throws IOException {
+		
+		List<SAHandle> addrs = client.findAddressInfo(label, addr).stream()
+				.filter(ah -> ah.getLabel() != null)
+				.filter(ah -> ah.getLabel().length() > 0)
+				.collect(Collectors.toList());
+		
+		return addrs;
+	}
 
     private void redirectHomePage(HttpServerExchange exchange) throws Exception {
         new RedirectHandler("/portal").handleRequest(exchange);
@@ -589,8 +597,9 @@ public class ContentHandler implements HttpHandler {
         return getResource(path);
     }
 
-    private void assertBlockchainAvailable() {
+    private void assertBlockchainAvailable(VelocityContext context) {
         JAXRSClient.assertBlockchainNetworkAvailable(network);
+        context.put("blockCount", network.getBlockCount());
     }
 
     private ByteBuffer getResource(String resname) throws IOException {

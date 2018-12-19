@@ -81,11 +81,6 @@ public interface Network {
     NetworkInfo getNetworkInfo();
     
     /**
-     * Generate the given number of blocks
-     */
-    List<String> generate(int numBlocks);
-
-    /**
      * Generate the given number of blocks to the given address
      */
     List<String> generate(int numBlocks, Address addr);

@@ -60,7 +60,7 @@ public abstract class AbstractAddress implements Address {
 	@Override
     public boolean isWatchOnly() {
 		if (watchOnly == null) {
-			watchOnly = getPrivKey() == null;
+			watchOnly = (getPrivKey() == null);
 		}
         return watchOnly;
     }

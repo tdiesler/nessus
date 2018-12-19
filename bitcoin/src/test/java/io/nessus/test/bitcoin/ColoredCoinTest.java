@@ -52,7 +52,7 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         LOG.info("Tx: {}", txId);
 
         // Mine the next block
-        network.generate(1);
+        network.generate(1, addrSink);
 
         // Show account balances
         showAccountBalances();
@@ -107,7 +107,7 @@ public class ColoredCoinTest extends AbstractBitcoinTest {
         LOG.info("Tx: {}", txId);
 
         // Mine the next block
-        network.generate(1);
+        network.generate(1, addrSink);
 
         // Show account balances
         showAccountBalances();

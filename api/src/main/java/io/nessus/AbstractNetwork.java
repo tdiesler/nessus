@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.Wallet.Address;
+import io.nessus.utils.AssertArgument;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.NetworkInfo;
 
@@ -56,16 +57,8 @@ public abstract class AbstractNetwork extends RpcClientSupport implements Networ
     }
 
     @Override
-    public List<String> generate(int numBlocks) {
-        return generate(numBlocks, null);
-    }
-
-    @Override
-    public List<String> generate(int numBlocks, Address address) {
-        if (address != null) {
-            return client.generateToAddress(numBlocks, address.getAddress());
-        } else {
-            return client.generate(numBlocks);
-        }
+    public List<String> generate(int numBlocks, Address addr) {
+    	AssertArgument.assertNotNull(addr, "Null addr");
+        return client.generateToAddress(numBlocks, addr.getAddress());
     }
 }

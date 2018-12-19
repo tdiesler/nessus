@@ -2,7 +2,8 @@
    </div>
    <div id="footer">
     <footer class="footer">
-        <span><b>Version</b>: $implVersiond</span>
+        <span><b>Version</b>: $implVersion</span> 
+        <span><b>Block</b>: <a class="gray" href="https://live.blockcypher.com/btc-testnet/block/$blockCount" target="_blank">$blockCount</a></span>
         <br>
         <span>Copyright &copy; 2018 Nessus</span>
     </footer>

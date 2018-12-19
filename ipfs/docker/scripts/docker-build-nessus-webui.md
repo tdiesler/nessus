@@ -31,16 +31,14 @@ docker push nessusio/ipfs-webui:$NVERSION
 ### Run the WebUI image
 
 ```
-export CNAME=webui
-
-docker rm -f $CNAME
+docker rm -f webui
 docker run --detach \
     -p 8082:8082 \
     --link ipfs:ipfs \
     --link jaxrs:jaxrs \
     --link btcd:blockchain \
     --memory=50m --memory-swap=2g \
-    --name $CNAME \
+    --name webui \
     nessusio/ipfs-webui
 
 docker logs -f webui
@@ -56,12 +54,11 @@ This assumes you have the Blockchain and IPFS instances already running on your 
 # Testnet: 18332
 # Regtest: 18443
 
-export CNAME=webui
 export LOCALIP=192.168.178.20
 export RPCPORT=18443
 export LABEL=Mary
 
-docker rm -f $CNAME
+docker rm -f webui
 docker run --detach \
     -p 8082:8082 \
     --link jaxrs:jaxrs \
@@ -73,7 +70,7 @@ docker run --detach \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
     --env NESSUS_WEBUI_LABEL=$LABEL \
     --memory=50m --memory-swap=2g \
-    --name $CNAME \
+    --name webui \
     nessusio/ipfs-webui
 
 docker logs -f webui
