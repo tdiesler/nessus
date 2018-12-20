@@ -55,8 +55,10 @@ import io.nessus.Blockchain;
 import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
-import io.nessus.ipfs.jaxrs.SAHandle;
+import io.nessus.ipfs.ContentManagerConfig;
+import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
+import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.SFHandle;
 import io.nessus.ipfs.portal.TreeData.TreeNode;
 import io.nessus.utils.AssertArgument;
@@ -77,7 +79,8 @@ public class ContentHandler implements HttpHandler {
     final Network network;
     final Wallet wallet;
 
-    final JAXRSClient client;
+    final IPFSClient ipfsClient;
+    final JAXRSClient jaxrsClient;
     final VelocityEngine ve;
     final URI gatewayUrl;
 
@@ -87,13 +90,26 @@ public class ContentHandler implements HttpHandler {
     // The last executable job
     private Future<Address> lastJob;
 
-    ContentHandler(JAXRSClient client, Blockchain blockchain, URI gatewayURI) {
-        this.blockchain = blockchain;
-        this.gatewayUrl = gatewayURI;
-        this.client = client;
-
+    ContentHandler(WebUIConfig config) throws Exception {
+    	
+        blockchain = config.getBlockchain();
         network = blockchain.getNetwork();
         wallet = blockchain.getWallet();
+        JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
+        
+        String envHost = SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_GATEWAY_ADDR, "127.0.0.1");
+        String envPort = SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_GATEWAY_PORT, "8080");
+        gatewayUrl = new URI(String.format("http://%s:%s/ipfs", envHost, envPort));
+
+        ipfsClient = config.getIPFSClient();
+        LOG.info("IPFS PeerId: {}",  ipfsClient.getPeerId());
+        LOG.info("IPFS Gateway: {}", gatewayUrl);
+        LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
+        LOG.info("IPFS Version: {}",  ipfsClient.version());
+
+        URL jaxrsUrl = config.getJaxrsUrl();
+        jaxrsClient = new JAXRSClient(jaxrsUrl);
+        LOG.info("Nessus JAXRS: {}", jaxrsUrl);
 
         ve = new VelocityEngine();
         ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
@@ -107,9 +123,9 @@ public class ContentHandler implements HttpHandler {
                 return new Thread(run, "webui-pool-" + count.incrementAndGet());
             }
         });
-    }
+	}
 
-    @Override
+	@Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
 
         ByteBuffer content = null;
@@ -146,14 +162,19 @@ public class ContentHandler implements HttpHandler {
 
         String tmplPath = null;
         VelocityContext context = new VelocityContext();
-        context.put("implVersion", WebUI.implVersion);
-        context.put("implBuild", WebUI.implBuild);
+        context.put("implVersion", WebUI.getImplVersion());
+        context.put("implBuild", WebUI.getImplBuild());
 
         try {
 
             // Assert Blockchain availability
+        	
             assertBlockchainAvailable(context);
 
+            // Assert IPFS availability
+            
+            assertIpfsAvailable(context);
+            
             if (relPath.startsWith("/portal/addtxt")) {
                 actAddIpfsText(exchange, context);
             }
@@ -304,7 +325,7 @@ public class ContentHandler implements HttpHandler {
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
 
-        client.registerAddress(rawAddr);
+        jaxrsClient.registerAddress(rawAddr);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -314,7 +335,7 @@ public class ContentHandler implements HttpHandler {
         Map<String, Deque<String>> qparams = exchange.getQueryParameters();
         String rawAddr = qparams.get("addr").getFirst();
 
-        client.unregisterAddress(rawAddr);
+        jaxrsClient.unregisterAddress(rawAddr);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -326,7 +347,7 @@ public class ContentHandler implements HttpHandler {
         String relPath = qparams.get("path").getFirst();
         String content = qparams.get("content").getFirst();
 
-        client.addIpfsContent(rawAddr, relPath, new ByteArrayInputStream(content.getBytes()));
+        jaxrsClient.addIpfsContent(rawAddr, relPath, new ByteArrayInputStream(content.getBytes()));
 
         redirectFileList(exchange, rawAddr);
     }
@@ -337,7 +358,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
         String relPath = qparams.get("path").getFirst();
 
-        client.addIpfsContent(rawAddr, relPath, (URL) null);
+        jaxrsClient.addIpfsContent(rawAddr, relPath, (URL) null);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -349,7 +370,7 @@ public class ContentHandler implements HttpHandler {
         String relPath = qparams.get("path").getFirst();
         URL furl = new URL(qparams.get("url").getFirst());
 
-        client.addIpfsContent(rawAddr, relPath, furl);
+        jaxrsClient.addIpfsContent(rawAddr, relPath, furl);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -361,7 +382,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        client.getIpfsContent(rawAddr, cid, relPath, null);
+        jaxrsClient.getIpfsContent(rawAddr, cid, relPath, null);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -373,7 +394,7 @@ public class ContentHandler implements HttpHandler {
         String rawToAddr = qparams.get("toaddr").getFirst();
         String cid = qparams.get("cid").getFirst();
 
-        client.sendIpfsContent(rawFromAddr, cid, rawToAddr, null);
+        jaxrsClient.sendIpfsContent(rawFromAddr, cid, rawToAddr, null);
 
         redirectFileList(exchange, rawFromAddr);
     }
@@ -385,7 +406,7 @@ public class ContentHandler implements HttpHandler {
         Deque<String> deque = qparams.get("cids");
         String[] cids = deque.toArray(new String[deque.size()]);
 
-        client.unregisterIpfsContent(rawAddr, Arrays.asList(cids));
+        jaxrsClient.unregisterIpfsContent(rawAddr, Arrays.asList(cids));
 
         redirectFileList(exchange, rawAddr);
     }
@@ -396,7 +417,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
         String relPath = qparams.get("path").getFirst();
 
-        try (InputStream ins = client.getLocalContent(rawAddr, relPath)) {
+        try (InputStream ins = jaxrsClient.getLocalContent(rawAddr, relPath)) {
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             StreamUtils.copyStream(ins, baos);
@@ -411,7 +432,7 @@ public class ContentHandler implements HttpHandler {
         String rawAddr = qparams.get("addr").getFirst();
         String relPath = qparams.get("path").getFirst();
 
-        client.removeLocalContent(rawAddr, relPath);
+        jaxrsClient.removeLocalContent(rawAddr, relPath);
 
         redirectFileList(exchange, rawAddr);
     }
@@ -456,7 +477,7 @@ public class ContentHandler implements HttpHandler {
         context.put("addr", ahandle);
         context.put("file", fhandle);
 
-        context.put("treeDataLocal", getTreeData(client.findLocalContent(addr, null), null));
+        context.put("treeDataLocal", getTreeData(jaxrsClient.findLocalContent(addr, null), null));
 
         return "templates/portal-get.vm";
     }
@@ -477,8 +498,8 @@ public class ContentHandler implements HttpHandler {
 
         Boolean nosend = toaddrs.isEmpty();
 
-        context.put("treeDataIpfs", getTreeData(client.findIpfsContent(addr, null), nosend));
-        context.put("treeDataLocal", getTreeData(client.findLocalContent(addr, null), nosend));
+        context.put("treeDataIpfs", getTreeData(jaxrsClient.findIpfsContent(addr, null), nosend));
+        context.put("treeDataLocal", getTreeData(jaxrsClient.findLocalContent(addr, null), nosend));
 
         return "templates/portal-list.vm";
     }
@@ -575,7 +596,7 @@ public class ContentHandler implements HttpHandler {
 
 	private List<SAHandle> findAddressInfo(String label, String addr) throws IOException {
 		
-		List<SAHandle> addrs = client.findAddressInfo(label, addr).stream()
+		List<SAHandle> addrs = jaxrsClient.findAddressInfo(label, addr).stream()
 				.filter(ah -> ah.getLabel() != null)
 				.filter(ah -> ah.getLabel().length() > 0)
 				.collect(Collectors.toList());
@@ -600,6 +621,13 @@ public class ContentHandler implements HttpHandler {
     private void assertBlockchainAvailable(VelocityContext context) {
         JAXRSClient.assertBlockchainNetworkAvailable(network);
         context.put("blockCount", network.getBlockCount());
+    }
+
+    private void assertIpfsAvailable(VelocityContext context) throws IOException {
+    	String peerId = ipfsClient.getPeerId();
+    	String ipfsHost = gatewayUrl.getHost();
+        context.put("ipfsSwarm", String.format("/ip4/%s/tcp/4001/ipfs/%s", ipfsHost, peerId));
+        context.put("peerId", peerId);
     }
 
     private ByteBuffer getResource(String resname) throws IOException {

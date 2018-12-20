@@ -5,12 +5,12 @@ import java.net.URL;
 
 import org.kohsuke.args4j.Option;
 
-import io.nessus.ipfs.BlockchainConfig;
+import io.nessus.ipfs.core.AbstractConfig;
 import io.nessus.ipfs.jaxrs.JAXRSConfig;
 import io.nessus.ipfs.jaxrs.JAXRSConstants;
 import io.nessus.utils.SystemUtils;
 
-public final class WebUIConfig extends BlockchainConfig {
+public final class WebUIConfig extends AbstractConfig {
 
     public static final String ENV_NESSUS_WEBUI_ADDR = "NESSUS_WEBUI_ADDR";
     public static final String ENV_NESSUS_WEBUI_PORT = "NESSUS_WEBUI_PORT";
@@ -28,9 +28,9 @@ public final class WebUIConfig extends BlockchainConfig {
     public WebUIConfig() {
     }
     
-    private WebUIConfig(String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass, 
-    		String ipfsAddr, String jaxrsHost, int jaxrsPort, String jaxrsPath) {
-    	super(bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass);
+    private WebUIConfig(String ipfsAddr, String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, 
+    		String bcPass, String jaxrsHost, int jaxrsPort, String jaxrsPath) {
+    	super(ipfsAddr, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass);
         this.jaxrsHost = jaxrsHost;
         this.jaxrsPort = jaxrsPort;
     	this.jaxrsPath = jaxrsPath;
@@ -52,7 +52,6 @@ public final class WebUIConfig extends BlockchainConfig {
         String jaxrsPath = JAXRSConfig.DEFAULT_JAXRS_CONTEXT_PATH;
         String jaxrsHost = JAXRSConfig.DEFAULT_JAXRS_HOST;
         int jaxrsPort = JAXRSConfig.DEFAULT_JAXRS_PORT;
-        String ipfsAddr = JAXRSConfig.DEFAULT_IPFS_ADDR;
         
         public WebUIConfigBuilder jaxrsHost(String jaxrsHost) {
             this.jaxrsHost = jaxrsHost;
@@ -70,7 +69,7 @@ public final class WebUIConfig extends BlockchainConfig {
         }
         
         public WebUIConfig build() {
-            return new WebUIConfig(bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, ipfsAddr, jaxrsHost, jaxrsPort, jaxrsPath);
+            return new WebUIConfig(ipfsAddr, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, jaxrsHost, jaxrsPort, jaxrsPath);
         }
     }
 }

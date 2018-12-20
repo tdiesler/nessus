@@ -27,12 +27,17 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Future;
 
+import io.ipfs.api.IPFS.Config;
 import io.ipfs.multiaddr.MultiAddress;
 import io.ipfs.multihash.Multihash;
 
 public interface IPFSClient {
 
+    Config getIpfsConfig();
+    
     MultiAddress getAPIAddress();
+    
+    String getPeerId() throws IOException;
     
     List<Multihash> add(Path path) throws IOException;
 

@@ -36,7 +36,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.ipfs.multihash.Multihash;
-import io.nessus.ipfs.IPFSClient;
 import io.nessus.ipfs.core.DefaultIPFSClient;
 import io.nessus.utils.StreamUtils;
 
@@ -47,7 +46,7 @@ import io.nessus.utils.StreamUtils;
  */
 public class IPFSClientTest {
 
-    static IPFSClient client;
+    static DefaultIPFSClient client;
     
     @BeforeClass
     public static void beforeClass() throws IOException {
@@ -64,6 +63,12 @@ public class IPFSClientTest {
         DefaultIPFSClient client = new DefaultIPFSClient();
         String version = client.version();
         Assert.assertTrue("Start with 0.4.x - " + version, version.startsWith("0.4."));
+    }
+
+    @Test
+    public void peerId() throws Exception {
+        String peerId = client.getPeerId();
+        Assert.assertNotNull(peerId);
     }
 
     @Test

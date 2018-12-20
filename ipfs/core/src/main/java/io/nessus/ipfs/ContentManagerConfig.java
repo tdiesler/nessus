@@ -5,27 +5,14 @@ import java.nio.file.Paths;
 
 import org.kohsuke.args4j.Option;
 
-import io.ipfs.multiaddr.MultiAddress;
-import io.nessus.ipfs.core.DefaultIPFSClient;
-import io.nessus.utils.SystemUtils;
+import io.nessus.ipfs.core.AbstractConfig;
 
-public class ContentManagerConfig extends BlockchainConfig {
+public class ContentManagerConfig extends AbstractConfig {
 
-    public static final String ENV_IPFS_JSONRPC_ADDR = "IPFS_JSONRPC_ADDR";
-    public static final String ENV_IPFS_JSONRPC_PORT = "IPFS_JSONRPC_PORT";
-    
-    public static final String ENV_IPFS_GATEWAY_ADDR = "IPFS_GATEWAY_ADDR";
-    public static final String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
-    
-    public static final String DEFAULT_IPFS_ADDR = "/ip4/127.0.0.1/tcp/5001";
-    
     public static final long DEFAULT_IPFS_TIMEOUT = 6000; // 6 sec
     public static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
     public static final int DEFAULT_IPFS_THREADS = 12;
     
-    @Option(name = "--ipfs-api", usage = "The IPFS API address")
-    protected String ipfsAddr = DEFAULT_IPFS_ADDR;
-
     @Option(name = "--ipfs-timeout", usage = "The maximum number of millis for IPFS operations")
     protected long ipfsTimeout = DEFAULT_IPFS_TIMEOUT;
     
@@ -46,9 +33,8 @@ public class ContentManagerConfig extends BlockchainConfig {
     
     protected ContentManagerConfig(String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass, 
     		String ipfsAddr, long ipfsTimeout, int ipfsAttempts, int ipfsThreads, Path dataDir, boolean overwrite) {
-    	super(bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass);
+    	super(ipfsAddr, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass);
     	
-        this.ipfsAddr = ipfsAddr;
         this.ipfsTimeout = ipfsTimeout;
         this.ipfsAttempts = ipfsAttempts;
         this.ipfsThreads = ipfsThreads;
@@ -78,21 +64,6 @@ public class ContentManagerConfig extends BlockchainConfig {
 		return overwrite;
 	}
 
-	public MultiAddress getIpfsApiAddress() {
-        if (DEFAULT_IPFS_ADDR.equals(ipfsAddr)) {
-            String host = SystemUtils.getenv(ENV_IPFS_JSONRPC_ADDR, "127.0.0.1");
-            String port = SystemUtils.getenv(ENV_IPFS_JSONRPC_PORT, "5001");
-            ipfsAddr = String.format("/ip4/%s/tcp/%s", host, port);
-        }
-        return new MultiAddress(ipfsAddr);
-    }
-    
-	public IPFSClient getIPFSClient () {
-        MultiAddress ipfsAddr = getIpfsApiAddress();
-        IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
-        return ipfsClient;
-	}
-	
     public String toString() {
         return String.format("[dataDir=%s, timeout=%s, attempts=%s, threads=%s, overwrite=%b]", 
                 dataDir, ipfsTimeout, ipfsAttempts, ipfsThreads, overwrite);
@@ -108,7 +79,6 @@ public class ContentManagerConfig extends BlockchainConfig {
     protected static class AbstractContentManagerConfigBuilder<B extends AbstractContentManagerConfigBuilder<?, ?>, C extends ContentManagerConfig> 
     	extends AbstractConfigBuilder<B, C> {
         
-        protected String ipfsAddr = DEFAULT_IPFS_ADDR;
         protected long ipfsTimeout = DEFAULT_IPFS_TIMEOUT;
         protected int ipfsAttempts = DEFAULT_IPFS_ATTEMPTS;
         protected int ipfsThreads = DEFAULT_IPFS_THREADS;
@@ -124,12 +94,6 @@ public class ContentManagerConfig extends BlockchainConfig {
 		@SuppressWarnings("unchecked")
 		public B overwrite(boolean overwrite) {
             this.overwrite = overwrite;
-            return (B) this;
-        }
-        
-		@SuppressWarnings("unchecked")
-		public B ipfsAddr(String addr) {
-            this.ipfsAddr = addr;
             return (B) this;
         }
         

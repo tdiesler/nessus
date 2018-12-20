@@ -3,8 +3,12 @@
    <div id="footer">
     <footer class="footer">
         <span><b>Version</b>: $implVersion</span> 
+        #if ( $implBuild != "" )
         <span><b>Build</b>: $implBuild</span> 
+        #end
         <span><b>Block</b>: <a class="gray" href="https://live.blockcypher.com/btc-testnet/block/$blockCount" target="_blank">$blockCount</a></span>
+        <br>
+        <span><b>IPFS PeerId</b>: $peerId</span>
         <br>
         <span>Copyright &copy; 2018 Nessus</span>
     </footer>

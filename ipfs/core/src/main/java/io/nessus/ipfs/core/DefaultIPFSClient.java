@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.ipfs.api.IPFS;
+import io.ipfs.api.IPFS.Config;
 import io.ipfs.api.MerkleNode;
 import io.ipfs.api.NamedStreamable.ByteArrayWrapper;
 import io.ipfs.api.NamedStreamable.FileWrapper;
@@ -91,7 +92,22 @@ public class DefaultIPFSClient implements IPFSClient {
         });
     }
 
-    @Override
+    public IPFS getIpfs() {
+        AssertState.assertNotNull(ipfs, "No IPFS connection");
+        return ipfs;
+    }
+    
+	@Override
+	public Config getIpfsConfig() {
+		return getIpfs().config;
+	}
+
+	@Override
+	public String getPeerId() throws IOException {
+		return getIpfsConfig().get("Identity.PeerID");
+	}
+
+	@Override
     public MultiAddress getAPIAddress() {
         return addr;
     }
@@ -108,7 +124,7 @@ public class DefaultIPFSClient implements IPFSClient {
 
     @Override
     public List<Multihash> add(Path path, boolean hashOnly) throws IOException {
-        List<MerkleNode> parts = ipfs().add(new FileWrapper(path.toFile()), false, hashOnly);
+        List<MerkleNode> parts = getIpfs().add(new FileWrapper(path.toFile()), false, hashOnly);
         AssertState.assertTrue(parts.size() > 0, "No content added");
         return parts.stream().map(mn -> mn.hash).collect(Collectors.toList());
     }
@@ -144,7 +160,7 @@ public class DefaultIPFSClient implements IPFSClient {
 
     @Override
     public Multihash addSingle(byte[] bytes, boolean hashOnly) throws IOException {
-        List<MerkleNode> parts = ipfs().add(new ByteArrayWrapper(bytes), false, hashOnly);
+        List<MerkleNode> parts = getIpfs().add(new ByteArrayWrapper(bytes), false, hashOnly);
         AssertState.assertTrue(parts.size() > 0, "No content added");
         Multihash cid = parts.stream().map(mn -> mn.hash).findFirst().get();
         return cid;
@@ -158,7 +174,7 @@ public class DefaultIPFSClient implements IPFSClient {
             @Override
             public InputStream call() throws Exception {
                 try {
-                    return ipfs().catStream(cid);
+                    return getIpfs().catStream(cid);
                 } catch (Exception ex) {
                     throw new IPFSException(ex);
                 }
@@ -184,7 +200,7 @@ public class DefaultIPFSClient implements IPFSClient {
             }
             
             Path getInternal(Multihash cid, Path outpath) throws IOException {
-                List<MerkleNode> links = ipfs().ls(cid).get(0).links;
+                List<MerkleNode> links = getIpfs().ls(cid).get(0).links;
                 for (MerkleNode node : links) {
                     String name = node.name.get();
                     getInternal(node.hash, outpath.resolve(name));
@@ -193,7 +209,7 @@ public class DefaultIPFSClient implements IPFSClient {
                     File outfile = outpath.toFile();
                     outpath.getParent().toFile().mkdirs();
                     try (OutputStream fout = new FileOutputStream(outfile)) {
-                        InputStream ins = ipfs().catStream(cid);
+                        InputStream ins = getIpfs().catStream(cid);
                         StreamUtils.copyStream(ins, fout);
                     }
                 }
@@ -208,11 +224,6 @@ public class DefaultIPFSClient implements IPFSClient {
 
     @Override
     public String version() throws IOException {
-        return ipfs().version();
-    }
-    
-    private IPFS ipfs() {
-        AssertState.assertNotNull(ipfs, "No IPFS connection");
-        return ipfs;
+        return getIpfs().version();
     }
 }

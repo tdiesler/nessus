@@ -27,8 +27,8 @@ public final class JAXRSConfig extends ContentManagerConfig {
     public JAXRSConfig() {
     }
     
-    private JAXRSConfig(String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass, 
-    		String ipfsAddr, long ipfsTimeout, int ipfsAttempts, int ipfsThreads, Path dataDir, boolean overwrite, String jaxrsHost, int jaxrsPort, String jaxrsPath) {
+    private JAXRSConfig(String ipfsAddr, String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, 
+    		String bcPass, long ipfsTimeout, int ipfsAttempts, int ipfsThreads, Path dataDir, boolean overwrite, String jaxrsHost, int jaxrsPort, String jaxrsPath) {
     	super(bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, dataDir, overwrite);
         this.jaxrsHost = jaxrsHost;
         this.jaxrsPort = jaxrsPort;
@@ -56,7 +56,6 @@ public final class JAXRSConfig extends ContentManagerConfig {
         String jaxrsPath = DEFAULT_JAXRS_CONTEXT_PATH;
         String jaxrsHost = DEFAULT_JAXRS_HOST;
         int jaxrsPort = DEFAULT_JAXRS_PORT;
-        String ipfsAddr = DEFAULT_IPFS_ADDR;
         
         public JAXRSConfigBuilder jaxrsHost(String jaxrsHost) {
             this.jaxrsHost = jaxrsHost;
@@ -74,7 +73,7 @@ public final class JAXRSConfig extends ContentManagerConfig {
         }
         
         public JAXRSConfig build() {
-            return new JAXRSConfig(bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, ipfsAddr, ipfsTimeout, ipfsAttempts, ipfsThreads, dataDir, overwrite, jaxrsHost, jaxrsPort, jaxrsPath);
+            return new JAXRSConfig(ipfsAddr, bcImpl, bcUrl, bcHost, bcPort, bcUser, bcPass, ipfsTimeout, ipfsAttempts, ipfsThreads, dataDir, overwrite, jaxrsHost, jaxrsPort, jaxrsPath);
         }
     }
 }

@@ -91,6 +91,7 @@ public class JAXRSApplication extends Application {
         JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
         IPFSClient ipfsClient = cntManager.getIPFSClient();
+        LOG.info("IPFS PeerId: {}",  ipfsClient.getPeerId());
         LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
         LOG.info("IPFS Version: {}",  ipfsClient.version());
 

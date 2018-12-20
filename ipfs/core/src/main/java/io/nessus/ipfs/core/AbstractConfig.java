@@ -1,21 +1,31 @@
-package io.nessus.ipfs;
+package io.nessus.ipfs.core;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 
 import org.kohsuke.args4j.Option;
 
+import io.ipfs.multiaddr.MultiAddress;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
+import io.nessus.ipfs.IPFSClient;
 import io.nessus.utils.SystemUtils;
 
-public class BlockchainConfig {
+public class AbstractConfig {
 
+    public static final String ENV_IPFS_JSONRPC_ADDR = "IPFS_JSONRPC_ADDR";
+    public static final String ENV_IPFS_JSONRPC_PORT = "IPFS_JSONRPC_PORT";
+    
+    public static final String ENV_IPFS_GATEWAY_ADDR = "IPFS_GATEWAY_ADDR";
+    public static final String ENV_IPFS_GATEWAY_PORT = "IPFS_GATEWAY_PORT";
+    
     public static final String ENV_BLOCKCHAIN_JSONRPC_ADDR = "BLOCKCHAIN_JSONRPC_ADDR";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PORT = "BLOCKCHAIN_JSONRPC_PORT";
     public static final String ENV_BLOCKCHAIN_JSONRPC_USER = "BLOCKCHAIN_JSONRPC_USER";
     public static final String ENV_BLOCKCHAIN_JSONRPC_PASS = "BLOCKCHAIN_JSONRPC_PASS";
 
+    public static final String DEFAULT_IPFS_ADDR = "/ip4/127.0.0.1/tcp/5001";
+    
     private static final String DEFAULT_BLOCKCHAIN_IMPL = "io.nessus.bitcoin.BitcoinBlockchain";
     
     private static final String DEFAULT_BLOCKCHAIN_URL = "http://127.0.0.1:18332";
@@ -24,6 +34,9 @@ public class BlockchainConfig {
     private static final String DEFAULT_BLOCKCHAIN_USER = "rpcusr";
     private static final String DEFAULT_BLOCKCHAIN_PASSWORD = "rpcpass";
     
+    @Option(name = "--ipfs-api", usage = "The IPFS API address")
+    String ipfsAddr = DEFAULT_IPFS_ADDR;
+
     @Option(name = "--bcimpl", usage = "The Blockchain implementation class")
     String bcImpl = DEFAULT_BLOCKCHAIN_IMPL;
 
@@ -45,11 +58,12 @@ public class BlockchainConfig {
     @Option(name = "--help", help = true)
     public boolean help;
     
-    public BlockchainConfig() {
+    public AbstractConfig() {
     }
     
-    protected BlockchainConfig(String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass) {
+    protected AbstractConfig(String ipfsAddr, String bcImpl, String bcUrl, String bcHost, int bcPort, String bcUser, String bcPass) {
     	
+    	this.ipfsAddr = ipfsAddr;
         this.bcUrl = bcUrl;
         this.bcImpl = bcImpl;
         this.bcHost = bcHost;
@@ -58,6 +72,21 @@ public class BlockchainConfig {
         this.bcPass = bcPass;
     }
 
+	public MultiAddress getIpfsApiAddress() {
+        if (DEFAULT_IPFS_ADDR.equals(ipfsAddr)) {
+            String host = SystemUtils.getenv(ENV_IPFS_JSONRPC_ADDR, "127.0.0.1");
+            String port = SystemUtils.getenv(ENV_IPFS_JSONRPC_PORT, "5001");
+            ipfsAddr = String.format("/ip4/%s/tcp/%s", host, port);
+        }
+        return new MultiAddress(ipfsAddr);
+    }
+    
+	public IPFSClient getIPFSClient () {
+        MultiAddress ipfsAddr = getIpfsApiAddress();
+        IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
+        return ipfsClient;
+	}
+	
     public URL getBlockchainUrl() throws MalformedURLException {
         
         if (!DEFAULT_BLOCKCHAIN_URL.equals(bcUrl)) 
@@ -83,7 +112,7 @@ public class BlockchainConfig {
         if (DEFAULT_BLOCKCHAIN_IMPL.equals(bcImpl)) {
             bcImpl = SystemUtils.getenv(BlockchainFactory.BLOCKCHAIN_CLASS_NAME, bcImpl);
         }
-        ClassLoader loader = BlockchainConfig.class.getClassLoader();
+        ClassLoader loader = AbstractConfig.class.getClassLoader();
         return (Class<Blockchain>) loader.loadClass(bcImpl);
     }
     
@@ -99,7 +128,9 @@ public class BlockchainConfig {
         return blockchain;
     }
 
-    protected static class AbstractConfigBuilder<B extends AbstractConfigBuilder<?, ?>, C extends BlockchainConfig> {
+    protected static class AbstractConfigBuilder<B extends AbstractConfigBuilder<?, ?>, C extends AbstractConfig> {
+        
+        protected String ipfsAddr = DEFAULT_IPFS_ADDR;
         
         protected String bcUrl = DEFAULT_BLOCKCHAIN_URL;
         protected String bcImpl = DEFAULT_BLOCKCHAIN_IMPL;
@@ -107,6 +138,12 @@ public class BlockchainConfig {
         protected int bcPort = DEFAULT_BLOCKCHAIN_PORT;
         protected String bcUser = DEFAULT_BLOCKCHAIN_USER;
         protected String bcPass = DEFAULT_BLOCKCHAIN_PASSWORD;
+        
+		@SuppressWarnings("unchecked")
+		public B ipfsAddr(String addr) {
+            this.ipfsAddr = addr;
+            return (B) this;
+        }
         
         @SuppressWarnings("unchecked")
         public B bcimpl(Class<Blockchain> impl) {
