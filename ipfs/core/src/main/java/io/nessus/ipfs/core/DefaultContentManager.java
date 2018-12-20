@@ -151,30 +151,30 @@ public class DefaultContentManager implements ContentManager {
 	}
 
 	@Override
-    public AHandle registerAddress(Address addr) throws GeneralSecurityException, IOException {
-    	AHandle ahandle = registerAddress(addr, false);
+    public AHandle registerAddress(Address owner) throws GeneralSecurityException, IOException {
+    	AHandle ahandle = registerAddress(owner, false);
 		return ahandle;
     }
     
-    public AHandle registerAddress(Address addr, boolean dryRun) throws GeneralSecurityException, IOException {
-        AssertArgument.assertNotNull(addr, "Null addr");
+    public AHandle registerAddress(Address owner, boolean dryRun) throws GeneralSecurityException, IOException {
+        AssertArgument.assertNotNull(owner, "Null owner");
         
-        assertArgumentHasLabel(addr);
-        assertArgumentHasPrivateKey(addr);
-        assertArgumentNotChangeAddress(addr);
+        assertArgumentHasLabel(owner);
+        assertArgumentHasPrivateKey(owner);
+        assertArgumentNotChangeAddress(owner);
 
         // Do nothing if already registered
         
-        AHandle ahandle = findAddressRegistation(addr, null);
+        AHandle ahandle = findAddressRegistation(owner, null);
         if (ahandle != null && ahandle.isAvailable())
             return ahandle;
 
         // Generate a new RSA key pair derived from the private blockchain key
 
-        KeyPair keyPair = RSAUtils.newKeyPair(addr);
+        KeyPair keyPair = RSAUtils.newKeyPair(owner);
         PublicKey pubKey = keyPair.getPublic();
         
-        ahandle = new AHBuilder(addr, pubKey).build();
+        ahandle = new AHBuilder(owner, pubKey).build();
         ahandle = ahmgr.addIpfsContent(ahandle, dryRun);
         Multihash cid = ahandle.getCid();
         
@@ -200,7 +200,7 @@ public class DefaultContentManager implements ContentManager {
         if (dustAmount.compareTo(changeAmount) < 0) {
             outputs.add(new TxOutput(changeAddr.getAddress(), changeAmount));
         }
-        outputs.add(new TxOutput(addr.getAddress(), dataAmount, data));
+        outputs.add(new TxOutput(owner.getAddress(), dataAmount, data));
             
         Tx tx = new TxBuilder()
                 .unspentInputs(utxos)
@@ -209,24 +209,24 @@ public class DefaultContentManager implements ContentManager {
 
         String txId = wallet.sendTx(tx);
 
-        LOG.info("Register PubKey: {} => Tx {} => {}", addr.getAddress(), txId, cid);
+        LOG.info("Register PubKey: {} => Tx {} => {}", owner.getAddress(), txId, cid);
 
         tx = wallet.getTransaction(txId);
         int vout = tx.outputs().size() - 2;
         TxOutput dataOut = tx.outputs().get(vout);
-        AssertState.assertEquals(addr.getAddress(), dataOut.getAddress());
+        AssertState.assertEquals(owner.getAddress(), dataOut.getAddress());
         AssertState.assertEquals(dataAmount, dataOut.getAmount());
 
         // Lock the UTXO
         
-        List<UTXO> unlocked = ahmgr.listLockedAndUnlockedUnspent(addr, false, true);
+        List<UTXO> unlocked = ahmgr.listLockedAndUnlockedUnspent(owner, false, true);
         unlocked.stream()
         	.filter(utxo -> utxo.getTxId().equals(txId))
         	.filter(utxo -> utxo.getVout() == vout)
         	.forEach(utxo -> wallet.lockUnspent(utxo, false));
         
         LOG.debug("Redeem change: {}", changeAmount);
-        ((AbstractWallet) wallet).redeemChange(label, addr);
+        ((AbstractWallet) wallet).redeemChange(label, owner);
         
         AHandle ahres = new AHBuilder(ahandle)
         		.txId(tx.txId())
@@ -375,7 +375,7 @@ public class DefaultContentManager implements ContentManager {
         
         LOG.info("IPFS encrypt: {}", fhandle.toString(true));
         
-        fhandle = encrypt(fhandle, pubKey);
+        fhandle = encrypt(owner, fhandle, pubKey);
         
         LOG.info("IPFS add: {}", fhandle.toString(true));
         
@@ -417,7 +417,7 @@ public class DefaultContentManager implements ContentManager {
             
             LOG.info("IPFS record: {}", fhres);
             
-            fhres = recordFileData(fhres, owner);
+            fhres = recordFileData(owner, fhres);
             
         }
         
@@ -529,56 +529,56 @@ public class DefaultContentManager implements ContentManager {
     }
     
     @Override
-    public FHandle sendIpfsContent(Address owner, Multihash cid, Address target, Long timeout) throws IOException, GeneralSecurityException {
+    public FHandle sendIpfsContent(Address owner, Multihash cid, Address toAddr, Long timeout) throws IOException, GeneralSecurityException {
         AssertArgument.assertNotNull(owner, "Null owner");
+        AssertArgument.assertNotNull(toAddr, "Null toAddr");
         AssertArgument.assertNotNull(cid, "Null cid");
-        AssertArgument.assertNotNull(target, "Null target");
         
         assertArgumentHasLabel(owner);
         assertArgumentHasPrivateKey(owner);
         assertArgumentNotChangeAddress(owner);
         
-        PublicKey pubKey = assertAddressRegistration(target);
+        PublicKey pubKey = assertAddressRegistration(toAddr);
         
-        LOG.info("Start IPFS Send: {} {}", owner, cid);
+        LOG.info("Start IPFS Send: {} {} => {}", owner, cid, toAddr);
         
         timeout = timeout != null ? timeout : config.getIpfsTimeout();
         FHandle fhandle = ipfsGet(owner, cid, timeout);
         
-        LOG.info("IPFS decrypt: {}", fhandle);
+        LOG.info("IPFS decrypt: {}", fhandle.toString(true));
 
         fhandle = decrypt(fhandle, null, false);
 
-        fhandle = new FHBuilder(fhandle)
-                .owner(target)
+        FHandle fhres = new FHBuilder(fhandle)
+        		.secretToken(null)
+                .owner(toAddr)
                 .cid(null)
                 .build();
 
-        LOG.info("IPFS encrypt: {}", fhandle);
+        LOG.info("IPFS encrypt: {}", fhres);
         
-        fhandle = encrypt(fhandle, pubKey);
+        fhres = encrypt(owner, fhres, pubKey);
+        Path tmpPath = fhres.getFilePath();
         
-        LOG.info("IPFS add: {}", fhandle);
+        LOG.info("IPFS add: {}", fhres.toString(true));
         
-        Path tmpPath = fhandle.getFilePath();
-        cid = ipfsClient.addSingle(tmpPath);
+        fhres = fhmgr.addIpfsContent(fhres, false);
         
-        Path cryptPath = getCryptPath(target).resolve(cid.toBase58());
+        Path cryptPath = getCryptPath(toAddr).resolve(cid.toBase58());
         FileUtils.atomicMove(tmpPath, cryptPath);
 
         URL furl = cryptPath.toUri().toURL();
-        fhandle = new FHBuilder(fhandle)
+        fhres = new FHBuilder(fhres)
                 .url(furl)
-                .cid(cid)
                 .build();
         
-        LOG.info("IPFS record: {}", fhandle);
+        LOG.info("IPFS record: {}", fhres.toString(true));
         
-        fhandle = recordFileData(fhandle, target);
+        fhres = recordFileData(owner, fhres);
         
-        LOG.info("Done IPFS Send: {}", fhandle);
+        LOG.info("Done IPFS Send: {}", fhres.toString(true));
         
-        return fhandle;
+        return fhres;
     }
 
     @Override
@@ -719,7 +719,7 @@ public class DefaultContentManager implements ContentManager {
         return fhandle;
     }
     
-    private FHandle recordFileData(FHandle fhandle, Address toAddr) throws GeneralSecurityException {
+    private FHandle recordFileData(Address owner, FHandle fhandle) throws GeneralSecurityException {
 
         AssertArgument.assertTrue(fhandle.isEncrypted(), "File not encrypted: " + fhandle);
 
@@ -734,7 +734,6 @@ public class DefaultContentManager implements ContentManager {
         BigDecimal dataAmount = dustAmount.multiply(BigDecimal.TEN);
         BigDecimal spendAmount = dataAmount.add(network.getMinDataAmount());
 
-        Address owner = fhandle.getOwner();
         String label = owner.getLabels().get(0);
         List<UTXO> utxos = wallet.selectUnspent(label, spendAmount.add(feePerKB));
         BigDecimal utxosAmount = getUTXOAmount(utxos);
@@ -746,6 +745,8 @@ public class DefaultContentManager implements ContentManager {
         if (dustAmount.compareTo(changeAmount) < 0) {
             outputs.add(new TxOutput(changeAddr.getAddress(), changeAmount));
         }
+        
+        Address toAddr = fhandle.getOwner();
         outputs.add(new TxOutput(toAddr.getAddress(), dataAmount, data));
         
         Tx tx = new TxBuilder()
@@ -792,7 +793,7 @@ public class DefaultContentManager implements ContentManager {
         return result;
     }
     
-    private FHandle encrypt(FHandle fhandle, PublicKey pubKey) throws IOException, GeneralSecurityException {
+    private FHandle encrypt(Address owner, FHandle fhandle, PublicKey pubKey) throws IOException, GeneralSecurityException {
         AssertArgument.assertTrue(!fhandle.isEncrypted(), "File already encrypted: " + fhandle);
         
         AESCipher aes = new AESCipher();
@@ -800,17 +801,16 @@ public class DefaultContentManager implements ContentManager {
         
         // Get the CID for the plain content
         // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
+        
         List<Multihash> cids = ipfsClient.add(fhandle.getFilePath(), true);
         AssertState.assertTrue(cids.size() > 0, "Cannot obtain content ids for: " + fhandle);
         Multihash cid = cids.get(cids.size() - 1);
         
         // Get the AES secret key for the entire tree
-        Address owner = fhandle.getOwner();
         SecretKey secKey = AESUtils.newSecretKey(owner, cid);
         
         // Encrypt the AES secret key
-        KeyPair keyPair = RSAUtils.newKeyPair(owner);
-        byte[] tokBytes = rsa.encrypt(keyPair.getPublic(), secKey.getEncoded());
+        byte[] tokBytes = rsa.encrypt(pubKey, secKey.getEncoded());
         String secToken = Base64.getEncoder().encodeToString(tokBytes);
 
         Path tmpDir = createTempDir();
@@ -837,10 +837,11 @@ public class DefaultContentManager implements ContentManager {
                 
                 // Get the CID for the plain content
                 // DO NOT ACTUALLY ADD THIS TO IPFS (--hash-only)
+                
                 Multihash cid = ipfsClient.addSingle(fhaux.getFilePath(), true);
                 
                 // Create a content based AES key & IV
-                byte[] iv = AESUtils.getIV(cid, owner);
+                byte[] iv = AESUtils.getIV(owner, cid);
                 
                 try (FileWriter fw = new FileWriter(tmpPath.toFile())) {
                     

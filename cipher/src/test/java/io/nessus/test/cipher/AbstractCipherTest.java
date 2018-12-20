@@ -50,4 +50,10 @@ public class AbstractCipherTest {
             return "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2";
         }
     };
+    
+    Address addrMary = new AbstractAddress("mm2PoHeFncAStYeZJSSTa4bmUVXRa3L6PL") {
+        public String getPrivKey() {
+            return "cMcT5vjU5UiF2mh8WE6EsD3YdFEuFuUKm6rCcA8UuR9FUS6VLeRx";
+        }
+    };
 }

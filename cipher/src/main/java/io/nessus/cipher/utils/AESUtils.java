@@ -67,12 +67,12 @@ public class AESUtils {
     }
 
     /**
-     * Create an AES initialization verctor derived from the owner's private key and a content id.
+     * Create an AES initialization vector derived from the owner's private key and a content id.
      * 
      * The idea is that the same owner can encrypt the same content repeatetly and
      * still get identical encrypted content.
      */
-	public static byte[] getIV(Multihash cid, Address addr) throws GeneralSecurityException {
+	public static byte[] getIV(Address addr, Multihash cid) throws GeneralSecurityException {
         AssertArgument.assertNotNull(addr.getPrivKey(), "Wallet does not control private key for: " + addr);
 
         // Decode the priv key as base64 (even though it might be WIF encoded)

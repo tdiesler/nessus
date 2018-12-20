@@ -134,7 +134,7 @@ public class AESCipherTest extends AbstractCipherTest {
         for (int i = 0; i < count; i++) {
             AESCipher acipher = new AESCipher();
             InputStream ins = asStream(text);
-            byte[] iv = AESUtils.getIV(cid, addrBob);
+            byte[] iv = AESUtils.getIV(addrBob, cid);
             InputStream secIns = acipher.encrypt(secKey, iv, ins, null);
             secmsgs.add(encode(secIns));
         }
@@ -177,7 +177,7 @@ public class AESCipherTest extends AbstractCipherTest {
         for (int i = 0; i < count; i++) {
             AESCipher acipher = new AESCipher();
             InputStream ins = asStream(text);
-            byte[] iv = AESUtils.getIV(cid, addrBob);
+            byte[] iv = AESUtils.getIV(addrBob, cid);
             InputStream secIns = acipher.encrypt(secKey, iv, ins, null);
             secmsgs.add(encode(secIns));
         }

@@ -112,7 +112,10 @@ public class RSACipherTest extends AbstractCipherTest {
         String token = encode(pubKey.getEncoded());
         LOG.info(token);
         
-        Assert.assertEquals("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5SSQgSaIsFYGKxp9uMuwnYi/M1SEx9uq74suJkdbiwUF/Yznz+bu6ZhpimE79lG/g3rn2ptcWXqZ8DcKOucIyCN2JjmRxh5zpRrR9mfV8JYgvYdjLDweUTABidR3w9FkMKrv+1akyz3S/faxy46xl2L10YlC+g3ufLeWrXEjDZckcBJSYSe1KCateAnSSfm/8I733Lr75mBptlPoCdQF5TrfBbkTS7oEcUkk6Mf3ZMpk7Q/QVU7FnK0+JY0kiZruiobSS3WVGCwZaOjKlw/m3PvdW+s/2Ts26Mr1u8HthHk5Bz/GD8SqIfFPvaebYfUpNk6ct8Y6mNNVfKkk+2Fr+QIDAQAB", token);
+        int length = token.length();
+        String head = token.substring(0, 8);
+        String tail = token.substring(length - 8, length);
+        Assert.assertEquals("MIIBIjAN...+QIDAQAB", head + "..." + tail);
         Assert.assertEquals(392, token.length());
 
         // Recreate the public key from its encoded form 

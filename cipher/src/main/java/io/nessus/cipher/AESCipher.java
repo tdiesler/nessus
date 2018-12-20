@@ -91,10 +91,10 @@ public class AESCipher {
     }
 
     public InputStream decrypt(SecretKey secKey, InputStream secretStream) throws IOException, GeneralSecurityException {
-        return decrypt(secKey, null, secretStream);
+        return decrypt(secKey, secretStream, null);
     }
     
-    public InputStream decrypt(SecretKey secKey, byte[] addData, InputStream secretStream) throws IOException, GeneralSecurityException {
+    public InputStream decrypt(SecretKey secKey, InputStream secretStream, byte[] addData) throws IOException, GeneralSecurityException {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         StreamUtils.copyStream(secretStream, baos);
