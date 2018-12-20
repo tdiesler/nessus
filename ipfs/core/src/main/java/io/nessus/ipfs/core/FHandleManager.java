@@ -114,7 +114,7 @@ public class FHandleManager extends AbstractHandleManager<FHandle> {
             AssertState.assertTrue(rootFile.exists(), "Cannot find IPFS content at: " + rootFile);
             
             if (rootFile.isDirectory()) {
-            	fhres = createIPFSFileTree(fhres);
+            	fhres = createFHandleTree(fhres);
             } else {
             	fhres = createFromFileHeader(null, fhres);
             }
@@ -229,7 +229,7 @@ public class FHandleManager extends AbstractHandleManager<FHandle> {
         return fhandle;
     }
     
-    private FHandle createIPFSFileTree(FHandle fhandle) throws IOException {
+    public FHandle createFHandleTree(FHandle fhandle) throws IOException {
         
         Stack<FHandle> fhstack = new Stack<>();
         

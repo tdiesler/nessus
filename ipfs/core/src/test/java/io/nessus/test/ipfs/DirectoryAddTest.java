@@ -17,10 +17,10 @@ import io.nessus.ipfs.CidPath;
 import io.nessus.ipfs.FHandle;
 import io.nessus.utils.FileUtils;
 
-public class MultipleContentAddTest extends AbstractIpfsTest {
+public class DirectoryAddTest extends AbstractIpfsTest {
 
     @Test
-    public void multipleAdd() throws Exception {
+    public void directoryAdd() throws Exception {
 
         // Give Bob some funds
     	
@@ -56,8 +56,8 @@ public class MultipleContentAddTest extends AbstractIpfsTest {
         Assert.assertTrue(fhres.isAvailable());
         Assert.assertTrue(fhres.isEncrypted());
         
-        CidPath cid = fhres.getCidPath();
-		Assert.assertEquals("QmbHxAmpdP6UETKZdZ8bvCj24jVqJ3c6xTGUpdTdEmAEHd", cid.toString());
+        CidPath cid = CidPath.parse("QmbHxAmpdP6UETKZdZ8bvCj24jVqJ3c6xTGUpdTdEmAEHd");
+		Assert.assertEquals(cid, fhres.getCidPath());
         
         List<FHandle> fhandles = flatFileTree(fhres, new ArrayList<>());
         fhandles.forEach(fh -> LOG.info("{}", fh));
@@ -86,8 +86,15 @@ public class MultipleContentAddTest extends AbstractIpfsTest {
 
         // Verify local content
         
-        path = Paths.get("contentA/subA/file01.txt");
-        Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, path));
+        Path subpath = Paths.get("contentA/subA/file01.txt");
+        Reader rd = new InputStreamReader(cntmgr.getLocalContent(addrBob, subpath));
         Assert.assertEquals("file 01", new BufferedReader(rd).readLine());
+        
+        // Add the same directory again
+        
+        fhres = cntmgr.addIpfsContent(addrBob, path);
+        Assert.assertTrue(fhres.isAvailable());
+        Assert.assertTrue(fhres.isEncrypted());
+		Assert.assertEquals(cid, fhres.getCidPath());
     }
 }

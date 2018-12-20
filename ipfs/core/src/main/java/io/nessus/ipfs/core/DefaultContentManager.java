@@ -284,12 +284,15 @@ public class DefaultContentManager implements ContentManager {
         Wallet wallet = getBlockchain().getWallet();
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(owner)).stream()
                 .filter(utxo -> {
+                	
                     FHandle fh = fhmgr.getHandleFromTx(owner, utxo);
                     if (fh == null) return false;
+                    
                     if (cids == null || cids.contains(fh.getCid())) {
                         results.add(fh.getCid());
                         return true;
                     }
+                    
                     return false;
                 })
                 .peek(utxo -> wallet.lockUnspent(utxo, true))
@@ -385,15 +388,28 @@ public class DefaultContentManager implements ContentManager {
         // Move the temp file to its crypt path
         
         Multihash cid = fhandle.getCid();
-        Path cryptPath = getCryptPath(owner).resolve(cid.toBase58());
-        FileUtils.atomicMove(tmpPath, cryptPath);
+        Path fullPath = getCryptPath(owner).resolve(cid.toBase58());
+        FileUtils.atomicMove(tmpPath, fullPath);
+        URL furl = fullPath.toUri().toURL();
         
         // Check if this content is already known
         
         FHandle fhres = fhmgr.getUnspentHandle(owner, cid, FHandle.class);
-        if (fhres == null) {
+        if (fhres != null) {
         	
-            URL furl = cryptPath.toUri().toURL();
+        	if (!fhres.isAvailable()) {
+        		
+        		fhres = new FHBuilder(fhres)
+        				.url(furl)
+        				.build();
+        		
+        		fhres = fhmgr.createFHandleTree(fhres);
+        	}
+        	
+            LOG.info("IPFS duplicate: {}", fhres);
+            
+        } else {
+        	
             fhres = new FHBuilder(fhandle)
                     .url(furl)
                     .cid(cid)
@@ -402,10 +418,6 @@ public class DefaultContentManager implements ContentManager {
             LOG.info("IPFS record: {}", fhres);
             
             fhres = recordFileData(fhres, owner);
-            
-        } else {
-        	
-            LOG.info("IPFS duplicate: {}", fhres);
             
         }
         

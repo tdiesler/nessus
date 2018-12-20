@@ -85,16 +85,16 @@ public class AbstractIpfsTest extends AbstractBitcoinTest {
     }
     
     void unlockAddressRegistrations(Address owner) {
+    	AHandleManager ahmgr = cntmgr.getAHandleManager();
         wallet.listLockUnspent(Arrays.asList(owner)).stream().forEach(utxo -> {
-        	AHandleManager ahmgr = cntmgr.getAHandleManager();
             AHandle ahandle = ahmgr.getHandleFromTx(owner, utxo);
             if (ahandle != null) wallet.lockUnspent(utxo, true);
         });
     }
 
     void unlockFileRegistrations(Address owner) {
+    	FHandleManager fhmgr = cntmgr.getFHandleManager();
         wallet.listLockUnspent(Arrays.asList(owner)).stream().forEach(utxo -> {
-        	FHandleManager fhmgr = cntmgr.getFHandleManager();
             FHandle fhandle = fhmgr.getHandleFromTx(owner, utxo);
             if (fhandle != null) wallet.lockUnspent(utxo, true);
         });
