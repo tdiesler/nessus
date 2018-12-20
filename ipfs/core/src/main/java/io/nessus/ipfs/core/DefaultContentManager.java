@@ -249,7 +249,7 @@ public class DefaultContentManager implements ContentManager {
         
         Wallet wallet = getBlockchain().getWallet();
         List<UTXO> utxos = wallet.listLockUnspent(Arrays.asList(owner)).stream()
-                .filter(utxo -> ahandle.equals(ahmgr.getHandleFromTx(owner, utxo)))
+                .filter(utxo -> ahmgr.isOurs(wallet.getTransaction(utxo.getTxId())))
                 .peek(utxo -> wallet.lockUnspent(utxo, true))
                 .collect(Collectors.toList());
 

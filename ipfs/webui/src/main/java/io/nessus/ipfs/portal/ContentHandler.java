@@ -306,7 +306,7 @@ public class ContentHandler implements HttpHandler {
 
         client.registerAddress(rawAddr);
 
-        redirectHomePage(exchange);
+        redirectFileList(exchange, rawAddr);
     }
 
     private void actUnregisterAddress(HttpServerExchange exchange, VelocityContext context) throws Exception {
@@ -316,7 +316,7 @@ public class ContentHandler implements HttpHandler {
 
         client.unregisterAddress(rawAddr);
 
-        redirectHomePage(exchange);
+        redirectFileList(exchange, rawAddr);
     }
 
     private void actAddIpfsText(HttpServerExchange exchange, VelocityContext context) throws Exception {

@@ -14,7 +14,7 @@
 
 ### Add IPFS content
 
-#### Bob adds local text content 
+#### Bob adds local content 
 
 * Verify that local and ipfs content show up
 * Verify local show, remove
@@ -25,3 +25,22 @@
 #### Bob adds content from URL
 
 * Verify that plain and ipfs content show up
+
+#### Bob adds content repeatedly
+
+* Verify repeated local file add
+* Verify repeated local directory add
+
+### Unregister Account
+
+#### Bob unregisters his address
+
+* Verify that all ipfs content disapears
+
+### Send IPFS content
+
+#### Bob send content to Mary
+
+* Verify ipfs file send
+* Verify ipfs directory send
+ 
