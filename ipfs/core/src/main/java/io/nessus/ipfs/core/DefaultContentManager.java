@@ -586,7 +586,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(owner, "Null owner");
         
         timeout = timeout != null ? timeout : config.getIpfsTimeout();
-        AHandle ahandle = ahmgr.findIpfsContentAsync(owner, timeout);
+        AHandle ahandle = ahmgr.findContentAsync(owner, timeout);
         
         return ahandle;
     }
@@ -596,7 +596,7 @@ public class DefaultContentManager implements ContentManager {
         AssertArgument.assertNotNull(owner, "Null owner");
 
         timeout = timeout != null ? timeout : config.getIpfsTimeout();
-        List<FHandle> fhandles = fhmgr.findIpfsContentAsync(owner, timeout);
+        List<FHandle> fhandles = fhmgr.findContentAsync(owner, timeout);
         
         return fhandles;
     }

@@ -157,47 +157,23 @@ public class AHandleManager extends AbstractHandleManager<AHandle> {
 		return ahres;
 	}
 
-    public AHandle findIpfsContentAsync(Address owner, long timeout) {
+    public AHandle findContentAsync(Address owner, long timeout) {
         
-        AHandle ahandle = listUnspentHandles(owner, AHandle.class).stream()
-            	.filter(ah -> owner.equals(ah.getOwner()))
-            	.findFirst().orElse(null);
-            
-        if (ahandle == null) 
-        	return null;
-            
-        Future<AHandle> future = executorService.submit(new Callable<AHandle>() {
+    	WorkerFactory<AHandle> factory = new WorkerFactory<AHandle>() {
 
-            @Override
-            public AHandle call() throws Exception {
-                
-            	IPFSCache ipfsCache = cntmgr.getIPFSCache();
-            	Multihash cid = ahandle.getCid();
-            	
-            	AHandle ahaux = ipfsCache.get(cid, AHandle.class);
-        		
-                while(!ahaux.isAvailable()) {
-                    if (ahaux.setScheduled(true)) {
-                        AsyncGetCallable callable = new AsyncGetCallable(ahaux, timeout);
-                        executorService.submit(callable);
-                    }
-                    Thread.sleep(500L);
-                	ahaux = ipfsCache.get(cid, AHandle.class);
-                }
-                
-                return ahaux;
-            }
-        });
-        
-    	AHandle ahres = ahandle;
-    	
-        try {
-        	ahres = future.get(timeout, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new IllegalStateException(ex);
-        } catch (TimeoutException ex) {
-        	// ignore
-        }
+			@Override
+			Class<AHandle> getType() {
+				return AHandle.class;
+			}
+
+			@Override
+			Callable<AHandle> newWorker(AHandle fh) {
+				return new AsyncGetCallable(fh, timeout);
+			}
+		};
+		
+        List<AHandle> ahandles = findContentAsync(owner, factory, timeout);
+        AHandle ahres = ahandles.stream().findFirst().orElse(null);
         
         return ahres;
     }
@@ -255,7 +231,6 @@ public class AHandleManager extends AbstractHandleManager<AHandle> {
         
         AsyncGetCallable(AHandle ahandle, long timeout) {
             AssertArgument.assertNotNull(ahandle, "Null ahandle");
-            AssertArgument.assertTrue(ahandle.isScheduled(), "Not scheduled");
             this.timeout = timeout;
             this.ahandle = ahandle;
         }
@@ -278,7 +253,6 @@ public class AHandleManager extends AbstractHandleManager<AHandle> {
                 
             } finally {
                 
-                ahaux.setScheduled(false);
                 ipfsCache.put(ahaux);
             }
 

@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import io.ipfs.multihash.Multihash;
@@ -51,8 +50,8 @@ public class FHandle extends AbstractHandle {
     
     final List<FHandle> children = new ArrayList<>();
     
-    private FHandle(FHandle parent, Address owner, CidPath cid, Path path, URL furl, String secToken, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, long elapsed) {
-    	super(owner, cid, txId, available, expired, scheduled, attempt, elapsed);
+    private FHandle(FHandle parent, Address owner, CidPath cid, Path path, URL furl, String secToken, String txId, boolean available, boolean expired, int attempt, long elapsed) {
+    	super(owner, cid, txId, available, expired, attempt, elapsed);
         boolean urlBased = path != null && furl != null;
         AssertArgument.assertTrue(urlBased || cid != null, "Neither url nor cid based");
         
@@ -265,7 +264,6 @@ public class FHandle extends AbstractHandle {
             this.secToken = fhandle.secToken;
             this.available = fhandle.available;
             this.expired = fhandle.expired;
-            this.scheduled = fhandle.scheduled;
             this.attempt = fhandle.attempt;
             this.elapsed = fhandle.elapsed;
             
@@ -369,7 +367,7 @@ public class FHandle extends AbstractHandle {
         		}
         	}
         	
-            FHandle fhandle = new FHandle(parent, owner, cid, path, furl, secToken, txId, available, expired, scheduled, attempt, elapsed);
+            FHandle fhandle = new FHandle(parent, owner, cid, path, furl, secToken, txId, available, expired, attempt, elapsed);
             childBuilders.values().stream().map(cb -> cb.parent(fhandle).buildInternal()).collect(Collectors.toList());
             if (parent != null) parent.addChild(fhandle);
             

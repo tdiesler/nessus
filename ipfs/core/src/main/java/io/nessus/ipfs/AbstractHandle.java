@@ -1,7 +1,6 @@
 package io.nessus.ipfs;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
@@ -18,9 +17,7 @@ public class AbstractHandle {
     protected final int attempt;
     protected final long elapsed;
     
-    protected final AtomicBoolean scheduled;
-    
-    protected AbstractHandle(Address owner, CidPath cid, String txId, boolean available, boolean expired, AtomicBoolean scheduled, int attempt, long elapsed) {
+    protected AbstractHandle(Address owner, CidPath cid, String txId, boolean available, boolean expired, int attempt, long elapsed) {
         AssertArgument.assertNotNull(owner, "Null owner");
         
         this.owner = owner;
@@ -28,7 +25,6 @@ public class AbstractHandle {
         this.txId = txId;
         this.available = available;
         this.expired = expired;
-        this.scheduled = scheduled;
         this.attempt = attempt;
         this.elapsed = elapsed;
         
@@ -64,14 +60,6 @@ public class AbstractHandle {
 
     public boolean isExpired() {
         return expired;
-    }
-
-    public boolean setScheduled(boolean flag) {
-        return scheduled.compareAndSet(!flag, flag);
-    }
-
-    public boolean isScheduled() {
-        return scheduled.get();
     }
 
     public int getAttempt() {
@@ -114,8 +102,6 @@ public class AbstractHandle {
         protected int attempt;
         protected long elapsed;
         
-        protected AtomicBoolean scheduled = new AtomicBoolean();
-        
         protected AbstractBuilder(Address owner) {
             AssertArgument.assertNotNull(owner, "Null owner");
             this.owner = owner;
@@ -136,7 +122,6 @@ public class AbstractHandle {
             this.cid = handle.cid;
             this.txId = handle.txId;
             this.expired = handle.expired;
-            this.scheduled = handle.scheduled;
             this.attempt = handle.attempt;
             this.elapsed = handle.elapsed;
         }

@@ -22,6 +22,7 @@ package io.nessus.ipfs.core;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -68,6 +69,13 @@ public class IPFSCache {
         cache.clear();
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends AbstractHandle> List<T> getAll(Class<T> type) {
+		return (List<T>) cache.values().stream()
+				.filter(fh -> type.isAssignableFrom(fh.getClass()))
+				.collect(Collectors.toList());
+    }
+    
     @SuppressWarnings("unchecked")
     public <T extends AbstractHandle> T get(Multihash cid, Class<T> type) {
 		return (T) cache.get(cid);

@@ -36,7 +36,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import io.ipfs.multihash.Multihash;
 import io.nessus.Tx;
@@ -150,42 +149,24 @@ public class FHandleManager extends AbstractHandleManager<FHandle> {
         return fhres;
     }
 
-    public List<FHandle> findIpfsContentAsync(Address owner, long timeout) throws IOException {
+    public List<FHandle> findContentAsync(Address owner, long timeout) {
         
-        List<FHandle> fhandles = listUnspentHandles(owner, FHandle.class);
-        
-        Future<List<FHandle>> future = executorService.submit(new Callable<List<FHandle>>() {
+    	WorkerFactory<FHandle> factory = new WorkerFactory<FHandle>() {
 
-            @Override
-            public List<FHandle> call() throws Exception {
-                
-                List<FHandle> missing = getMissingFHandles(fhandles);
-                
-                while(!missing.isEmpty()) {
-                    for (FHandle fh : missing) {
-                        if (fh.setScheduled(true)) {
-                            AsyncGetCallable callable = new AsyncGetCallable(fh, timeout);
-                            executorService.submit(callable);
-                        }
-                    }
-                    Thread.sleep(500L);
-                    missing = getMissingFHandles(fhandles);
-                }
-                
-                return getCurrentFHandles(fhandles);
-            }
-        });
+			@Override
+			Class<FHandle> getType() {
+				return FHandle.class;
+			}
+
+			@Override
+			Callable<FHandle> newWorker(FHandle fh) {
+				return new AsyncGetCallable(fh, timeout);
+			}
+		};
+		
+        List<FHandle> fhandles = findContentAsync(owner, factory, timeout);
         
-        List<FHandle> results;
-        try {
-            results = future.get(timeout, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new IllegalStateException(ex);
-        } catch (TimeoutException ex) {
-            results = getCurrentFHandles(fhandles);
-        }
-        
-        return results;
+        return fhandles;
     }
 
 	public byte[] createFileData(FHandle fhandle) {
@@ -366,27 +347,6 @@ public class FHandleManager extends AbstractHandleManager<FHandle> {
         }
     }
     
-    private List<FHandle> getMissingFHandles(List<FHandle> fhandles) {
-    	IPFSCache ipfsCache = cntmgr.getIPFSCache();
-        synchronized (ipfsCache) {
-            List<FHandle> result = getCurrentFHandles(fhandles).stream()
-                    .filter(fh -> fh.isMissing())
-                    .collect(Collectors.toList());
-            return result;
-        }
-    }
-    
-    private List<FHandle> getCurrentFHandles(List<FHandle> fhandles) {
-    	IPFSCache ipfsCache = cntmgr.getIPFSCache();
-        synchronized (ipfsCache) {
-            List<FHandle> result = fhandles.stream()
-                .map(fh -> fh.getCid())
-                .map(cid -> ipfsCache.get(cid, FHandle.class))
-                .collect(Collectors.toList());
-            return result;
-        }
-    }
-    
     private String logPrefix(String action, int attempt) {
     	ContentManagerConfig config = cntmgr.getConfig();
         int ipfsAttempts = config.getIpfsAttempts();
@@ -401,7 +361,6 @@ public class FHandleManager extends AbstractHandleManager<FHandle> {
         
         AsyncGetCallable(FHandle fhandle, long timeout) {
             AssertArgument.assertNotNull(fhandle, "Null fhandle");
-            AssertArgument.assertTrue(fhandle.isScheduled(), "Not scheduled");
             this.timeout = timeout;
             this.fhandle = fhandle;
         }
@@ -424,7 +383,6 @@ public class FHandleManager extends AbstractHandleManager<FHandle> {
                 
             } finally {
                 
-                fhaux.setScheduled(false);
                 ipfsCache.put(fhaux);
             }
 

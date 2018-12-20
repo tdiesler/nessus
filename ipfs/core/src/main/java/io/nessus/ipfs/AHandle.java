@@ -21,7 +21,6 @@ package io.nessus.ipfs;
  */
 
 import java.security.PublicKey;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.ipfs.multihash.Multihash;
 import io.nessus.Wallet.Address;
@@ -32,8 +31,8 @@ public class AHandle extends AbstractHandle {
 	
 	final PublicKey pubKey;
 	
-	private AHandle(Address addr, PublicKey pubKey, CidPath cid, String txId, boolean expired, AtomicBoolean scheduled, int attempt, long elapsed) {
-    	super(addr, cid, txId, pubKey != null, expired, scheduled, attempt, elapsed);
+	private AHandle(Address addr, PublicKey pubKey, CidPath cid, String txId, boolean expired, int attempt, long elapsed) {
+    	super(addr, cid, txId, pubKey != null, expired, attempt, elapsed);
 		this.pubKey = pubKey;
 	}
 	
@@ -90,7 +89,7 @@ public class AHandle extends AbstractHandle {
 
         @Override
         public AHandle build() {
-        	AHandle ahandle = new AHandle(owner, pubKey, cid, txId, expired, scheduled, attempt, elapsed);
+        	AHandle ahandle = new AHandle(owner, pubKey, cid, txId, expired, attempt, elapsed);
             return ahandle;
         }
     }
