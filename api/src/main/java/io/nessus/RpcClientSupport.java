@@ -1,5 +1,7 @@
 package io.nessus;
 
+import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
+
 /*-
  * #%L
  * Nessus :: API
@@ -33,4 +35,8 @@ public abstract class RpcClientSupport {
     public BitcoindRpcClient getRpcClient() {
         return client;
     }
+
+	public Object query(String method, Object... args) {
+		return ((BitcoinJSONRPCClient) client).query(method, args);
+	}
 }

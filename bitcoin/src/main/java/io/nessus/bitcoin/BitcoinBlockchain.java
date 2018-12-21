@@ -26,7 +26,6 @@ import io.nessus.AbstractBlockchain;
 import io.nessus.AbstractNetwork;
 import io.nessus.AbstractWallet;
 import io.nessus.Blockchain;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
 public class BitcoinBlockchain extends AbstractBlockchain implements Blockchain {
@@ -51,7 +50,7 @@ public class BitcoinBlockchain extends AbstractBlockchain implements Blockchain 
     public boolean isPruned() {
         if (pruned == null) {
             @SuppressWarnings("unchecked")
-            Map<String, ?> resmap = (Map<String, ?>) ((BitcoinJSONRPCClient) client).query("getblockchaininfo");
+            Map<String, ?> resmap = (Map<String, ?>) query("getblockchaininfo");
             Object value = resmap.get("pruned");
             pruned = value != null ? Boolean.parseBoolean(value.toString()) : false;
         }

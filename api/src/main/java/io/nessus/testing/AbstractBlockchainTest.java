@@ -1,5 +1,7 @@
 package io.nessus.testing;
 
+import static io.nessus.Wallet.LABEL_CHANGE;
+
 /*-
  * #%L
  * Nessus :: API
@@ -23,6 +25,8 @@ package io.nessus.testing;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.nessus.AbstractWallet;
-import io.nessus.AbstractWallet.Grouping;
 import io.nessus.Blockchain;
 import io.nessus.Config;
 import io.nessus.Network;
@@ -134,10 +137,27 @@ public abstract class AbstractBlockchainTest {
     }
     
     protected void showAccountBalances() {
-    	Map<String, List<Grouping>> groups = ((AbstractWallet) wallet).listAddressGroupings();
-    	List<String> labels = groups.keySet().stream().sorted().collect(Collectors.toList());
-        for (String label : labels) {
-        	Double val = groups.get(label).stream().mapToDouble(gr -> gr.balance.doubleValue()).sum();
+    	
+    	Map<String, List<Address>> groups = new HashMap<>();
+    	wallet.getAddresses().forEach(addr -> {
+    		addr.getLabels().stream()
+    			.filter(lb -> !LABEL_CHANGE.equals(lb))
+    			.forEach(lb -> {
+    				List<Address> list = groups.get(lb);
+    				if (list == null) {
+    					list = new ArrayList<>();
+    					groups.put(lb, list);
+    				}
+    				list.add(addr);
+    			});
+    	});
+    	
+        for (String label : groups.keySet().stream().sorted().collect(Collectors.toList())) {
+        	
+        	Double val = groups.get(label).stream()
+        			.mapToDouble(addr -> wallet.getBalance(addr).doubleValue())
+        			.sum();
+        	
             LOG.info(String.format("%-5s: %13.8f", label, val));
         }
     }

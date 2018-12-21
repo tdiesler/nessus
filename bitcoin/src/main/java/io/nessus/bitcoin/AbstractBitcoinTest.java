@@ -32,4 +32,9 @@ public abstract class AbstractBitcoinTest extends AbstractBlockchainTest {
 	protected Blockchain createBlockchain() {
         return BlockchainFactory.getBlockchain(DEFAULT_JSONRPC_REGTEST_URL, BitcoinBlockchain.class);
 	}
+
+	@Override
+	protected BitcoinBlockchain getBlockchain() {
+		return (BitcoinBlockchain) super.getBlockchain();
+	}
 }

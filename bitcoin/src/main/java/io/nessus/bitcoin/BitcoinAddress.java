@@ -22,6 +22,9 @@ public class BitcoinAddress extends AbstractAddress implements Address {
 
     @Override
     public Address setLabels(List<String> labels) {
-        return wallet.updateAddress(this, labels);
+    	String rawAddr = getAddress();
+    	String lstr = wallet.concatLabels(labels);
+		wallet.query("setlabel", rawAddr, lstr);
+		return wallet.fromRawAddress(rawAddr, labels);
     }
 }

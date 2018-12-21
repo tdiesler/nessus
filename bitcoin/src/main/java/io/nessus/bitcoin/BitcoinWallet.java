@@ -1,5 +1,8 @@
 package io.nessus.bitcoin;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+
 /*-
  * #%L
  * Nessus :: Bitcoin
@@ -21,6 +24,9 @@ package io.nessus.bitcoin;
  */
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.nessus.AbstractWallet;
 import io.nessus.Wallet;
@@ -34,14 +40,15 @@ public class BitcoinWallet extends AbstractWallet implements Wallet {
     }
 
     @Override
-    protected Address createNewAddress(List<String> labels) {
-        String rawAddr = client.getNewAddress(concatLabels(labels), "legacy");
+    public Address createNewAddress(List<String> labels) {
+    	String lstr = concatLabels(labels);
+    	String rawAddr = client.getNewAddress(lstr, "legacy");
         AssertState.assertTrue(isP2PKH(rawAddr), "Not a P2PKH address: " + rawAddr);
-        return createAdddressFromRaw(rawAddr, labels);
+        return fromRawAddress(rawAddr, labels);
     }
 
     @Override
-    protected Address createAdddressFromRaw(String rawAddr, List<String> labels) {
+    public Address fromRawAddress(String rawAddr, List<String> labels) {
         return new BitcoinAddress(this, rawAddr, labels);
     }
 
@@ -51,4 +58,43 @@ public class BitcoinWallet extends AbstractWallet implements Wallet {
         return addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n");
     }
 
+	@Override
+    public List<String> getLabels() {
+    	
+		Set<String> lbset = new HashSet<>();
+        getRawLabels().forEach(lb -> {
+        	lbset.addAll(splitLabels(lb).stream()
+        			.filter(tok -> !LABEL_CHANGE.equals(tok))
+            		.collect(Collectors.toList()));
+        });
+        
+        List<String> result = lbset.stream()
+        		.sorted().collect(Collectors.toList());
+        
+		return result;
+    }
+
+	@Override
+    @SuppressWarnings("unchecked")
+    public List<Address> getAddresses() {
+    	List<Address> results = new ArrayList<>();
+    	List<String> labels = getRawLabels();
+		labels.forEach(lb -> {
+    		Map<String, Object> addrs = (Map<String, Object>) query("getaddressesbylabel", lb);
+    		addrs.keySet().stream()
+    			.filter(raw -> isP2PKH(raw))
+    			.forEach(raw -> {
+	    			List<String> split = splitLabels(lb);
+					Address addr = fromRawAddress(raw, split);
+					results.add(addr);
+    		});
+    	});
+        return results;
+    }
+
+	@SuppressWarnings("unchecked")
+	private List<String> getRawLabels() {
+		Object labels = query("listlabels");
+		return (List<String>) labels;
+	}
 }

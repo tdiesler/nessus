@@ -16,10 +16,10 @@ import io.nessus.bitcoin.AbstractBitcoinTest;
 public class WalletTest extends AbstractBitcoinTest {
 
     @Test
-    public void testInitialImport () throws Exception {
+    public void initialImport () throws Exception {
 
         List<String> labels = wallet.getLabels();
-        Arrays.asList("(change)", "Bob", "Mary").forEach(label -> {
+        Arrays.asList("", "Bob", "Mary").forEach(label -> {
             Assert.assertTrue(labels + " contains: " + label, labels.contains(label));
         });
         
@@ -37,19 +37,10 @@ public class WalletTest extends AbstractBitcoinTest {
         Address addrXXX = addrSink.setLabels(Arrays.asList("XXX"));
         Assert.assertEquals(Arrays.asList("XXX"), addrXXX.getLabels());
         Assert.assertEquals(addrSink.getAddress(), addrXXX.getAddress());
-        
-        addrSink = addrSink.setLabels(Arrays.asList(LABEL_SINK));
-        Assert.assertEquals(Arrays.asList(LABEL_SINK), addrSink.getLabels());
-        
-        for (String label : labels) {
-            List<Address> addrs = wallet.getAddresses(label);
-            LOG.debug(String.format("%-5s: addr=%s", label, addrs));
-            Assert.assertTrue("At least one address", addrs.size() > 0);
-        }
     }
     
     @Test
-    public void testSimpleSpending () throws Exception {
+    public void simpleSpending () throws Exception {
 
         // Show account balances
         showAccountBalances();
@@ -70,7 +61,7 @@ public class WalletTest extends AbstractBitcoinTest {
     }
     
     @Test
-    public void testNewAddress () throws Exception {
+    public void newAddress () throws Exception {
         
         // Send everything to the sink
     	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
@@ -113,7 +104,7 @@ public class WalletTest extends AbstractBitcoinTest {
     }
     
     @Test
-    public void testLockUnspent () throws Exception {
+    public void lockUnspent () throws Exception {
         
         // Send everything to the sink
     	wallet.sendFromAddress(addrBob, addrSink.getAddress(), Wallet.ALL_FUNDS);
@@ -146,7 +137,7 @@ public class WalletTest extends AbstractBitcoinTest {
     }
 
     @Test
-    public void testListUnspent() throws Exception {
+    public void listUnspent() throws Exception {
         
         List<UTXO> utxos = wallet.listUnspent(Arrays.asList(addrBob));
         Assert.assertTrue("No utxos", utxos.isEmpty());

@@ -23,12 +23,8 @@ package io.nessus;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -37,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import io.nessus.Tx.TxBuilder;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient.BasicTxInput;
@@ -92,13 +87,12 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         AssertArgument.assertNotNull(labels, "Null labels");
 
         // Check if we already have this privKey
-        for (Address addr : getAddressMapping().values()) {
+        for (Address addr : getAddresses()) {
             if (privKey.equals(addr.getPrivKey())) {
                 return addr;
             }
         }
 
-        // Note, the bitcoin-core account system will be removed in 0.18.0
         String lstr = concatLabels(labels);
         LOG.info("Import privKey {} {}", privKey.substring(0, 2) + "************", lstr);
 
@@ -112,14 +106,14 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         // #3 Bech32 e.g. bcrt1q7d2dzgxmgu4kzpmvrlz306kcffw225ydq2jwm7
 
         Address addr = null;
-        for (Address auxaddr : getAddressMapping().values()) {
-            if (privKey.equals(auxaddr.getPrivKey())) {
-                addr = auxaddr;
+        for (Address aux : getAddresses()) {
+            if (privKey.equals(aux.getPrivKey())) {
+                addr = aux;
                 break;
             }
         }
-
         AssertState.assertNotNull(addr, "Cannot get imported address from wallet");
+        
         return addr;
     }
 
@@ -129,20 +123,19 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         AssertArgument.assertNotNull(labels, "Null labels");
 
         // Check if we already have this privKey
-        for (Address addr : getAddressMapping().values()) {
+        for (Address addr : getAddresses()) {
             if (rawAddr.equals(addr.getAddress())) {
                 return addr;
             }
         }
 
-        // Note, the bitcoin-core account system will be removed in 0.18.0
         String lstr = concatLabels(labels);
         LOG.info("Import address {} {}", rawAddr, lstr);
         
         boolean rescan = !blockchain.isPruned();
         client.importAddress(rawAddr, lstr, rescan);
 
-        return createAdddressFromRaw(rawAddr, labels);
+        return fromRawAddress(rawAddr, labels);
     }
 
 	public String getPrivKey(String addr) {
@@ -168,13 +161,6 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     }
 
     @Override
-    public List<String> getLabels() {
-        Set<String> labels = new HashSet<>();
-        getAddressMapping().values().stream().forEach(a -> labels.addAll(a.getLabels()));
-        return labels.stream().sorted().collect(Collectors.toList());
-    }
-
-    @Override
     public Address getAddress(String label) {
         AssertArgument.assertNotNull(label, "Null label");
         List<Address> addrs = getAddresses(label);
@@ -185,21 +171,16 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
     @Override
     public Address findAddress(String rawAddr) {
         AssertArgument.assertNotNull(rawAddr, "Null rawAddr");
-        return getAddressMapping().values().stream()
+        return getAddresses().stream()
         		.filter(a -> a.getAddress().equals(rawAddr))
         		.findFirst().orElse(null);
-    }
-
-    @Override
-    public List<Address> getAddresses() {
-        return getAddressMapping().values().stream().collect(Collectors.toList());
     }
 
     @Override
     public List<Address> getAddresses(String label) {
         AssertArgument.assertNotNull(label, "Null label");
         
-        List<Address> filtered = getAddressMapping().values().stream()
+        List<Address> filtered = getAddresses().stream()
                 .filter(a -> a.getLabels().contains(label))
                 .collect(Collectors.toList());
         
@@ -558,16 +539,6 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return txres;
     }
 
-    public Address updateAddress(Address addr, List<String> labels) {
-        AssertArgument.assertNotNull(addr, "Null addr");
-        AssertArgument.assertNotNull(labels, "Null labels");
-        
-        String rawAddr = addr.getAddress();
-        String combined = concatLabels(labels);
-        ((BitcoinJSONRPCClient) client).query("setaccount", rawAddr, combined);
-        return findAddress(rawAddr);
-    }
-    
     public String redeemChange(String label, Address toAddr) {
         AssertArgument.assertNotNull(label, "Null label");
         AssertArgument.assertNotNull(toAddr, "Null toAddr");
@@ -578,70 +549,17 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         return sendToAddress(toAddr.getAddress(), toAddr.getAddress(), Wallet.ALL_FUNDS, utxos);
     }
     
-    protected abstract Address createAdddressFromRaw(String rawAddr, List<String> labels);
+    public abstract Address fromRawAddress(String rawAddr, List<String> labels);
 
-    protected abstract Address createNewAddress(List<String> labels);
+    public abstract Address createNewAddress(List<String> labels);
 
-    protected String concatLabels(List<String> labels) {
+    public String concatLabels(List<String> labels) {
         String result = labels.toString();
         return result.substring(1, result.length() - 1);
     }
     
-    protected List<String> splitLabels(String labels) {
+    public List<String> splitLabels(String labels) {
         return Arrays.asList(labels.split(",")).stream().map(t -> t.trim()).collect(Collectors.toList());
-    }
-    
-	private Map<String, Address> getAddressMapping() {
-    	
-        Map<String, Address> result = new LinkedHashMap<>();
-        
-    	Map<String, List<Grouping>> groupings = listAddressGroupings();
-        groupings.keySet().forEach(lab -> {
-        	groupings.get(lab).forEach(gr -> {
-        		String rawAddr = gr.address;
-                if (isP2PKH(rawAddr)) {
-            		AssertState.assertNull(result.get(rawAddr));
-                    result.put(rawAddr, createAdddressFromRaw(rawAddr, splitLabels(lab)));
-                }
-        	});
-        });
-        
-        // With bitcoin-0.17 the address groupings may not contain
-        // addresses that have just been imported. Newly created 
-        // addresses are included
-        
-        for (String acc : client.listAccounts(0, true).keySet()) {
-            for (String rawAddr : client.getAddressesByAccount(acc)) {
-        		if (isP2PKH(rawAddr) && result.get(rawAddr) == null) {
-                    result.put(rawAddr, createAdddressFromRaw(rawAddr, splitLabels(acc)));
-        		}
-            }
-        }
-
-        return result;
-    }
-    
-    @SuppressWarnings("unchecked")
-	public Map<String, List<Grouping>> listAddressGroupings() {
-    	
-    	Map<String, List<Grouping>> result = new LinkedHashMap<>();
-    	
-        List<List<List<?>>> qres = (List<List<List<?>>>) ((BitcoinJSONRPCClient) client).query("listaddressgroupings");
-        
-        qres.stream().forEach(l1 -> l1.stream().forEach(l2 -> {
-    		String addr = (String) l2.get(0);
-    		BigDecimal bal = (BigDecimal) l2.get(1);
-    		String label = l2.size() > 2 ? (String) l2.get(2) : "";
-    		Grouping grp = new Grouping(addr, bal, label);
-    		List<Grouping> llist = result.get(label);
-    		if (llist == null) {
-    			llist = new ArrayList<>();
-    			result.put(label, llist);
-    		}
-    		llist.add(grp);
-        }));
-		
-        return result;
     }
     
 	private List<String> getRawAddresses(List<Address> addrs) {
@@ -663,15 +581,4 @@ public abstract class AbstractWallet extends RpcClientSupport implements Wallet 
         }
         return result;
     }
-
-	public static class Grouping {
-		public final String address;
-		public final BigDecimal balance;
-		public final String label;
-		Grouping(String addr, BigDecimal bal, String label) {
-			this.address = addr;
-			this.balance = bal;
-			this.label = label;
-		}
-	}
 }
