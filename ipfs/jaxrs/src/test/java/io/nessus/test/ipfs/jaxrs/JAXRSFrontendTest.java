@@ -107,7 +107,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
 
         SFHandle fhandle = client.addIpfsContent(addrBob.getAddress(), relPath.toString(), input);
 
-        Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
+        Assert.assertEquals(addrBob.getAddress(), fhandle.getOwner());
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertTrue(fhandle.isEncrypted());
         Assert.assertNotNull(fhandle.getCid());
@@ -119,6 +119,7 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertTrue(fhLocal.isAvailable());
         Assert.assertFalse(fhLocal.isExpired());
         Assert.assertFalse(fhLocal.isEncrypted());
+        Assert.assertNull(fhLocal.getCid());
 
         input = client.getLocalContent(addrBob.getAddress(), relPath.toString());
         BufferedReader br = new BufferedReader(new InputStreamReader(input));
@@ -134,26 +135,26 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
-        Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
+        Assert.assertEquals(addrBob.getAddress(), fhandle.getOwner());
         Assert.assertTrue(fhandle.isEncrypted());
         Assert.assertNotNull(fhandle.getTxId());
+        Assert.assertNotNull(fhandle.getCid());
 
         // Get content from IPFS
 
         String cid = fhandle.getCid();
-
         fhandle = client.getIpfsContent(addrBob.getAddress(), cid, relPath.toString(), timeout);
 
-        Assert.assertEquals(addrBob, wallet.findAddress(fhandle.getOwner()));
+        Assert.assertEquals(addrBob.getAddress(), fhandle.getOwner());
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNotNull(fhandle.getCid());
+        Assert.assertNull(fhandle.getCid());
 
         // Send content from IPFS
 
         fhandle = client.sendIpfsContent(addrBob.getAddress(), cid, addrMary.getAddress(), timeout);
 
-        Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
+        Assert.assertEquals(addrMary.getAddress(), fhandle.getOwner());
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertTrue(fhandle.isEncrypted());
         Assert.assertNotNull(fhandle.getCid());
@@ -165,9 +166,10 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         Assert.assertTrue(fhandle.isAvailable());
         Assert.assertFalse(fhandle.isExpired());
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
-        Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
+        Assert.assertEquals(addrMary.getAddress(), fhandle.getOwner());
         Assert.assertTrue(fhandle.isEncrypted());
         Assert.assertNotNull(fhandle.getTxId());
+        Assert.assertNotNull(fhandle.getCid());
 
         // Get content from IPFS
 
@@ -175,10 +177,10 @@ public class JAXRSFrontendTest extends AbstractJAXRSTest {
         FileUtils.recursiveDelete(getPlainPath(addrMary));
         fhandle = client.getIpfsContent(addrMary.getAddress(), fhandle.getCid(), relPath.toString(), timeout);
 
-        Assert.assertEquals(addrMary, wallet.findAddress(fhandle.getOwner()));
+        Assert.assertEquals(addrMary.getAddress(), fhandle.getOwner());
         Assert.assertEquals(relPath, Paths.get(fhandle.getPath()));
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNotNull(fhandle.getCid());
+        Assert.assertNull(fhandle.getCid());
         
         input = client.getLocalContent(addrMary.getAddress(), relPath.toString());
         br = new BufferedReader(new InputStreamReader(input));

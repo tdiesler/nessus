@@ -826,6 +826,9 @@ public class DefaultContentManager implements ContentManager {
         byte[] tokBytes = rsa.encrypt(pubKey, secKey.getEncoded());
         String secToken = Base64.getEncoder().encodeToString(tokBytes);
 
+        // Get the recipient addr from the root handle 
+        Address toAddr = fhandle.getOwner();
+        
         Path tmpDir = createTempDir();
         FHandle fhres = FHWalker.walkTree(fhandle, new Visitor() {
 
@@ -840,6 +843,7 @@ public class DefaultContentManager implements ContentManager {
                         .findChild(path)
                         .url(tmpPath.toUri().toURL())
                         .secretToken(secToken)
+                        .owner(toAddr)
                         .build();
                 
                 if (fhres.hasChildren()) 
@@ -983,7 +987,6 @@ public class DefaultContentManager implements ContentManager {
             
             FHandle fhaux = buildTreeFromPath(owner, dstPath);
             fhres = new FHBuilder(fhaux)
-            		.cid(fhres.getCid())
             		.attempt(fhres.getAttempt())
             		.elapsed(fhres.getElapsed())
             		.build();

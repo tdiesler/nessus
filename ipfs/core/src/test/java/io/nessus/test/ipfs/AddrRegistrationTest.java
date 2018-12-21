@@ -68,7 +68,7 @@ public class AddrRegistrationTest extends AbstractIpfsTest {
         
         cntmgr.getIPFSCache().clear();
                     
-        AHandle ahE = cntmgr.findAddressRegistation(addrLui, null);
+        AHandle ahE = cntmgr.findAddressRegistation(addrLui, 10000L);
         Assert.assertTrue(ahE.isAvailable());
 
     	cntmgr.unregisterAddress(addrLui);

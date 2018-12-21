@@ -32,6 +32,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import io.nessus.ipfs.CidPath;
 import io.nessus.ipfs.FHandle;
+import io.nessus.utils.AssertArgument;
 
 public class SFHandle {
 
@@ -57,6 +58,8 @@ public class SFHandle {
     }
 
     public SFHandle(String owner, String cid, String path, boolean available, boolean encrypted) {
+    	AssertArgument.assertNotNull(owner, "Null owner");
+    	AssertArgument.assertNotNull(path, "Null path");
         this.cid = cid;
         this.path = path;
         this.owner = owner;
@@ -65,6 +68,9 @@ public class SFHandle {
     }
 
     public SFHandle(FHandle fhandle) {
+    	AssertArgument.assertNotNull(fhandle, "Null fhandle");
+    	AssertArgument.assertNotNull(fhandle.getOwner(), "Null owner");
+    	AssertArgument.assertNotNull(fhandle.getPath(), "Null path");
         Path path = fhandle.getPath();
 		CidPath cid = fhandle.getCidPath();
 		this.cid = cid != null ? cid.toString() : null;

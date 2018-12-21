@@ -25,7 +25,7 @@ public class SimpleWorkflowTest extends AbstractIpfsTest {
     int attempts = 5;
 
     @Test
-    public void basicWorkflow() throws Exception {
+    public void simpleWorkflow() throws Exception {
         
 		ContentManagerConfig config = new ContentManagerConfigBuilder()
         		.bcurl(DEFAULT_JSONRPC_REGTEST_URL)
@@ -92,7 +92,7 @@ public class SimpleWorkflowTest extends AbstractIpfsTest {
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrBob, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNotNull(fhandle.getCid());
+        Assert.assertNull(fhandle.getCid());
         
         // Send content to IPFS
         
@@ -121,7 +121,7 @@ public class SimpleWorkflowTest extends AbstractIpfsTest {
         Assert.assertEquals(relPath, fhandle.getPath());
         Assert.assertEquals(addrMary, fhandle.getOwner());
         Assert.assertFalse(fhandle.isEncrypted());
-        Assert.assertNotNull(fhandle.getCid());
+        Assert.assertNull(fhandle.getCid());
     }
 
     private void assertKeyEquals(PublicKey exp, PublicKey was) {
