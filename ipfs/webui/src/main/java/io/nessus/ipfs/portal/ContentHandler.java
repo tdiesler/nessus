@@ -90,7 +90,7 @@ public class ContentHandler implements HttpHandler {
     // The last executable job
     private Future<Address> lastJob;
 
-    ContentHandler(WebUIConfig config) throws Exception {
+    ContentHandler(String appName, WebUIConfig config) throws Exception {
     	
         blockchain = config.getBlockchain();
         network = blockchain.getNetwork();
@@ -111,6 +111,8 @@ public class ContentHandler implements HttpHandler {
         jaxrsClient = new JAXRSClient(jaxrsUrl);
         LOG.info("Nessus JAXRS: {}", jaxrsUrl);
 
+        LOG.info("{} WebUI: {}", appName, config.getWebUiUrl());
+        
         ve = new VelocityEngine();
         ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
         ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
@@ -163,7 +165,7 @@ public class ContentHandler implements HttpHandler {
         String tmplPath = null;
         VelocityContext context = new VelocityContext();
         context.put("implVersion", WebUI.getImplVersion());
-        context.put("implBuild", WebUI.getImplBuild());
+        context.put("implBuild", WebUI.getImplBuild() != null ? WebUI.getImplBuild() : "");
 
         try {
 
@@ -327,7 +329,7 @@ public class ContentHandler implements HttpHandler {
 
         jaxrsClient.registerAddress(rawAddr);
 
-        redirectFileList(exchange, rawAddr);
+        redirectHomePage(exchange);
     }
 
     private void actUnregisterAddress(HttpServerExchange exchange, VelocityContext context) throws Exception {
@@ -440,7 +442,7 @@ public class ContentHandler implements HttpHandler {
     private String pageError(VelocityContext context, Throwable th) {
 
         String errmsg = th.getMessage();
-        if (errmsg.length() == 0) 
+        if (errmsg == null || errmsg.length() == 0) 
             errmsg = th.toString();
         
         if (th instanceof BitcoinRPCException) {

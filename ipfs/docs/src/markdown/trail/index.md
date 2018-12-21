@@ -17,7 +17,9 @@ Without further ado, lets dive right into what we have here ...
 
 Our first actor is Bob. He has heard about what [Nessus](https://github.com/jboss-fuse/nessus) is doing with IPFS and would like to give Mary, who we will meet later, an encrypted copy of his medical records. For ensurance reasons, he needs proof that Mary has been given access to these records by a certain date. Needless to say, he does not want anybody else, but Mary, to be able to access these records.
 
-Bob visits Nessus here: [http://95.179.128.71:8082/portal](http://95.179.128.71:8082/portal)
+Bob visits Nessus here: [http://95.179.182.138:8082/portal](http://95.179.182.138:8082/portal)
+
+In the footer you see some information about this version, the current block in the blockchain and the IPFS peer identity.
 
 ![bob-home-01](img/bob-home-01.png)
 
@@ -32,16 +34,16 @@ Here we can create a new address for Bob.
 Is the list of addresses that Bob's wallet knows about. Initially, we see the single default address that we just created. 
 This address has no funds yet.
 
-Bob's balance should show up on the explorer like [this](https://live.blockcypher.com/btc-testnet/address/mjaktrgwfTteDUtotiAmT1QULd75c1gHmf)
+Bob's balance should show up on the explorer like [this](https://live.blockcypher.com/btc-testnet/address/n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE)
 
 #### Import Key
 
-Here we can import existing addresses from people we want to send files to.
+Here we can also import existing addresses from people we want to send files to.
 
 ### Give Bob some coin
 
 When the demo records stuff on the blockchain it will have to pay network fees and a small amount for every data record.
-Hence, giving Bob some coin from a [testnet faucet](http://bitcoinfaucet.uo1.net/send.php) is plenty for this demo.
+Giving Bob some coin from a [testnet faucet](http://bitcoinfaucet.uo1.net/send.php) is plenty for this demo.
 
 ![bob-home-03](img/bob-home-03.png)
 
@@ -53,11 +55,12 @@ We register the Nessus public encryption key by clicking on __register__.
 
 ![bob-home-04](img/bob-home-04.png)
 
-We can head over to the block exporer and look at Tx: [76a6341ea40d101912e4ab59f48ed356cb995eac23164482d84f0b2b7441d922](https://live.blockcypher.com/btc-testnet/tx/76a6341ea40d101912e4ab59f48ed356cb995eac23164482d84f0b2b7441d922/)
+We can head over to the block exporer and look at Tx: [66c636d9e00d31a5dadbe7aec8dd4f8dcaf0b4245b3681795a16f4a9c2a0d9b8](https://live.blockcypher.com/btc-testnet/tx/66c636d9e00d31a5dadbe7aec8dd4f8dcaf0b4245b3681795a16f4a9c2a0d9b8/)
 
 ### Bob adds his medical records
 
-By clicking on one of Bob's addresses, we come to a page that lists the file content stored on IPFS. At this stage, the list is empty. Please note, that this does actually not query the IPFS network. Instead it queries the blockchain for references to IPFS files associated with this address.
+By clicking on one of Bob's addresses, we come to a page that lists local and IPFS file content. At this stage, the list is empty. 
+Please note, that this does actually not query the IPFS network. Instead it queries the blockchain for references to IPFS files associated with this address.
 
 ![bob-list-01](img/bob-list-01.png)
 
@@ -79,22 +82,33 @@ We are back on the page that lists Bob's IPFS content and voila, we see the IPFS
 
 ![bob-list-02](img/bob-list-02.png)
 
-We can now click on the IPFS content ID to see the encrypted content as it is known to IPFS.
+We can now right click on the IPFS content ID to __show__ the encrypted content as it is known to IPFS.
 
-    Nessus-Version: 1.0
-    Path: Bob/file01.txt
-    Owner: mjaktrgwfTteDUtotiAmT1QULd75c1gHmf
-    Token: BA2o3ekuTMinR6NXBDQyjLoalY+YLuems5r+XjuMshntLxUFhX01ANLWtGCDIVJFHoACLAbp/I2rzavmLiAo++TLbpuW
-    NESSUS_HEADER_END
-    AAAADEpH9tHUBp2rH1R53VjbnDRS4SxENDnWpYcIK4VAwK38NdjZ8bWgkwtFJWbj/RZgY31lCIVQYu6Dq8UhnIVU
+	Nessus-Version: 1.0
+	Path: Bob/file01.txt
+	Owner: n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE
+	Token: ZQDXCcSwmWWX...Ejr4v1A==
+	NESSUS_HEADER_END
+	AAAADIJbhvZ7VBqW1Nk6qAu/WhaRkCPzx5pqdUCSOb7cLjF0s/LNZhDnXCuEwGTH7dzstk2bn8BTGX7bK2hkXnZv
 
+A right click on the local content can __show__ us the plain file content stored in our workspace.
+
+![bob-show-01](img/bob-show-01.png)
+
+All plain content is mapped to host's file system like this. 
+This is also where you can move your stuff too so that it can later be encrypted and uploaded to IPFS.
+
+	$ cat ~/.nessus/plain/n3ha6rJa8ZS7B4v4vwNWn8CnLHfUYXW1XE/Bob/userfile.txt 
+	The quick brown fox jumps over the lazy dog.
+	
 ### Bob decrypts his medical record
 
 On the IPFS file list, we can also __get__ encrypted content from IPFS and save a decrypted copy locally
 
-The Nessus app can then __show__ us the decrypted content.
+![bob-show-01](img/bob-get-01.png)
 
-![bob-show-01](img/bob-show-01.png)
+On __get__ the content owner can remap the content to a differnt path. Nessus does (by default) not allow to overwrite already existing paths. 
+No problem, local content can also easily be __removed__ before the IPFS __get__. 
 
 ### Bob imports Mary's address
 
@@ -103,6 +117,8 @@ Bob imports Mary's address like this
 ![bob-home-05](img/bob-home-05.png)
 
 Because Bob does not own Mary's private key, this is a "watch only" address. It allows Bob's wallet to see Mary's transactions - specifically her public encryption key.
+Import is a potentially not-so-swift ansynchronous operation on the blockchain wallet. This is because the wallet needs to scan the blockchain to find unspent transaction outputs
+(UTXO) that belong to the imported address. Eventually, Mary's address will show up like this ...
 
 ![bob-home-06](img/bob-home-06.png)
 
@@ -118,9 +134,15 @@ She can visit Nessus here: [http://127.0.0.1:8082/portal](http://127.0.0.1:8082/
 
 ### Bob sends his medical record to Mary
 
-Bob can now head over to his file list and click on __send__.
+Bob can now head over to his file list and click on __send__. This works for single files and entire directories of IPFS content.
 
 ![bob-send-01](img/bob-send-01.png)
+
+On the next screen bob can select Mary as the target destination. Specifically, Bob's can select any address for which his wallet has found UTXO 
+for an address registration. Unregistering an address spends that output and all wallets that have imported that address will no longer have that 
+destination available.
+
+![bob-send-02](img/bob-send-02.png)
 
 ### Mary gets Bob's medical record
 

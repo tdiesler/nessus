@@ -126,6 +126,19 @@ public class DefaultContentManager implements ContentManager {
         LOG.info("{}{}", getClass().getSimpleName(), config);
     }
 
+    public DefaultContentManager(IPFSClient ipfsClient, Blockchain blockchain, ContentManagerConfig config) {
+    	this.ipfsClient = ipfsClient;
+    	this.blockchain = blockchain;
+    	this.config = config;
+
+        network = blockchain.getNetwork();
+        wallet = blockchain.getWallet();
+        
+        fhvals = getFHeaderValues();
+        ahmgr = new AHandleManager(this);
+        fhmgr = new FHandleManager(this);
+    }
+
     public ContentManagerConfig getConfig() {
         return config;
     }

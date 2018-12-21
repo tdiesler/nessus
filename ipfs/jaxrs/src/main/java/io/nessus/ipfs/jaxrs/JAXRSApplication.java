@@ -56,8 +56,8 @@ public class JAXRSApplication extends Application {
 
     private static final Logger LOG = LoggerFactory.getLogger(JAXRSApplication.class);
 
-    static final String implVersion;
-    static final String implBuild;
+    private static final String implVersion;
+    private static final String implBuild;
     
     static {
         try (InputStream ins = JAXRSApplication.class.getResourceAsStream("/" + JarFile.MANIFEST_NAME)) {
@@ -83,20 +83,31 @@ public class JAXRSApplication extends Application {
     public JAXRSApplication(JAXRSConfig config) throws Exception {
         AssertArgument.assertNotNull(config,  "Null config");
         
-        LOG.info("Nessus Version: {} Build: {}", implVersion, implBuild);
+        String buildNumber = getImplBuild() != null ? "Build: " + getImplBuild() : "";
+        LOG.info("Nessus Version: {} {}", getImplVersion(), buildNumber);
         
-        cntManager = new DefaultContentManager(config);
-        
-        Blockchain blockchain = cntManager.getBlockchain();
+        Blockchain blockchain = config.getBlockchain();
         JAXRSClient.logBlogchainNetworkAvailable(blockchain.getNetwork());
         
-        IPFSClient ipfsClient = cntManager.getIPFSClient();
+        IPFSClient ipfsClient = config.getIPFSClient();
         LOG.info("IPFS PeerId: {}",  ipfsClient.getPeerId());
         LOG.info("IPFS Address: {}",  ipfsClient.getAPIAddress());
         LOG.info("IPFS Version: {}",  ipfsClient.version());
+        
+        cntManager = new DefaultContentManager(ipfsClient, blockchain, config);
+        LOG.info("DefaultContentManager{}", config);
 
         INSTANCE = this;
     }
+
+    static String getImplVersion() {
+		return implVersion;
+	}
+
+	static String getImplBuild() {
+		boolean snapshot = implVersion != null && implVersion.endsWith("SNAPSHOT");
+		return snapshot ? implBuild : null;
+	}
 
     public static JAXRSServer serverStart(JAXRSConfig config) throws Exception {
         

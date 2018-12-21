@@ -40,6 +40,8 @@
                     <pegdownExtensions>FENCED_CODE_BLOCKS</pegdownExtensions>
 
                     <!--
+                    	Update the main README.md with the generated content id
+                    	
                         $ ipfs add -r ipfs/docs/target/docs/html
                         ...
                         added QmdJe74VJAfW3JFKBMgfZGPQ1Jnp8YHp6k8uepA3Rztdd8 html

@@ -1,32 +1,36 @@
 Release Notes
 -------------------
 
-Nessus 1.0.0 Beta2 is the next public beta that provides a nuber of new features both for blockchain and IPFS.
+Nessus 1.0.0 Beta3 is a major upgrade to our blockchain + [IPFS](https://ipfs.io/#why) functionality.   
+ 
+In good IPFS style, we provide a walk through the functionality here: [TODO]
+ 
+Most noteworthy new features are ...
 
-* [#15][15] Provide nessus as a camel component 
-* [#34][34] Add support for smart network fees
-* [#54][54] Add JSON RPC API for IPFS content manager
-* [#55][55] Add demo webapp as user interface
-* [#56][56] Provide docker image for the bitcoin testnet
-* [#59][59] Add a payment QR code for new addresses
-* [#64][64] Allow to unregister address and IPFS content
-* [#66][66] Allow to unregister address/IPFS through GUI
-* [#67][67] Make rescan parameter dependent on blockchain config
-* [#71][71] Allow better abstraction and branding of WebUI
+* [#69][69] Add support for directory upload
+* [#83][83] Replace file lists with tree views
+* [#105][105] Make address registration idempotent
+* [#36][36] Make encrypted IPFS content deterministic
+* [#95][95] Add support for registered user meta data
+* [#111][111] Provide a data only blockstore image
+* [#121][121] Provide direct IPFS access in UI layer
+
+Nessus is the basis for blockchain + IPFS functionality in 
+
+* [Apache Camel](http://camel.apache.org/)
+* [WildFly-Camel](http://wildfly-extras.github.io/wildfly-camel/) 
+* [Aegeus](https://aegeus.io/) 
 
 In addition to that, we also resolved a number of other [tasks and bugs](https://github.com/jboss-fuse/nessus/blob/master/docs/Changelog.md).
 
-For details please see the [1.0.0 Beta2 Milestone](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A%221.0.0+Beta2%22).
+For details please see the [1.0.0 Beta3 Milestone](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A%221.0.0+Beta3%22).
 
 Enjoy
 
-[15]: https://github.com/jboss-fuse/nessus/issues/15
-[34]: https://github.com/jboss-fuse/nessus/issues/34
-[54]: https://github.com/jboss-fuse/nessus/issues/54
-[55]: https://github.com/jboss-fuse/nessus/issues/55
-[56]: https://github.com/jboss-fuse/nessus/issues/56
-[59]: https://github.com/jboss-fuse/nessus/issues/59
-[64]: https://github.com/jboss-fuse/nessus/issues/64
-[66]: https://github.com/jboss-fuse/nessus/issues/66
-[67]: https://github.com/jboss-fuse/nessus/issues/67
-[71]: https://github.com/jboss-fuse/nessus/issues/71
+[36]: https://github.com/jboss-fuse/nessus/issues/36
+[69]: https://github.com/jboss-fuse/nessus/issues/69
+[83]: https://github.com/jboss-fuse/nessus/issues/83
+[95]: https://github.com/jboss-fuse/nessus/issues/95
+[105]: https://github.com/jboss-fuse/nessus/issues/105
+[111]: https://github.com/jboss-fuse/nessus/issues/111
+[121]: https://github.com/jboss-fuse/nessus/issues/121

@@ -37,7 +37,7 @@ docker run --detach \
     --link ipfs:ipfs \
     --link jaxrs:jaxrs \
     --link btcd:blockchain \
-    --memory=50m --memory-swap=2g \
+    --memory=100m --memory-swap=2g \
     --name webui \
     nessusio/ipfs-webui
 
@@ -69,7 +69,6 @@ docker run --detach \
     --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
     --env NESSUS_WEBUI_LABEL=$LABEL \
-    --memory=50m --memory-swap=2g \
     --name webui \
     nessusio/ipfs-webui
 

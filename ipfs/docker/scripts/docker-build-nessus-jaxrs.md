@@ -39,7 +39,7 @@ docker run --detach \
     --link ipfs:ipfs \
     --link btcd:blockchain \
     --privileged  -v ~/.nessus/plain:/root/.nessus/plain \
-    --memory=50m --memory-swap=2g \
+    --memory=100m --memory-swap=2g \
     --name jaxrs \
     nessusio/ipfs-jaxrs
 
@@ -62,7 +62,7 @@ This assumes you have the Blockchain and IPFS instances already running on your 
 # Regtest: 18443
 
 export LOCALIP=192.168.178.20
-export RPCPORT=18443
+export RPCPORT=18332
 
 docker rm -f jaxrs
 docker run --detach \
@@ -74,7 +74,6 @@ docker run --detach \
     --env BLOCKCHAIN_JSONRPC_PORT=$RPCPORT \
     --env BLOCKCHAIN_JSONRPC_USER=rpcusr \
     --env BLOCKCHAIN_JSONRPC_PASS=rpcpass \
-    --memory=50m --memory-swap=2g \
     --name jaxrs \
     nessusio/ipfs-jaxrs
     

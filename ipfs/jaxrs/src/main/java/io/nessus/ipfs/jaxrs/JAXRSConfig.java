@@ -11,7 +11,11 @@ import io.nessus.utils.SystemUtils;
 
 public final class JAXRSConfig extends ContentManagerConfig {
 
-    public static final String DEFAULT_JAXRS_CONTEXT_PATH = "/nessus";
+    public static final String ENV_NESSUS_JAXRS_ADDR = "NESSUS_JAXRS_ADDR";
+    public static final String ENV_NESSUS_JAXRS_PORT = "NESSUS_JAXRS_PORT";
+    public static final String ENV_NESSUS_JAXRS_CONTEXT_PATH = "NESSUS_JAXRS_CONTEXT_PATH";
+    
+    public static final String DEFAULT_JAXRS_CONTEXT_PATH = "nessus";
     public static final String DEFAULT_JAXRS_HOST = "0.0.0.0";
 	public static final int DEFAULT_JAXRS_PORT = 8081;
 
@@ -38,12 +42,15 @@ public final class JAXRSConfig extends ContentManagerConfig {
     public URL getJaxrsUrl() throws MalformedURLException {
         
         if (DEFAULT_JAXRS_HOST.equals(jaxrsHost))
-            jaxrsHost = SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_ADDR, jaxrsHost);
+            jaxrsHost = SystemUtils.getenv(ENV_NESSUS_JAXRS_ADDR, jaxrsHost);
         
         if (DEFAULT_JAXRS_PORT == jaxrsPort)
-            jaxrsPort = Integer.parseInt(SystemUtils.getenv(JAXRSConstants.ENV_NESSUS_JAXRS_PORT, "" + jaxrsPort));
+            jaxrsPort = Integer.parseInt(SystemUtils.getenv(ENV_NESSUS_JAXRS_PORT, "" + jaxrsPort));
         
-        return new URL(String.format("http://%s:%s/nessus", jaxrsHost, jaxrsPort));   
+        if (DEFAULT_JAXRS_CONTEXT_PATH == jaxrsPath) 
+        	jaxrsPath = SystemUtils.getenv(ENV_NESSUS_JAXRS_CONTEXT_PATH, "" + jaxrsPath);
+        
+        return new URL(String.format("http://%s:%s/%s", jaxrsHost, jaxrsPort, jaxrsPath));   
     }
     
     public String toString() {
