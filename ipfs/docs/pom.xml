@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.nessus</groupId>
         <artifactId>nessus-ipfs</artifactId>
-        <version>1.0.0.Beta3</version>
+        <version>1.0.0.Beta4-SNAPSHOT</version>
     </parent>
 
     <artifactId>nessus-ipfs-docs</artifactId>
@@ -44,7 +44,7 @@
                     	
                         $ ipfs add -r ipfs/docs/target/docs/html
                         ...
-                        added Qme2KYUu1F38PBZNtQ3ovpvFGQ39N5KgQ7eFcUNSwQtKyg html
+                        added Qmac3JJcAVJFaKsUcgQFGy3mxXSt2mcZdLhMh3eEpvLJB5 html
                     -->
                 </configuration>
             </plugin>
