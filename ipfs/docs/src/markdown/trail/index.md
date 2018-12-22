@@ -130,7 +130,7 @@ Please note, that if Bob is not using a full blockchain node which would allow r
 While Bob has setup his instance on a VPS. Mary has done so on her MacBook. 
 She can visit Nessus here: [http://127.0.0.1:8082/portal](http://127.0.0.1:8082/portal)
 
-![marry-home-01](img/marry-home-01.png)
+![mary-home-01](img/mary-home-01.png)
 
 ### Bob sends his medical record to Mary
 
@@ -146,22 +146,26 @@ destination available.
 
 ### Mary gets Bob's medical record
 
-After a while Mary's wallet sees the tranasaction on the Nessus network and Mary's IPFS node will be able to see the IPFS file.
+After a while Mary's wallet sees the transaction on the Nessus network and Mary's IPFS node will be able to see the IPFS file.
 
-![marry-list-01](img/marry-list-01.png)
+![mary-list-01](img/mary-list-01.png)
 
 ### Mary decrypts Bob's medical record
 
 Mary (and only Mary) can now get/decrypt that IPFS file.
 
-![marry-list-02](img/marry-list-02.png)
+![mary-get-01](img/mary-get-01.png)
+
+Bob's decrypted medical records now show up on Mary's local file list. 
+
+![mary-list-02](img/mary-list-02.png)
 
 ### Mary takes a look at the content
 
 The previous __get__ has first transferred the encrypted file to Mary's local storage and then decrypted it.
-Marr can now click __show__ on the decrypted file to view the content.
+Mary can now click __show__ on the decrypted file to view the content.
 
-![marry-show-01](img/marry-show-01.png)
+![mary-show-01](img/mary-show-01.png)
 
 ### Finally
 

@@ -1,7 +1,7 @@
 ## Build the Nessus WebUI image
 
 ```
-export NVERSION=1.0.0.Beta3-SNAPSHOT
+export NVERSION=1.0.0.Beta3
 
 rm -rf docker
 mkdir -p docker

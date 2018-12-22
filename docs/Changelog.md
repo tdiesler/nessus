@@ -5,7 +5,7 @@
 **Features**
 
 * [#30][30] Add abstractions for blockchain, network and wallet
-* [#36][36] Make encrypted IPFS content id deterministic
+* [#36][36] Make encrypted IPFS content deterministic
 * [#69][69] Add support for directory upload
 * [#83][83] Replace file lists with tree views
 * [#85][85] Allow docker process to access plain files on host
@@ -66,6 +66,9 @@ For details see [1.0.0 Beta3 tasks](https://github.com/jboss-fuse/nessus/issues?
 * [#115][115] Unregister address does not remove ipfs content
 * [#116][116] Cannot add local content repeatedly
 * [#118][118] Multiple threads may fetch same content id
+* [#124][124] NPE in error page may result in empty screen
+* [#125][125] Sending content may assign incorrect owner
+* [#126][126] Threads may try to get already removed content
 
 For details see [1.0.0 Beta3 bugs](https://github.com/jboss-fuse/nessus/issues?q=milestone%3A"1.0.0+Beta3"+label%3Abug)
 
@@ -121,6 +124,9 @@ For details see [1.0.0 Beta3 bugs](https://github.com/jboss-fuse/nessus/issues?q
 [115]: https://github.com/jboss-fuse/nessus/issues/115
 [116]: https://github.com/jboss-fuse/nessus/issues/116
 [118]: https://github.com/jboss-fuse/nessus/issues/118
+[124]: https://github.com/jboss-fuse/nessus/issues/124
+[125]: https://github.com/jboss-fuse/nessus/issues/125
+[126]: https://github.com/jboss-fuse/nessus/issues/126
 
 #### Nessus 1.0.0 Beta2
 

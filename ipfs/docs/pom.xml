@@ -44,7 +44,7 @@
                     	
                         $ ipfs add -r ipfs/docs/target/docs/html
                         ...
-                        added QmdJe74VJAfW3JFKBMgfZGPQ1Jnp8YHp6k8uepA3Rztdd8 html
+                        added Qme2KYUu1F38PBZNtQ3ovpvFGQ39N5KgQ7eFcUNSwQtKyg html
                     -->
                 </configuration>
             </plugin>

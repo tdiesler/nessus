@@ -5,7 +5,7 @@ In its initial state we looked at the combination of Blockchain and IPFS.
 
 ![preview](ipfs/docs/src/markdown/trail/img/bob-list-02-small.png)
 
-A full walk through of the Blockchain + IPFS demo is here: [QmdJe74VJAfW3JFKBMgfZGPQ1Jnp8YHp6k8uepA3Rztdd8](https://ipfs.io/ipfs/QmdJe74VJAfW3JFKBMgfZGPQ1Jnp8YHp6k8uepA3Rztdd8)
+A full walk through of the Blockchain + IPFS demo is here: [Qme2KYUu1F38PBZNtQ3ovpvFGQ39N5KgQ7eFcUNSwQtKyg](https://ipfs.io/ipfs/Qme2KYUu1F38PBZNtQ3ovpvFGQ39N5KgQ7eFcUNSwQtKyg)
 
 ### The Nessus Docker images
 
