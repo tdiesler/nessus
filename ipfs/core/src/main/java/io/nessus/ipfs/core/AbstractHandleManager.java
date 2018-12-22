@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -38,116 +39,62 @@ abstract class AbstractHandleManager<T extends AbstractHandle> {
 
 	protected final DefaultContentManager cntmgr;
 	protected final TxDataHandler dataHandler;
+	protected final Executor executor;
     
-	private final ExecutorService executorService;
-	private final List<Multihash> scheduled = new ArrayList<>();
-	
-	static abstract class WorkerFactory<T extends AbstractHandle> {
+	private static ExecutorService executorService;
+
+	interface WorkerFactory<T extends AbstractHandle> {
 		
-		abstract Class<T> getType();
+		Class<T> getType();
 		
-		abstract Callable<T> newWorker(T handle);
+		Callable<T> newWorker(T handle);
 	}
 	
 	AbstractHandleManager(DefaultContentManager cntmgr) {
 		this.cntmgr = cntmgr;
 		
+		if (executorService == null) {
+            int ipfsThreads = cntmgr.getConfig().getIpfsThreads();
+            executorService = Executors.newFixedThreadPool(ipfsThreads, new ThreadFactory() {
+                AtomicInteger count = new AtomicInteger();
+                public Thread newThread(Runnable run) {
+                    return new Thread(run, "ipfs-pool-" + count.incrementAndGet());
+                }
+            });
+		}
+
 		FHeaderValues fhvals = cntmgr.getFHeaderValues();
         dataHandler = new TxDataHandler(fhvals);
-        
-        int ipfsThreads = cntmgr.getConfig().getIpfsThreads();
-        executorService = Executors.newFixedThreadPool(ipfsThreads, new ThreadFactory() {
-            AtomicInteger count = new AtomicInteger();
-            public Thread newThread(Runnable run) {
-                return new Thread(run, "ipfs-pool-" + count.incrementAndGet());
-            }
-        });
+        executor = new Executor();
 	}
 
 	List<T> findContentAsync(Address owner, WorkerFactory<T> factory, long timeout) {
 		
 		Class<T> type = factory.getType();
-		boolean isAddr = type == AHandle.class;
-		String prefix = isAddr ? "IPFS Addr" : "IPFS";
-		
+        
 		// Get all unspent handles for a given type
 		
         List<T> handles = listUnspentHandles(owner, type);
         
-        // Filter out available and expired handles 
+        // Process the workload asynchronously
         
-        List<T> missing = getMissingHandles(handles, type);
+        Future<Integer> future = executor.process(owner, handles, factory, timeout);
         
-        // Filter out handles that are already scheduled 
-        
-        List<T> filtered;
-        synchronized (scheduled) {
-            filtered = getUnscheduledHandles(missing);
-			scheduled.addAll(getCids(filtered));
+        int missing = -1;
+		try {
+			missing = future.get(timeout, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException | ExecutionException ex) {
+			LOG.error("{} error", getLogPrefix(type), ex);
+		} catch (TimeoutException ex) {
+			// ignore
 		}
-        
-        // Submit an async task that iterates over the filtered handles
-        
-        if (!filtered.isEmpty()) {
-        	
-        	Future<Integer> future = executorService.submit(new Callable<Integer>() {
 
-				@Override
-				public Integer call() {
-					
-    		        List<T> missing = getMissingHandles(filtered, type);
-    				for (T fh : missing) {
-    					LOG.info("{} submit: {}", prefix, fh);
-    				}
-    		        
-    				Map<Multihash, Future<T>> futures = new HashMap<>();
-    				
-    		        while (!missing.isEmpty()) {
-    		        	
-        				for (T fh : missing) {
-        					Future<T> submit = futures.get(fh.getCid());
-        					if (submit == null || submit.isDone()) {
-            					Callable<T> worker = factory.newWorker(fh);
-            					submit = executorService.submit(worker);
-            					futures.put(fh.getCid(), submit);
-        					}
-        				}
-    		        	
-        				try {
-							Thread.sleep(500L);
-						} catch (InterruptedException e) {
-							break;
-						}
-        				
-    		        	missing = getMissingHandles(filtered, type);
-    		        }
-    		        
-    	            synchronized (scheduled) {
-    	                scheduled.removeAll(getCids(filtered));
-    				}
-    	            
-    	            return missing.size();
-				}
-            });
-        	
-        	try {
-        		
-        		Integer result = future.get(timeout, TimeUnit.MILLISECONDS);
-        		if (result > 0) LOG.info("{} still missing: {}", prefix, result);
-        		
-			} catch (InterruptedException | ExecutionException ex) {
-				
-				LOG.error("{} error", prefix, ex);
-				
-			} catch (TimeoutException e) {
-				// ignore
-			}
-        }
-
+		if (missing > 0)
+			LOG.error("{} still missing: {}", getLogPrefix(type), missing);
+		
         // Get the current handles for the wanted cids
         
         List<Multihash> cids = getCids(handles);
-        
         List<T> result = getCurrentHandles(cids, type);
         
 		return result;
@@ -308,12 +255,142 @@ abstract class AbstractHandleManager<T extends AbstractHandle> {
         return result;
     }
 
-    private List<T> getUnscheduledHandles(List<T> fhandles) {
+	private String getLogPrefix(Class<T> type) {
+		boolean isAddr = type == AHandle.class;
+		return isAddr ? "IPFS Addr" : "IPFS";
+	}
+
+    class Executor {
     	
-    	List<T> result = fhandles.stream()
-            .filter(fh -> !scheduled.contains(fh.getCid()))
-	        .collect(Collectors.toList());
-    	
-    	return result;
+    	final Set<Multihash> scheduled = new HashSet<>();
+
+    	Future<Integer> process(Address owner, List<T> handles, WorkerFactory<T> factory, long timeout) {
+    		
+    		Class<T> type = factory.getType();
+    		String prefix = getLogPrefix(type);
+    		
+            // Filter out available and expired handles 
+            
+            List<T> missing = getMissingHandles(handles, type);
+            
+            // Filter out handles that are already scheduled 
+            
+            List<T> unscheduled;
+    		synchronized (scheduled) {
+    			unscheduled = getUnscheduledHandles(missing);
+    			scheduled.addAll(getCids(unscheduled));
+    		}
+        		
+            // Log some scheduling stats
+    		
+            if (missing.size() > 0)
+            	LOG.info("{} finding: [utxo={}, missing={}, schedule={}]", prefix, handles.size(), missing.size(), unscheduled.size());
+            
+            // For each unscheduled handle we create a task that keeps trying to get the 
+            // content until it is no longer missing (i.e. either available or expired)
+            
+            long shortNap = 500L;
+            
+			for (T fh : unscheduled) {
+				
+				Multihash cid = fh.getCid();
+				LOG.info("{} submit: {}", prefix, fh);
+				
+				executorService.submit(new Callable<Boolean>() {
+
+					@Override
+					public Boolean call() throws Exception {
+						
+						try {
+							
+							Future<T> submit = null;
+							
+							T aux = getUnspentHandle(owner, cid, type);
+							
+							while (aux != null && aux.isMissing()) {
+								
+								if (submit == null || submit.isDone()) {
+		        					Callable<T> worker = factory.newWorker(aux);
+		        					submit = executorService.submit(worker);
+								}
+								
+	            				try {
+	        						Thread.sleep(shortNap);
+	        					} catch (InterruptedException e) {
+	        						break;
+	        					}
+	            				
+	            				// The UTXO may have been spent in the meantime
+	            				
+								aux = getUnspentHandle(owner, cid, type);
+							}
+							
+						} finally {
+							synchronized (scheduled) {
+								scheduled.remove(cid);
+							}
+						}
+						
+						return fh.isAvailable();
+					}
+				});
+			}
+
+			Future<Integer> future = executorService.submit(new Callable<Integer>() {
+
+				Map<Multihash, Integer> attempts = new HashMap<>();
+				
+				@Override
+				public Integer call() throws Exception {
+					
+					// Record the curremt number of attempts for all missing handles
+					missing.forEach(fh -> attempts.put(fh.getCid(), fh.getAttempt()));
+										
+					while(!completed()) {
+						try {
+							Thread.sleep(shortNap);
+						} catch (InterruptedException e) {
+							break;
+						}
+					}
+					
+					List<T> todos = getMissingHandles(missing, type);
+					return todos.size();
+				}
+				
+				boolean completed() {
+					
+					List<T> todos = getMissingHandles(missing, type);
+					
+					if (!todos.isEmpty()) {
+						
+						// Filter from todos when the next attempt has completed
+						
+						todos = todos.stream()
+							.filter(fh -> {
+						    	IPFSCache ipfsCache = cntmgr.getIPFSCache();
+								T fhaux = ipfsCache.get(fh.getCid(), type);
+								int lastAtt = attempts.get(fh.getCid());
+								int currAtt = fhaux.getAttempt();
+								return lastAtt == currAtt; 
+							})
+							.collect(Collectors.toList());
+					}
+					
+					return todos.isEmpty();
+				}
+			});
+
+			return future;
+		}
+
+        private List<T> getUnscheduledHandles(List<T> fhandles) {
+        	
+        	List<T> result = fhandles.stream()
+                .filter(fh -> !scheduled.contains(fh.getCid()))
+    	        .collect(Collectors.toList());
+        	
+        	return result;
+        }
     }
 }

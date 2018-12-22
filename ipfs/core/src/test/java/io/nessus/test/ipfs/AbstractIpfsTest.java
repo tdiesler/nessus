@@ -116,8 +116,7 @@ public class AbstractIpfsTest extends AbstractBitcoinTest {
 
     FHandle findIpfsContent(Address addr, Multihash cid, Long timeout) throws Exception {
         List<FHandle> fhandles = cntmgr.findIpfsContent(addr, timeout);
-        FHandle fhandle  = fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().get();
-        return fhandle;
+        return fhandles.stream().filter(fh -> fh.getCid().equals(cid)).findFirst().orElse(null);
     }
 
     List<FHandle> flatFileTree(FHandle fh, List<FHandle> result) {

@@ -99,11 +99,7 @@ public class AHandleManager extends AbstractHandleManager<AHandle> {
         
         // Fetch the content from IPFS
         
-        int attempt = ahres.getAttempt() + 1;
-		ahres = new AHBuilder(ahres)
-                .attempt(attempt)
-                .build();
-        
+        int attempt = ahres.getAttempt();
         LOG.info("{}: {}", logPrefix("attempt", attempt),  ahres);
         
     	long before = System.currentTimeMillis();
@@ -147,6 +143,7 @@ public class AHandleManager extends AbstractHandleManager<AHandle> {
             long elapsed = System.currentTimeMillis() - before;
             ahres = new AHBuilder(ahres)
     				.elapsed(ahres.getElapsed() + elapsed)
+                    .attempt(ahres.getAttempt() + 1)
     				.build();
             
             ipfsCache.put(ahres);
@@ -162,12 +159,12 @@ public class AHandleManager extends AbstractHandleManager<AHandle> {
     	WorkerFactory<AHandle> factory = new WorkerFactory<AHandle>() {
 
 			@Override
-			Class<AHandle> getType() {
+			public Class<AHandle> getType() {
 				return AHandle.class;
 			}
 
 			@Override
-			Callable<AHandle> newWorker(AHandle fh) {
+			public Callable<AHandle> newWorker(AHandle fh) {
 				return new AsyncGetCallable(fh, timeout);
 			}
 		};

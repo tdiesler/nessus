@@ -55,13 +55,15 @@ This assumes you have the Blockchain and IPFS instances already running on your 
 # Regtest: 18443
 
 export LOCALIP=192.168.178.20
-export RPCPORT=18443
-export LABEL=Bob
+export RPCPORT=18332
+export LABEL=Mary
 
 docker rm -f webui
 docker run --detach \
     -p 8082:8082 \
     --link jaxrs:jaxrs \
+    --env IPFS_JSONRPC_ADDR=$LOCALIP \
+    --env IPFS_JSONRPC_PORT=5001 \
     --env IPFS_GATEWAY_ADDR=$LOCALIP \
     --env IPFS_GATEWAY_PORT=8080 \
     --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \

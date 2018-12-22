@@ -96,6 +96,9 @@ On bootstrap the bridge reports some connection properties.
 
 In this setup the Nessus UI is optional as well. Still, lets try to connect it to the JSON-RPC bridge and the Blockchain wallet  ...
 
+	# Testnet: 18332
+	# Regtest: 18443
+	
 	export LOCALIP=192.168.178.20
 	export RPCPORT=18443
     	export LABEL=Mary
@@ -103,6 +106,8 @@ In this setup the Nessus UI is optional as well. Still, lets try to connect it t
     	docker run --detach \
         -p 8082:8082 \
         --link jaxrs:jaxrs \
+	    --env IPFS_JSONRPC_ADDR=$LOCALIP \
+	    --env IPFS_JSONRPC_PORT=5001 \
         --env IPFS_GATEWAY_ADDR=$LOCALIP \
         --env IPFS_GATEWAY_PORT=8080 \
         --env BLOCKCHAIN_JSONRPC_ADDR=$LOCALIP \

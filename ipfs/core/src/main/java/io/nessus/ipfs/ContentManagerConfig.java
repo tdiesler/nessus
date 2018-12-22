@@ -11,7 +11,7 @@ public class ContentManagerConfig extends AbstractConfig {
 
     public static final long DEFAULT_IPFS_TIMEOUT = 6000; // 6 sec
     public static final int DEFAULT_IPFS_ATTEMPTS = 100; // 10 min
-    public static final int DEFAULT_IPFS_THREADS = 12;
+    public static final int DEFAULT_IPFS_THREADS = 24;
     
     @Option(name = "--ipfs-timeout", usage = "The maximum number of millis for IPFS operations")
     protected long ipfsTimeout = DEFAULT_IPFS_TIMEOUT;

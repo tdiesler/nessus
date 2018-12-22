@@ -56,7 +56,7 @@ public class AddrRegistrationTest extends AbstractIpfsTest {
         
         cntmgr.getIPFSCache().clear();
                     
-        AHandle ahC = cntmgr.findAddressRegistation(addrLui, 5000L);
+        AHandle ahC = cntmgr.findAddressRegistation(addrLui, 3000L);
         Assert.assertFalse(ahC.isAvailable());
         
         // Add the IPFS file
@@ -68,7 +68,7 @@ public class AddrRegistrationTest extends AbstractIpfsTest {
         
         cntmgr.getIPFSCache().clear();
                     
-        AHandle ahE = cntmgr.findAddressRegistation(addrLui, 10000L);
+        AHandle ahE = cntmgr.findAddressRegistation(addrLui, 3000L);
         Assert.assertTrue(ahE.isAvailable());
 
     	cntmgr.unregisterAddress(addrLui);
