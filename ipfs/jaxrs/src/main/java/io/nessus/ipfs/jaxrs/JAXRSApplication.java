@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import io.nessus.Blockchain;
 import io.nessus.ipfs.ContentManager;
-import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.client.IPFSClient;
 import io.nessus.ipfs.core.DefaultContentManager;
 import io.nessus.utils.AssertArgument;
 import io.undertow.Undertow;

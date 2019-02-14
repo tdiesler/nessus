@@ -56,7 +56,7 @@ import io.nessus.Network;
 import io.nessus.Wallet;
 import io.nessus.Wallet.Address;
 import io.nessus.ipfs.ContentManagerConfig;
-import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.client.IPFSClient;
 import io.nessus.ipfs.jaxrs.JAXRSClient;
 import io.nessus.ipfs.jaxrs.SAHandle;
 import io.nessus.ipfs.jaxrs.SFHandle;

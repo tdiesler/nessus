@@ -59,6 +59,7 @@
         <module>cipher</module>
         <module>ipfs</module>
         <module>demo</module>
+        <module>utils</module>
         <module>docs</module>
     </modules>
 

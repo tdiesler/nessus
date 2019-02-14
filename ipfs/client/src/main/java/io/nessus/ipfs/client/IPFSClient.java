@@ -1,4 +1,4 @@
-package io.nessus.ipfs;
+package io.nessus.ipfs.client;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +33,11 @@ import io.ipfs.multihash.Multihash;
 
 public interface IPFSClient {
 
+    MultiAddress DEFAULT_IPFS_ADDR = new MultiAddress("/ip4/127.0.0.1/tcp/5001");
+    
     Config getIpfsConfig();
+    
+    IPFSClient connect();
     
     MultiAddress getAPIAddress();
     

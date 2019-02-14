@@ -29,7 +29,7 @@ import org.junit.Before;
 
 import io.nessus.Wallet.Address;
 import io.nessus.bitcoin.AbstractBitcoinTest;
-import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.client.IPFSClient;
 import io.nessus.ipfs.jaxrs.JAXRSConfig;
 import io.nessus.ipfs.jaxrs.JAXRSConfig.JAXRSConfigBuilder;
 import io.nessus.utils.FileUtils;

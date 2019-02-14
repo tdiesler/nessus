@@ -1,4 +1,4 @@
-package io.nessus.ipfs;
+package io.nessus.ipfs.client;
 
 /*-
  * #%L

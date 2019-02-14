@@ -1,4 +1,6 @@
-package io.nessus.test.ipfs;
+package io.nessus.test.ipfs.client;
+
+import static io.nessus.ipfs.client.IPFSClient.DEFAULT_IPFS_ADDR;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,7 +38,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.ipfs.multihash.Multihash;
-import io.nessus.ipfs.core.DefaultIPFSClient;
+import io.nessus.ipfs.client.DefaultIPFSClient;
+import io.nessus.ipfs.client.IPFSClient;
 import io.nessus.utils.StreamUtils;
 
 /**
@@ -46,12 +49,11 @@ import io.nessus.utils.StreamUtils;
  */
 public class IPFSClientTest {
 
-    static DefaultIPFSClient client;
+    static IPFSClient client;
     
     @BeforeClass
     public static void beforeClass() throws IOException {
-        client = new DefaultIPFSClient();
-        
+        client = new DefaultIPFSClient(DEFAULT_IPFS_ADDR).connect();
         Path path = Paths.get("src/test/resources/html");
         List<Multihash> cids = client.add(path);
         Assert.assertEquals(10, cids.size());
@@ -60,7 +62,6 @@ public class IPFSClientTest {
     
     @Test
     public void version() throws Exception {
-        DefaultIPFSClient client = new DefaultIPFSClient();
         String version = client.version();
         Assert.assertTrue("Start with 0.4.x - " + version, version.startsWith("0.4."));
     }

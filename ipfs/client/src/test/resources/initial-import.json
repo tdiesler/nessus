@@ -1,0 +1,22 @@
+{
+    "wallet": {
+        "addresses": [
+           {
+                "privKey": "cVfiZLCWbCm3SWoBAToaCoMuYJJjEw5cR6ifuWQY1a5wadXynGC2",
+                "labels": [ "Bob" ]
+            },
+            {
+                "privKey": "cNcxxJvKRf2ToUrQnXVDQ2Vbbn3TyZoPZpfwjBt2wKDNoK5aCNYa",
+                "labels": [ "Bob", "(change)" ]
+            },
+            {
+                "privKey": "cMcT5vjU5UiF2mh8WE6EsD3YdFEuFuUKm6rCcA8UuR9FUS6VLeRx",
+                "labels": [ "Mary" ]
+            },
+            {
+                "privKey": "cTT6AV1D1yU5C9gpjmWuPHhvvHAd8UJvz9QDL7yYAdE68WtBZKmQ",
+                "labels": [ "Mary", "(change)" ]
+			}
+        ]
+    }
+}

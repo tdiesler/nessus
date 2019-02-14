@@ -1,4 +1,4 @@
-package io.nessus.cmd;
+package io.nessus.ipfs.client;
 
 /*-
  * #%L
@@ -21,13 +21,13 @@ package io.nessus.cmd;
  */
 
 @SuppressWarnings("serial")
-public class CmdLineException extends RuntimeException {
+public class IPFSNotFoundException extends IPFSException {
 
-    public CmdLineException(String message) {
+    public IPFSNotFoundException(String message) {
         super(message);
     }
     
-    public CmdLineException(String message, Throwable cause) {
+    public IPFSNotFoundException(String message, Throwable cause) {
         super(message, cause);
     }
 }

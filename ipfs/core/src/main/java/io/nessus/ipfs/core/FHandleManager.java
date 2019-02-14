@@ -47,10 +47,10 @@ import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.FHandle;
 import io.nessus.ipfs.FHandle.FHBuilder;
 import io.nessus.ipfs.FHandle.FHReference;
-import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.IPFSException;
-import io.nessus.ipfs.IPFSNotFoundException;
-import io.nessus.ipfs.IPFSTimeoutException;
+import io.nessus.ipfs.client.IPFSClient;
+import io.nessus.ipfs.client.IPFSException;
+import io.nessus.ipfs.client.IPFSNotFoundException;
+import io.nessus.ipfs.client.IPFSTimeoutException;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 

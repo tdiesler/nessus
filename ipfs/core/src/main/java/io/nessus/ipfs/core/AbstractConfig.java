@@ -8,7 +8,8 @@ import org.kohsuke.args4j.Option;
 import io.ipfs.multiaddr.MultiAddress;
 import io.nessus.Blockchain;
 import io.nessus.BlockchainFactory;
-import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.client.DefaultIPFSClient;
+import io.nessus.ipfs.client.IPFSClient;
 import io.nessus.utils.SystemUtils;
 
 public class AbstractConfig {
@@ -84,7 +85,7 @@ public class AbstractConfig {
 	public IPFSClient getIPFSClient () {
         MultiAddress ipfsAddr = getIpfsApiAddress();
         IPFSClient ipfsClient = new DefaultIPFSClient(ipfsAddr);
-        return ipfsClient;
+        return ipfsClient.connect();
 	}
 	
     public URL getBlockchainUrl() throws MalformedURLException {

@@ -1,4 +1,4 @@
-package io.nessus.ipfs.core;
+package io.nessus.ipfs.client;
 
 import java.io.ByteArrayOutputStream;
 
@@ -47,28 +47,20 @@ import io.ipfs.api.NamedStreamable.ByteArrayWrapper;
 import io.ipfs.api.NamedStreamable.FileWrapper;
 import io.ipfs.multiaddr.MultiAddress;
 import io.ipfs.multihash.Multihash;
-import io.nessus.ipfs.ContentManagerConfig;
-import io.nessus.ipfs.IPFSClient;
-import io.nessus.ipfs.IPFSException;
 import io.nessus.utils.AssertArgument;
 import io.nessus.utils.AssertState;
 import io.nessus.utils.StreamUtils;
-import io.nessus.utils.SystemUtils;
 
 public class DefaultIPFSClient implements IPFSClient {
 
     static final Logger LOG = LoggerFactory.getLogger(DefaultIPFSClient.class);
     
     private final MultiAddress addr;
-    private final IPFS ipfs;
+    
+    private IPFS ipfs;
     
     // Executor service for async get operations
     private final ExecutorService executorService;
-    
-    public DefaultIPFSClient() {
-        this(SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_JSONRPC_ADDR, "127.0.0.1"), 
-        		Integer.parseInt(SystemUtils.getenv(ContentManagerConfig.ENV_IPFS_JSONRPC_PORT, "5001")));
-    }
     
     public DefaultIPFSClient(String host, Integer port) {
         this(new MultiAddress("/ip4/" + host + "/tcp/" + port));
@@ -77,19 +69,22 @@ public class DefaultIPFSClient implements IPFSClient {
     public DefaultIPFSClient(MultiAddress addr) {
         this.addr = addr;
         
-        try {
-            ipfs = new IPFS(addr);
-        } catch (RuntimeException ex) {
-            LOG.error("Cannot connect to: " + addr);
-            throw ex;
-        }
-        
         executorService = Executors.newFixedThreadPool(12, new ThreadFactory() {
             AtomicInteger count = new AtomicInteger();
             public Thread newThread(Runnable run) {
                 return new Thread(run, "ipfs-client-" + count.incrementAndGet());
             }
         });
+    }
+
+    @Override
+    public IPFSClient connect() {
+        try {
+            ipfs = new IPFS(addr);
+            return this;
+        } catch (RuntimeException ex) {
+            throw new IPFSException(ex);
+        }
     }
 
     public IPFS getIpfs() {

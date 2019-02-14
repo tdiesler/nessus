@@ -41,7 +41,7 @@ import io.nessus.ipfs.AHandle;
 import io.nessus.ipfs.ContentManagerConfig;
 import io.nessus.ipfs.ContentManagerConfig.ContentManagerConfigBuilder;
 import io.nessus.ipfs.FHandle;
-import io.nessus.ipfs.IPFSClient;
+import io.nessus.ipfs.client.IPFSClient;
 import io.nessus.ipfs.core.AHandleManager;
 import io.nessus.ipfs.core.DefaultContentManager;
 import io.nessus.ipfs.core.FHandleManager;
