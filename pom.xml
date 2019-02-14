@@ -24,7 +24,7 @@
         <version.args4j>2.33</version.args4j>
         <version.bitcoinj>0.14.7</version.bitcoinj>
         <version.bouncycastle>1.59</version.bouncycastle>
-        <version.fasterxml.jackson>2.9.5</version.fasterxml.jackson>
+        <version.fasterxml.jackson>2.9.8</version.fasterxml.jackson>
         <version.ipfs>v1.2.2</version.ipfs>
         <version.ipfs.multihash>v1.1.0</version.ipfs.multihash>
         <version.io.undertow>2.0.15.Final</version.io.undertow>
