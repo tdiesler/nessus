@@ -1,7 +1,7 @@
 
 ## Vultr
 
-* Fedora 29 x64
+* CentOS 7
 * 1 vCPU
 * 1 GB RAM
 * 25 GB SSD

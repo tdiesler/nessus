@@ -7,7 +7,7 @@ rm -rf docker
 mkdir -p docker
 
 cat << EOF > docker/Dockerfile
-FROM fedora:28
+FROM centos:7
 
 RUN dnf -y install golang
 

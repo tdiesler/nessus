@@ -36,7 +36,7 @@ Verify that this works
 
 Then, verify that this also works from within docker
 
-    docker run -it --rm --entrypoint=bash nessusio/fedoraj
+    docker run -it --rm --entrypoint=bash centos
     curl --data-binary '{"method": "getblockcount"}' http://rpcusr:rpcpass@192.168.178.20:18332
 
 #### Bind the IPFS daemon to an external IP

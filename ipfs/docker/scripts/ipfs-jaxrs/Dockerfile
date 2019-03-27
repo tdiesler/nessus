@@ -1,4 +1,4 @@
-FROM nessusio/fedoraj:29
+FROM nessusio/centosj:7
 
 # Install the binaries
 COPY /maven/nessus-ipfs-dist-${project.version} nessus-ipfs-jaxrs

@@ -10,7 +10,7 @@ tar xzf nessus-ipfs-dist-$NVERSION-deps.tgz -C docker
 tar xzf nessus-ipfs-dist-$NVERSION-proj.tgz -C docker
 
 cat << EOF > docker/Dockerfile
-FROM nessusio/fedoraj:29
+FROM nessusio/centosj:7
 
 # Install the binaries
 COPY nessus-ipfs-dist-$NVERSION nessus-ipfs-jaxrs
