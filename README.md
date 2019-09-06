@@ -1,4 +1,4 @@
-blockstore## Welcome to Nessus Blockchain + IPFS
+## Welcome to Nessus Blockchain + IPFS
 
 The Nessus project is about exploring various Blockchain and related technologies.
 In its initial state we looked at the combination of Blockchain and IPFS. 
